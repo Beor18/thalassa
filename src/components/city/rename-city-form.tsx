@@ -14,6 +14,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
 
   return (
     <form
+      noValidate
       className="flex flex-col gap-1.5"
       onSubmit={(e) => {
         e.preventDefault();

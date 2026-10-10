@@ -30,7 +30,8 @@ export function WineControl({
   const net = production - use;
   const hoursLeft = net < 0 ? stock / -net : Infinity;
   const changed = level !== current;
-  const label = level === 0 ? "Dejar de servir vino" : `Servir vino nivel ${level}`;
+  // Nothing picked yet (or the level already served): a neutral label on the disabled button.
+  const label = !changed ? "Elegí cuánto vino servir" : level === 0 ? "Dejar de servir vino" : `Servir vino nivel ${level}`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -52,7 +53,7 @@ export function WineControl({
               />
               <span
                 aria-hidden
-                className="grid h-10 min-w-10 place-items-center rounded-lg border border-parchment-3 bg-marble/70 px-2 text-[15px] font-extrabold text-ink tabular transition-colors duration-100 hover:bg-parchment-2 peer-checked:border-ink peer-checked:bg-bronze-dark peer-checked:text-marble peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold"
+                className="grid h-10 min-w-10 place-items-center rounded-lg border border-parchment-3 bg-marble/70 px-2 text-[15px] font-extrabold text-ink tabular transition-colors duration-100 hover:bg-parchment-2 peer-checked:border-ink peer-checked:bg-bronze-dark peer-checked:text-marble peer-checked:hover:bg-bronze peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold"
               >
                 {l}
               </span>

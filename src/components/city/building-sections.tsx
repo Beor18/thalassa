@@ -25,6 +25,7 @@ import { RenameCityForm } from "./rename-city-form";
 import { ScientistsControl } from "./scientists-control";
 import { TrainUnitForm } from "./train-unit-form";
 import { TransportForm, type Destination } from "./transport-form";
+import { TroopsAway, troopMissions } from "./troops-away";
 import { WineControl } from "./wine-control";
 
 /** Buildings whose panel leads with what they do (their own action) instead of the upgrade. */
@@ -216,11 +217,15 @@ function BarracksSection({ game }: { game: Game }) {
   const price = lastEnd > snapshot.now ? ambrosiaToFinish(snapshot.now, lastEnd) : 0;
   const open = UNIT_TYPES.filter((u) => !canTrain(p, city, u));
   const locked = UNIT_TYPES.filter((u) => canTrain(p, city, u));
+  const away = troopMissions(snapshot.missions, city.id);
+  // Same net gold per hour the header shows: every city, minus the troops at sea.
+  const goldPerHour =
+    snapshot.cities.reduce((s, c) => s + c.rates.goldIncome - c.rates.goldUpkeep, 0) - snapshot.player.awayUpkeep * snapshot.speed;
 
   return (
     <>
       <Block title="Tropas en la ciudad">
-        {home.length ? (
+        {home.length > 0 && (
           <ul className="flex flex-wrap gap-2">
             {home.map((u) => (
               <li key={u} className="flex items-center gap-1.5 rounded-full bg-marble/60 py-1 pr-3 pl-1 text-sm font-bold ring-1 ring-parchment-3">
@@ -229,9 +234,14 @@ function BarracksSection({ game }: { game: Game }) {
               </li>
             ))}
           </ul>
-        ) : (
-          <Note>Todavía no hay tropas. Entrená unas pocas para cuidar la polis.</Note>
         )}
+        {away.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {!home.length && <p className="font-bold">Tus tropas están en camino</p>}
+            <TroopsAway missions={away} now={snapshot.now} />
+          </div>
+        )}
+        {!home.length && !away.length && <Note>Todavía no hay tropas. Entrená unas pocas para cuidar la polis.</Note>}
       </Block>
 
       {queue.length > 0 && (
@@ -293,6 +303,8 @@ function BarracksSection({ game }: { game: Game }) {
                 attack={def.attack}
                 defense={def.defense}
                 upkeep={def.upkeep * snapshot.speed}
+                taxPerCitizen={BALANCE.goldPerCitizen * snapshot.speed}
+                goldPerHour={goldPerHour}
                 cost={def.cost}
                 secondsPerUnit={((def.time * drill) / snapshot.speed) * barracksCut}
                 freeCitizens={city.rates.freeCitizens}

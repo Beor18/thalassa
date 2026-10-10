@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { ResourceBag, UnitType } from "@/game/data";
 import { ActionButton } from "@/components/ui/action-button";
 import { CostList, ResIcon } from "@/components/ui/res";
-import { fmt, fmtDuration } from "@/lib/format";
+import { fmt, fmtDuration, fmtSigned } from "@/lib/format";
 import { trainAction } from "@/server/actions";
 import { AmountInput } from "./amount-input";
 import { Duration } from "./bits";
@@ -20,6 +20,10 @@ export interface TrainUnitProps {
   defense: number;
   /** gold per hour per unit, game speed included */
   upkeep: number;
+  /** tax a free citizen pays per hour (every recruit stops paying it), game speed included */
+  taxPerCitizen: number;
+  /** the player's net gold per hour right now, every city included */
+  goldPerHour: number;
   cost: Partial<ResourceBag>;
   /** seconds per unit with techs, barracks and speed applied */
   secondsPerUnit: number;
@@ -43,6 +47,8 @@ export function TrainUnitForm(props: TrainUnitProps) {
       ? "No hay ciudadanos libres para reclutar."
       : missingText(total, res);
   const inputId = `train-${unit}`;
+  const goldAfter = props.goldPerHour - Math.max(1, n) * (props.upkeep + props.taxPerCitizen);
+  const goesNegative = goldAfter < 0;
 
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-parchment-3 bg-parchment-2/60 p-3">
@@ -85,10 +91,26 @@ export function TrainUnitForm(props: TrainUnitProps) {
           describedBy={`${inputId}-hint`}
           maxLabel={`Entrenar el máximo de ${props.name.toLowerCase()}`}
         />
-        <p id={`${inputId}-hint`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
-          <CostList cost={total} have={res} />
-          <Duration>{fmtDuration(seconds * 1000)}</Duration>
-        </p>
+        <div id={`${inputId}-hint`} className="flex flex-col gap-1.5">
+          <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+            <CostList cost={total} have={res} />
+            <Duration>{fmtDuration(seconds * 1000)}</Duration>
+          </p>
+          <p
+            className={
+              goesNegative
+                ? "flex flex-wrap items-center gap-x-1.5 rounded-lg bg-danger/10 px-2.5 py-1.5 text-sm font-bold text-danger ring-1 ring-danger/30"
+                : "flex flex-wrap items-center gap-x-1.5 text-sm text-ink-soft"
+            }
+          >
+            <ResIcon kind="gold" size={16} />
+            <span>
+              Tu oro por hora pasa de <span className="tabular">{fmtSigned(Math.round(props.goldPerHour))}/h</span> a{" "}
+              <strong className="tabular">{fmtSigned(Math.round(goldAfter))}/h</strong>
+              {goesNegative ? ". Vas a perder oro cada hora." : "."}
+            </span>
+          </p>
+        </div>
       </div>
 
       <ActionButton

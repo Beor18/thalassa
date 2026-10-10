@@ -274,7 +274,6 @@ function Celebration({ event, onDone }: { event: SceneEvent; onDone: () => void 
               transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
             />
             {/* Golden burst */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <motion.img
               src="/assets/fx/sparkle.webp"
               alt=""
@@ -334,7 +333,6 @@ function DustBurst({ event, onDone }: { event: SceneEvent; onDone: () => void })
     <div aria-hidden className="pointer-events-none absolute z-[55]" style={plotBox(event.slot)}>
       <div className="relative aspect-square w-full -translate-x-1/2 -translate-y-[70%]">
         {DUST.map((d, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
           <motion.img
             key={i}
             src="/assets/fx/smoke.webp"
