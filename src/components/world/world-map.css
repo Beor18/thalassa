@@ -736,6 +736,14 @@
 
 /* ---------- motion ---------- */
 
+/* Without drift, clouds would sit on top of islands forever. */
+@media (prefers-reduced-motion: reduce) {
+  .wm-sky,
+  .wm-cloudShadow {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .wm-bob {
     animation: wm-bob var(--bob-dur, 6s) ease-in-out var(--bob-delay, 0s) infinite;

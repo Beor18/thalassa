@@ -315,8 +315,8 @@ export class Camera {
       this.causticsEl.style.opacity = clamp((z - 0.2) / 0.5, 0, 1).toFixed(2);
     }
     if (this.skyEl) {
-      // Thicker clouds when you look from far away; they part as you come down.
-      this.skyEl.style.opacity = (0.62 + 0.38 * clamp((0.75 - z) / 0.5, 0, 1)).toFixed(2);
+      // Thick clouds when you look from far away; they thin out to wisps as you come down.
+      this.skyEl.style.opacity = (0.32 + 0.68 * clamp((0.6 - z) / 0.4, 0, 1)).toFixed(2);
     }
 
     if (this.worldEl) {

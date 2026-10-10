@@ -46,6 +46,7 @@ export function IslandCard({
         <motion.section
           key="island-card"
           data-hud
+          data-card
           aria-labelledby="island-card-title"
           initial={reducedMotion ? false : hidden}
           animate={shown}
@@ -134,7 +135,7 @@ export function IslandCard({
               )}
             </dl>
 
-            <Link href={`/isla/${island.id}`} className={buttonClass("primary", desktop ? "lg" : "md", "w-full")}>
+            <Link href={`/isla/${island.id}`} data-card-primary className={buttonClass("primary", desktop ? "lg" : "md", "w-full")}>
               Navegar a {island.name}
             </Link>
           </motion.div>

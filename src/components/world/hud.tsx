@@ -27,7 +27,7 @@ export function IslandSearch({
   islands: MapIsland[];
   travel: Record<number, number>;
   currentIslandId: number;
-  onPick: (id: number) => void;
+  onPick: (id: number, via: "pointer" | "keyboard") => void;
 }) {
   const id = useId();
   const [query, setQuery] = useState("");
@@ -45,9 +45,9 @@ export function IslandSearch({
       .slice(0, 8);
   }, [islands, query, travel, currentIslandId]);
 
-  const pick = (i: MapIsland | undefined) => {
+  const pick = (i: MapIsland | undefined, via: "pointer" | "keyboard") => {
     if (!i) return;
-    onPick(i.id);
+    onPick(i.id, via);
     setOpen(false);
     setQuery("");
   };
@@ -96,7 +96,7 @@ export function IslandSearch({
               setActive((a) => Math.max(0, a - 1));
             } else if (e.key === "Enter") {
               e.preventDefault();
-              pick(results[active]);
+              pick(results[active], "keyboard");
             } else if (e.key === "Escape") {
               if (open || query) {
                 e.stopPropagation();
@@ -125,7 +125,7 @@ export function IslandSearch({
               aria-selected={k === active}
               onMouseDown={(e) => {
                 e.preventDefault();
-                pick(i);
+                pick(i, "pointer");
               }}
               onMouseEnter={() => setActive(k)}
               className={clsx("flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5", k === active && "bg-foam/12")}

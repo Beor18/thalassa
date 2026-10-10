@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import clsx from "clsx";
-import { useReducedMotion } from "motion/react";
 import type { WorldIsland } from "@/server/queries";
 import { fmtDuration } from "@/lib/format";
 import { Camera, type View } from "./camera";
@@ -24,6 +23,14 @@ function subscribeDesktop(cb: () => void) {
   return () => mq.removeEventListener("change", cb);
 }
 const isDesktopNow = () => window.matchMedia(DESKTOP_QUERY).matches;
+
+const REDUCE_QUERY = "(prefers-reduced-motion: reduce)";
+function subscribeReduce(cb: () => void) {
+  const mq = window.matchMedia(REDUCE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+const prefersReduce = () => window.matchMedia(REDUCE_QUERY).matches;
 
 /** Space taken below the stage by its ancestors (padding, borders, following siblings). */
 function spaceBelow(el: HTMLElement) {
@@ -88,7 +95,7 @@ export function WorldMap({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hint, setHint] = useState(true);
   const desktop = useSyncExternalStore(subscribeDesktop, isDesktopNow, () => true);
-  const reducedMotion = useReducedMotion() ?? false;
+  const reducedMotion = useSyncExternalStore(subscribeReduce, prefersReduce, () => false);
   const helpId = useId();
   const maskId = `route-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
@@ -113,9 +120,10 @@ export function WorldMap({
     const desk = isDesktopNow();
     const top = 72; // search bar
     const cardW = desk ? CARD_WIDTH + 32 : 0;
-    const sheetH = desk ? 0 : Math.min(SHEET_HEIGHT, cam.vh * 0.6);
+    // Desktop keeps the legend and zoom buttons at the bottom; phones get the sheet instead.
+    const bottom = desk ? 120 : Math.min(SHEET_HEIGHT, cam.vh * 0.6);
     const availW = cam.vw - cardW;
-    const availH = cam.vh - top - sheetH;
+    const availH = cam.vh - top - bottom;
     // On short phones the island must fit in the strip left above the sheet.
     const zIsland = desk ? 0.8 : clamp((availH * 0.85) / isl.size, 0.4, 0.8);
     let view: View = { x: isl.px, y: isl.py, z: clamp(Math.max(desk ? cam.z : 0, zIsland), cam.zMin, cam.zMax) };
@@ -125,17 +133,31 @@ export function WorldMap({
       const zFit = Math.min(availW / (Math.abs(home.px - isl.px) + 2 * m), availH / (Math.abs(home.py - isl.py) + 2 * m + 60));
       if (zFit >= 0.36) view = { x: (home.px + isl.px) / 2, y: (home.py + isl.py) / 2 + 20, z: Math.min(zFit, 0.85) };
     }
-    cam.flyTo(view, { offsetX: cardW / 2, offsetY: sheetH / 2 - top / 2 });
+    cam.flyTo(view, { offsetX: cardW / 2, offsetY: bottom / 2 - top / 2 });
   }, []);
 
+  /** Pick an island. From the keyboard, focus jumps to the card's main action. */
   const select = useCallback(
-    (id: number) => {
+    (id: number, via: "pointer" | "keyboard" = "pointer") => {
       setSelectedId(id);
       setHint(false);
       focusIsland(id);
+      if (via === "keyboard") {
+        window.setTimeout(() => stageRef.current?.querySelector<HTMLElement>("[data-card-primary]")?.focus({ preventScroll: true }), 80);
+      }
     },
     [focusIsland],
   );
+
+  /** Close the card; if focus was inside it, hand it back to the island. */
+  const closeCard = useCallback(() => {
+    const stage = stageRef.current;
+    const hadFocus = !!stage?.querySelector("[data-card]")?.contains(document.activeElement);
+    if (hadFocus && selectedId !== null) {
+      window.setTimeout(() => stage?.querySelector<HTMLElement>(`[data-island="${selectedId}"] button`)?.focus({ preventScroll: true }), 0);
+    }
+    setSelectedId(null);
+  }, [selectedId]);
 
   const goHome = useCallback(() => {
     setSelectedId(null);
@@ -153,7 +175,7 @@ export function WorldMap({
     const L = layoutRef.current;
     const cam = new Camera({ w: L.width, h: L.height }, L.extent);
     cameraRef.current = cam;
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const motionQuery = window.matchMedia(REDUCE_QUERY);
     cam.reducedMotion = motionQuery.matches;
     const onMotionPref = () => {
       cam.reducedMotion = motionQuery.matches;
@@ -370,7 +392,7 @@ export function WorldMap({
     if (e.key === "Escape") {
       if (selectedId !== null) {
         e.preventDefault();
-        setSelectedId(null);
+        closeCard();
       }
       return;
     }
@@ -437,6 +459,19 @@ export function WorldMap({
         Arrastrá o usá las flechas para moverte. Más y menos acercan o alejan. Cero vuelve a tu isla. Escape cierra la isla elegida.
       </p>
 
+      {/* HUD: title and island search come first in tab order */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-3 sm:gap-3 sm:p-4">
+        <div data-hud className={clsx(selected && !desktop && "hidden", "pointer-events-auto shrink-0 rounded-xl border border-foam/15 bg-sea-950/70 px-3 py-1.5 text-foam shadow-[0_8px_24px_-8px_rgb(4_18_38/0.8)] backdrop-blur-md sm:px-4 sm:py-2")}>
+          <h1 className="font-display text-lg leading-tight font-bold sm:text-2xl">El Egeo</h1>
+          <p className="text-xs text-foam/80 sm:text-sm">
+            {islands.length} islas<span className="hidden sm:inline">. Tenés ciudades en {mineCount}</span>
+          </p>
+        </div>
+        <div className="pointer-events-auto ml-auto min-w-0 flex-1 sm:flex-none">
+          <IslandSearch islands={layout.islands} travel={travel} currentIslandId={currentIslandId} onPick={select} />
+        </div>
+      </div>
+
       {/* Sea surface */}
       <div
         ref={seaRef}
@@ -502,19 +537,6 @@ export function WorldMap({
       <Gulls src={fx.gull} />
       <div className={s.vignette} aria-hidden />
 
-      {/* HUD */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-3 sm:gap-3 sm:p-4">
-        <div data-hud className={clsx(selected && !desktop && "hidden", "pointer-events-auto shrink-0 rounded-xl border border-foam/15 bg-sea-950/70 px-3 py-1.5 text-foam shadow-[0_8px_24px_-8px_rgb(4_18_38/0.8)] backdrop-blur-md sm:px-4 sm:py-2")}>
-          <h1 className="font-display text-lg leading-tight font-bold sm:text-2xl">El Egeo</h1>
-          <p className="text-xs text-foam/80 sm:text-sm">
-            {islands.length} islas<span className="hidden sm:inline">. Tenés ciudades en {mineCount}</span>
-          </p>
-        </div>
-        <div className="pointer-events-auto ml-auto min-w-0 flex-1 sm:flex-none">
-          <IslandSearch islands={layout.islands} travel={travel} currentIslandId={currentIslandId} onPick={select} />
-        </div>
-      </div>
-
       <div className={clsx("pointer-events-none absolute bottom-3 left-3 z-20 flex items-end gap-3 sm:bottom-4 sm:left-4", selected && !desktop && "invisible")}>
         <Compass src={fx.compass} className="relative hidden size-20 shrink-0 sm:block lg:size-24" />
         <div className="pointer-events-auto">
@@ -535,7 +557,7 @@ export function WorldMap({
           aria-hidden
           className={clsx(
             s.hint,
-            "pointer-events-none absolute top-[4.75rem] left-1/2 z-10 w-max max-w-[calc(100%-2rem)] rounded-2xl border border-foam/15 bg-sea-950/75 px-4 py-2 text-center text-sm font-bold text-balance text-foam shadow-lg backdrop-blur-md sm:top-auto sm:bottom-6",
+            "pointer-events-none absolute top-[4.75rem] left-1/2 z-10 w-max max-w-[calc(100%-2rem)] rounded-2xl border border-foam/15 bg-sea-950/75 px-4 py-2 text-center text-sm font-bold text-balance text-foam shadow-lg backdrop-blur-md lg:top-auto lg:bottom-6",
           )}
         >
           Arrastrá para moverte y tocá una isla para ver el viaje
@@ -551,7 +573,7 @@ export function WorldMap({
         incoming={incoming}
         desktop={desktop}
         reducedMotion={reducedMotion}
-        onClose={() => setSelectedId(null)}
+        onClose={closeCard}
       />
 
       <p className="sr-only" aria-live="polite">
