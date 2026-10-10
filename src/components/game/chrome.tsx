@@ -89,7 +89,7 @@ function advisorCta(href: string) {
   if (href.startsWith("/isla")) return "Ir a la isla";
   if (href.startsWith("/ciudad")) return href.includes("slot=") ? "Ver en la ciudad" : "Ir a la ciudad";
   if (href.startsWith("/investigacion")) return "Ir a investigar";
-  if (href.startsWith("/tesoro")) return "Ver la ambrosía";
+  if (href.startsWith("/tesoro")) return "Ver el néctar";
   return "Ir ahora";
 }
 

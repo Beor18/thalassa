@@ -107,7 +107,7 @@ export function ResourceBar(props: ResourceBarProps) {
           className="text-foam"
         />
       </Stat>
-      <Stat kind="ambrosia" title="Ambrosía">
+      <Stat kind="ambrosia" title="Néctar">
         <AnimatedNumber value={props.ambrosia} animateKey={key} float className="text-shimmer-ambrosia" />
       </Stat>
     </div>

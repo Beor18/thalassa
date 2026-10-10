@@ -21,7 +21,7 @@ export const NAV_LABELS = [
   { label: "Flota y tropas", match: "/militar" },
   { label: "Informes", match: "/informes" },
   { label: "Ranking", match: "/ranking" },
-  { label: "Ambrosía", match: "/tesoro" },
+  { label: "Néctar", match: "/tesoro" },
   { label: "Invitar", match: "/invitar" },
 ] as const;
 
