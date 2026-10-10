@@ -19,7 +19,7 @@ import {
 } from "./chrome-cache";
 import { OwlIcon } from "./icons";
 import { CitySwitcher, GameNav, NavPlaceholder } from "./nav";
-import { ResourceBar } from "./resource-bar";
+import { BAR_LAYOUT, ResourceBar } from "./resource-bar";
 
 /** Stays still during section changes (see ::view-transition-group(game-header) in globals.css). */
 const ANCHOR = { viewTransitionName: "game-header" } as const;
@@ -38,8 +38,8 @@ export function GameChrome({ header, advisor, fromCache = false }: ChromeData & 
   }, [header, advisor, fromCache]);
 
   return (
-    <div style={ANCHOR} className="flex flex-col gap-3">
-      <header className="flex flex-col gap-2.5">
+    <div style={ANCHOR} className="flex flex-col gap-1.5 sm:gap-3">
+      <header className="flex flex-col gap-1.5 sm:gap-2.5">
         <TopRow header={header} />
         <ResourceBar {...header.bar} />
         <GameNav cityId={header.cityId} islandId={header.islandId} unreadReports={header.unreadReports} />
@@ -53,22 +53,22 @@ export function GameChrome({ header, advisor, fromCache = false }: ChromeData & 
 
 function TopRow({ header }: { header: HeaderData }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3">
+    <div className="flex items-center justify-between gap-x-2 sm:gap-x-3">
       <div className="flex min-w-0 items-center gap-1 sm:gap-2">
         <Link
           href={`/ciudad/${header.cityId}`}
-          className="-ml-2 inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 font-display text-xl font-black tracking-[0.18em] text-gold [text-shadow:0_1px_0_var(--color-bronze-deep),0_2px_10px_rgb(6_26_48/0.7)]"
+          className="-ml-2 inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 font-display text-lg font-black tracking-[0.14em] text-gold [text-shadow:0_1px_0_var(--color-bronze-deep),0_2px_10px_rgb(6_26_48/0.7)] sm:text-xl sm:tracking-[0.18em]"
         >
           THALASSA
         </Link>
         <span aria-hidden className="hidden h-6 w-px bg-foam/25 sm:block" />
         <CitySwitcher currentId={header.cityId} cities={header.cities} />
       </div>
-      <div className="-mr-2 flex items-center gap-1 text-sm text-foam/80 sm:gap-2">
+      <div className="-mr-2 flex shrink-0 items-center gap-1 text-sm text-foam/80 sm:gap-2">
         <span className="hidden max-w-40 truncate sm:inline">{header.playerName}</span>
         <span
           title={`Jugás en la red de prueba de Solana y el tiempo corre ${header.speed} veces más rápido.`}
-          className="rounded-full bg-sea-800/90 px-2.5 py-1 text-xs font-bold whitespace-nowrap text-sea-300 ring-1 ring-sea-500/40"
+          className="hidden rounded-full bg-sea-800/90 px-2.5 py-1 text-xs font-bold whitespace-nowrap text-sea-300 ring-1 ring-sea-500/40 sm:inline"
         >
           Red de prueba ×{header.speed}
         </span>
@@ -109,7 +109,8 @@ function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean 
     >
       <Link
         href={advisor.href as never}
-        className="panel group flex items-center gap-3 px-3 py-2.5 transition-[filter,transform] duration-150 hover:brightness-[1.03] active:translate-y-px sm:px-4"
+        title={advisor.body}
+        className="panel group flex items-center gap-2.5 px-2 py-1.5 transition-[filter,transform] duration-150 hover:brightness-[1.03] active:translate-y-px sm:gap-3 sm:px-4 sm:py-2.5"
       >
         <span
           aria-hidden
@@ -118,13 +119,14 @@ function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean 
             fresh && "ring-pulse",
           )}
         >
-          <OwlIcon className="size-8" />
+          <OwlIcon className="size-6 sm:size-8" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-display text-[15px] leading-tight font-bold">{advisor.title}</span>
-          <span className="mt-0.5 block text-sm leading-snug text-ink-soft">{advisor.body}</span>
+          <span className="block truncate font-display text-sm leading-tight font-bold sm:text-[15px]">{advisor.title}</span>
+          {/* Phones keep the advisor to one line; the full hint is in the link name and title. */}
+          <span className="sr-only sm:not-sr-only sm:mt-0.5 sm:block sm:text-sm sm:leading-snug sm:text-ink-soft">{advisor.body}</span>
         </span>
-        <span className="inline-flex h-10 shrink-0 items-center gap-1 rounded-lg border border-bronze-dark/30 bg-gradient-to-b from-marble to-parchment-2 px-3 text-sm font-bold text-bronze-dark shadow-[0_2px_0_var(--color-parchment-3)] transition-colors group-hover:border-bronze-dark/60 group-hover:text-ink">
+        <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-bronze-dark/30 bg-gradient-to-b from-marble to-parchment-2 px-2.5 text-[13px] font-bold text-bronze-dark shadow-[0_2px_0_var(--color-parchment-3)] transition-colors group-hover:border-bronze-dark/60 group-hover:text-ink sm:h-10 sm:px-3 sm:text-sm">
           {advisorCta(advisor.href)}
         </span>
       </Link>
@@ -144,22 +146,22 @@ export function CachedChrome() {
 
 function ChromePlaceholder() {
   return (
-    <div style={ANCHOR} className="flex flex-col gap-3" aria-hidden>
-      <div className="flex flex-col gap-2.5">
+    <div style={ANCHOR} className="flex flex-col gap-1.5 sm:gap-3" aria-hidden>
+      <div className="flex flex-col gap-1.5 sm:gap-2.5">
         <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3">
           <div className="flex items-center gap-2">
-            <span className="font-display text-xl font-black tracking-[0.18em] text-gold/80 [text-shadow:0_1px_0_var(--color-bronze-deep)]">
+            <span className="font-display text-lg font-black tracking-[0.14em] text-gold/80 [text-shadow:0_1px_0_var(--color-bronze-deep)] sm:text-xl sm:tracking-[0.18em]">
               THALASSA
             </span>
             <span className="hidden h-6 w-px bg-foam/25 sm:block" />
             <span className="skel-line on-dark h-6 w-32" />
           </div>
-          <span className="skel-line on-dark h-6 w-36 rounded-full" />
+          <span className="skel-line on-dark h-6 w-16 rounded-full sm:w-36" />
         </div>
-        <div className="panel-glass grid grid-cols-5 gap-x-1 gap-y-2 px-2 py-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:px-4">
+        <div className={`panel-glass ${BAR_LAYOUT}`}>
           {[...RESOURCES, "gold", "citizens", "research", "ambrosia"].map((k) => (
-            <span key={k} className="flex items-center gap-1.5 px-1 py-0.5">
-              <ResIcon kind={k as never} size={22} className="size-5 opacity-70 sm:size-[22px]" />
+            <span key={k} className="flex shrink-0 items-center gap-1.5 px-1 py-0.5">
+              <ResIcon kind={k as never} size={22} className="size-[18px] opacity-70 sm:size-[22px]" />
               <span className="flex flex-col gap-1">
                 <span className="skel-line on-dark h-3.5 w-9" />
                 <span className="skel-line on-dark h-[3px] w-9" />

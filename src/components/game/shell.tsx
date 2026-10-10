@@ -5,7 +5,7 @@ import { CachedChrome, GameChrome } from "./chrome";
 import { RememberCity } from "./nav";
 import { SkeletonBody } from "./skeleton";
 
-const SHELL = "mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-4 pt-3 pb-8 sm:px-6";
+const SHELL = "mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-4 pt-1.5 pb-8 sm:px-6 sm:pt-3";
 
 /*
   Section content enters and leaves through view transitions. The header is anchored

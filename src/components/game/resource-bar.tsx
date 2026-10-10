@@ -24,6 +24,10 @@ export interface ResourceBarProps {
   freeCitizens: number;
 }
 
+/** One swipeable row on phones (keeps the header short), wrapping chips from sm up. */
+export const BAR_LAYOUT =
+  "flex items-center gap-2.5 overflow-x-auto px-2 py-1 text-[13px] scrollbar-none [mask-image:linear-gradient(to_right,black_calc(100%-1.25rem),transparent)] sm:flex-wrap sm:gap-x-3 sm:gap-y-1.5 sm:overflow-visible sm:px-3 sm:py-2 sm:text-sm sm:[mask-image:none] md:gap-x-4";
+
 /**
  * Live HUD. Interpolates production between server snapshots so numbers move in real time; when a
  * new snapshot arrives after an action, the numbers count to the new value with a "+N" float.
@@ -46,7 +50,7 @@ export function ResourceBar(props: ResourceBarProps) {
   const minDelta = (rate: number) => 2 + Math.abs(rate) / 1200;
 
   return (
-    <div className="panel-glass grid grid-cols-5 gap-x-1 gap-y-2 px-2 py-2 text-[13px] sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:px-3 sm:text-sm md:gap-x-4">
+    <div className={clsx("panel-glass", BAR_LAYOUT)}>
       {RESOURCES.map((r) => {
         const value = live(r);
         const rate = perHour(r);
@@ -87,8 +91,11 @@ export function ResourceBar(props: ResourceBarProps) {
       >
         <AnimatedNumber value={props.freeCitizens} animateKey={key} float className="text-foam" />
         <span className="font-normal text-foam/60">
-          {" "}
-          / <span className="tabular">{fmt(props.population)}</span>
+          <span className="hidden sm:inline">
+            {" "}
+            / <span className="tabular">{fmt(props.population)}</span>
+          </span>
+          <span className="sr-only sm:hidden"> libres de {fmt(props.population)}</span>
         </span>
       </Stat>
       <Stat kind="research" title="Puntos de investigación">
@@ -127,11 +134,11 @@ function Stat({
     <span
       title={title}
       className={clsx(
-        "relative flex min-w-0 items-center gap-1 rounded-lg px-1 py-0.5 sm:gap-1.5",
+        "relative flex shrink-0 items-center gap-1 rounded-lg px-1 py-0.5 sm:gap-1.5",
         full && "at-cap bg-gold/10",
       )}
     >
-      <ResIcon kind={kind} size={22} className="size-5 sm:size-[22px]" />
+      <ResIcon kind={kind} size={22} className="size-[18px] sm:size-[22px]" />
       <span className="flex min-w-0 flex-col leading-tight">
         <span className="font-bold whitespace-nowrap">{children}</span>
         {fill !== undefined && (

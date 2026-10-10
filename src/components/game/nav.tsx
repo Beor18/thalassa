@@ -22,6 +22,7 @@ export const NAV_LABELS = [
   { label: "Informes", match: "/informes" },
   { label: "Ranking", match: "/ranking" },
   { label: "Ambrosía", match: "/tesoro" },
+  { label: "Invitar", match: "/invitar" },
 ] as const;
 
 const hrefFor = (match: string, cityId: string, islandId: number) =>
@@ -50,6 +51,10 @@ export function GameNav({ cityId, islandId, unreadReports }: { cityId: string; i
   const pillRef = useRef<HTMLSpanElement>(null);
   const reduce = useReducedMotion();
   const activeIndex = NAV_LABELS.findIndex((item) => pathname.startsWith(item.match));
+  // The pill moves on click (optimistic), before the next section arrives.
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
+  const pillIndex = pendingIndex ?? activeIndex;
+  useLayoutEffect(() => () => setPendingIndex(null), []);
   const [badgeIsNew] = useState(() => unreadReports !== lastBadge);
   const [mountedBadge] = useState(unreadReports);
   useEffect(() => {
@@ -62,10 +67,10 @@ export function GameNav({ cityId, islandId, unreadReports }: { cityId: string; i
     const pill = pillRef.current;
     if (!nav || !pill) return;
     // Sections kept alive in the background re-run effects with their old URL: ignore them.
-    if (!window.location.pathname.startsWith(NAV_LABELS[activeIndex].match)) return;
-    const navBox = nav.getBoundingClientRect();
-    const box = pill.getBoundingClientRect();
-    const now = { x: box.left - navBox.left + nav.scrollLeft, w: box.width };
+    if (pendingIndex === null && !window.location.pathname.startsWith(NAV_LABELS[pillIndex].match)) return;
+    // Layout boxes (not getBoundingClientRect) so a pill still sliding is measured where it lands.
+    const tab = pill.parentElement as HTMLElement;
+    const now = { x: tab.offsetLeft, w: tab.offsetWidth };
     const prev = lastPill;
     lastPill = now;
     if (!prev || reduce || (Math.abs(prev.x - now.x) < 1 && Math.abs(prev.w - now.w) < 1)) return;
@@ -74,7 +79,7 @@ export function GameNav({ cityId, islandId, unreadReports }: { cityId: string; i
       duration: 420,
       easing: "cubic-bezier(0.22, 1, 0.36, 1)",
     });
-  }, [activeIndex, reduce]);
+  }, [pillIndex, pendingIndex, reduce]);
 
   // Keep the active tab visible when the nav scrolls sideways on small screens.
   useEffect(() => {
@@ -89,6 +94,7 @@ export function GameNav({ cityId, islandId, unreadReports }: { cityId: string; i
     <nav ref={navRef} aria-label="Secciones" className={NAV_CLASS}>
       {NAV_LABELS.map((item, i) => {
         const active = i === activeIndex;
+        const lit = i === pillIndex;
         const badge = item.match === "/informes" ? unreadReports : 0;
         return (
           <Link
@@ -96,13 +102,16 @@ export function GameNav({ cityId, islandId, unreadReports }: { cityId: string; i
             href={hrefFor(item.match, cityId, islandId)}
             aria-current={active ? "page" : undefined}
             transitionTypes={activeIndex < 0 || active ? undefined : [i > activeIndex ? "nav-forward" : "nav-back"]}
+            onClick={(e) => {
+              if (!active && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) setPendingIndex(i);
+            }}
             className={clsx(
               ITEM_CLASS,
               "transition-colors duration-200",
-              active ? "text-ink" : "text-foam/85 hover:bg-foam/10 hover:text-foam active:bg-foam/15",
+              lit ? "text-ink" : "text-foam/85 hover:bg-foam/10 hover:text-foam active:bg-foam/15",
             )}
           >
-            {active && (
+            {lit && (
               <span
                 ref={pillRef}
                 aria-hidden
