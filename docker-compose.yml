@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: thalassa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: thalassa
+      POSTGRES_PASSWORD: thalassa
+      POSTGRES_DB: thalassa
+    ports:
+      - "5434:5432"
+    volumes:
+      - thalassa-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thalassa -d thalassa"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  thalassa-pg:
