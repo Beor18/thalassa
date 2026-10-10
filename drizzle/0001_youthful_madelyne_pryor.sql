@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "faucet_claimed_at" timestamp with time zone;
