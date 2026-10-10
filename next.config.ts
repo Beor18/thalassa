@@ -19,9 +19,15 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     rules: {
+      // Global stylesheets. CSS modules are excluded here so they keep their scoped class names.
       "*.css": {
+        condition: { not: { path: /\.module\.css$/ } },
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
+      },
+      "*.module.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.module.css",
       },
     },
   },
