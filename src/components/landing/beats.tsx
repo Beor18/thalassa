@@ -38,21 +38,21 @@ type Beat = { numeral: string; title: string; text: string; stage: ReactNode; al
 const BEATS: Beat[] = [
   {
     numeral: "I",
-    title: "Fundá",
-    text: "Arrancás con una aldea y cuarenta ciudadanos. Cada obra tarda lo suyo: volvés más tarde y la encontrás terminada.",
+    title: "Tu polis arranca con cuarenta ciudadanos.",
+    text: "Los mandás al aserradero, levantás una Academia y te vas. La obra sigue sin vos.",
     alt: "Ayuntamiento, academia y depósito que se levantan sobre una plaza de mármol",
     stage: <FoundStage />,
   },
   {
     numeral: "II",
-    title: "Comerciá entre islas",
-    text: "Tu isla da vino y la del vecino, mármol. Los barcos van y vienen con lo que te falta.",
+    title: "Las islas se necesitan.",
+    text: "La tuya da vino y la de al lado, mármol. Tus barcos llevan lo que falta.",
     alt: "Un trirreme navega entre una isla de viñedos y una isla de mármol",
     stage: <TradeStage />,
   },
   {
     numeral: "III",
-    title: "Conquistá",
+    title: "El mar no es de nadie.",
     text: "Hoplitas, arqueros y catapultas. Primero los bárbaros de tu isla, después quien se anime.",
     alt: "Lanceros, hoplitas, arqueros y una catapulta avanzan hacia un campamento bárbaro",
     stage: <ConquerStage />,

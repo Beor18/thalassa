@@ -25,8 +25,11 @@ function errorText(err: unknown, fallback: string) {
   return err instanceof FriendlyError ? err.message : fallback;
 }
 
-/** "Jugar ahora" with the in-browser game key, plus the wallet chooser. */
-export function PlayActions() {
+/**
+ * "Jugar ahora" with the in-browser game key, plus the wallet chooser.
+ * `where` tags the funnel events (hero or closing call to action).
+ */
+export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -56,14 +59,21 @@ export function PlayActions() {
   return (
     <div className="flex flex-col items-start gap-3">
       <span className="ld-cta-glow relative inline-flex rounded-xl">
-        <Button size="lg" onClick={play} loading={busy} className="h-14 min-w-60 px-8 text-lg">
+        <Button
+          size="lg"
+          onClick={play}
+          loading={busy}
+          data-track="play_click"
+          data-track-prop-where={where}
+          className="h-14 min-w-60 px-8 text-lg"
+        >
           {phase !== "idle" ? PHASE_LABEL[phase] : navigating ? "Zarpando…" : "Jugar ahora"}
         </Button>
       </span>
       <p className="max-w-sm text-sm text-foam/85">
         {hasKey
           ? "Seguís con la llave de juego guardada en este navegador."
-          : "Gratis. Te creamos una llave de juego en este navegador, sin mail ni contraseña."}
+          : "Sin mail, sin contraseña y sin plata real. Tu llave de juego queda en este navegador."}
       </p>
       {error && (
         <p role="alert" className="max-w-md rounded-lg bg-danger px-3 py-2 text-sm font-bold text-marble">
@@ -74,6 +84,8 @@ export function PlayActions() {
         type="button"
         onClick={() => dialogRef.current?.showModal()}
         disabled={busy}
+        data-track="wallet_choose"
+        data-track-prop-where={where}
         className="-mx-1 min-h-10 rounded px-1 py-2 text-[15px] font-bold text-foam underline decoration-gold/70 underline-offset-4 transition-colors hover:text-gold disabled:opacity-50"
       >
         Entrar con mi billetera
@@ -187,7 +199,7 @@ function WalletDialog({
           <div className="mt-4 rounded-xl border border-parchment-3 bg-marble/60 p-4">
             <p className="font-bold">No encontramos billeteras de Solana en este navegador.</p>
             <p className="mt-1 text-[15px] text-ink-soft">
-              Instalá Phantom, recargá esta página y elegila acá. O cerrá esto y tocá Jugar ahora: no hace falta billetera.
+              Instalá una, recargá esta página y elegila acá. O cerrá esto y tocá Jugar ahora: no hace falta billetera.
             </p>
             <a
               href={INSTALL_WALLET_URL}

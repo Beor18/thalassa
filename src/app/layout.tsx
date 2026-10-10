@@ -1,6 +1,7 @@
-import type { Metadata, Viewport } from "next";
+import type { Viewport } from "next";
 import { Alegreya_Sans, Cinzel } from "next/font/google";
 import { MotionRoot } from "@/components/motion/motion-root";
+import { rootMetadata } from "@/lib/seo";
 import "./globals.css";
 
 const display = Cinzel({
@@ -15,10 +16,7 @@ const body = Alegreya_Sans({
   weight: ["400", "500", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: { default: "Thalassa", template: "%s · Thalassa" },
-  description: "Fundá tu polis en el Egeo, comerciá entre islas y conquistá el archipiélago. Estrategia por navegador sobre Solana devnet.",
-};
+export const metadata = rootMetadata;
 
 export const viewport: Viewport = {
   themeColor: "#0b2a4a",

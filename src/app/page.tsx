@@ -4,22 +4,82 @@ import Image from "next/image";
 import Link from "next/link";
 import { buttonClass } from "@/components/ui/button";
 import { Beats } from "@/components/landing/beats";
+import { Faq } from "@/components/landing/faq";
 import { HeroScene } from "@/components/landing/hero-scene";
 import { PlayActions } from "@/components/landing/play-actions";
 import "@/components/landing/landing.css";
+import { HookSwitch } from "@/components/growth/hook-switch";
+import { LegalLinks } from "@/components/growth/legal-links";
+import { ReferralNote } from "@/components/growth/referral-note";
+import { TrackClicks, TrackView } from "@/components/growth/track";
+import { VideoGameJsonLd } from "@/components/growth/video-game-json-ld";
 import { shortAddress } from "@/lib/format";
+import { SITE_DESCRIPTION } from "@/lib/site";
 import { optionalSession } from "@/server/auth";
 
+const PAGE_TITLE = "Thalassa · Tu polis en el Egeo";
+
 export const metadata: Metadata = {
-  title: { absolute: "Thalassa · Tu polis en el Egeo" },
+  title: { absolute: PAGE_TITLE },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", locale: "es_AR", siteName: "Thalassa", title: PAGE_TITLE, description: SITE_DESCRIPTION, url: "/" },
 };
 
 const TITLE = "THALASSA";
-const HEADLINE = "Volvé a las tardes de estrategia en el navegador.";
+
+/*
+  Need first, product after (docs/negocio/landing-copy.md). Two hooks under test:
+  A speaks to the memory, B to the lack of time. Same product line idea, one action.
+*/
+const HOOKS = {
+  a: {
+    headline: "¿Te acordás de dejar la ciudad construyendo y volver después del colegio?",
+    diagnosis: "Después llegaron el trabajo, los horarios y los juegos que piden la noche entera.",
+    product: "Thalassa es tu polis en el Egeo. La ordenás en diez minutos y sigue creciendo sola.",
+  },
+  b: {
+    headline: "¿Tenés diez minutos?",
+    diagnosis: "La estrategia de ahora te pide horas. La de antes te esperaba.",
+    product: "Thalassa es estrategia por navegador en el Egeo. Tu polis avanza mientras vivís tu vida.",
+  },
+} as const;
+
+function HookCopy({ hook }: { hook: (typeof HOOKS)[keyof typeof HOOKS] }) {
+  const words = hook.headline.split(" ");
+  // Supporting lines start right after the last headline word lands.
+  const after = 520 + words.length * 45 + 250;
+  return (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <h1 className="font-display text-[28px] leading-tight font-bold text-marble [text-shadow:0_2px_12px_rgb(6_26_48/0.9)] sm:text-4xl lg:text-[42px]">
+        {words.map((word, i) => (
+          <span key={i}>
+            <span className="ld-word" style={{ "--i": i } as CSSProperties}>
+              {word}
+            </span>{" "}
+          </span>
+        ))}
+      </h1>
+      <p className="ld-fade-up text-lg text-foam/90 [text-shadow:0_1px_8px_rgb(6_26_48/0.9)] sm:text-xl" style={{ "--d": `${after}ms` } as CSSProperties}>
+        {hook.diagnosis}
+      </p>
+      <p
+        className="ld-fade-up text-lg font-bold text-marble [text-shadow:0_1px_8px_rgb(6_26_48/0.9)] sm:text-xl"
+        style={{ "--d": `${after + 150}ms` } as CSSProperties}
+      >
+        {hook.product}
+      </p>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
+      <VideoGameJsonLd />
+      <TrackView event="landing_view" withHook />
+      <TrackClicks withHook />
+
       <section className="relative isolate flex min-h-[100svh] flex-col overflow-hidden">
         <HeroScene />
 
@@ -28,7 +88,7 @@ export default function Home() {
             THALASSA
           </span>
           <span className="rounded-full bg-sea-950/70 px-2.5 py-1 text-xs font-bold text-sea-300 ring-1 ring-sea-300/30 backdrop-blur">
-            Red de prueba de Solana
+            Red de prueba · sin plata real
           </span>
         </header>
 
@@ -43,23 +103,10 @@ export default function Home() {
             </span>
             <span className="ld-title-shine">{TITLE}</span>
           </p>
-          <div className="flex max-w-xl flex-col gap-3">
-            <h1 className="font-display text-[28px] leading-tight font-bold text-marble [text-shadow:0_2px_12px_rgb(6_26_48/0.9)] sm:text-4xl">
-              {HEADLINE.split(" ").map((word, i) => (
-                <span key={i}>
-                  <span className="ld-word" style={{ "--i": i } as CSSProperties}>
-                    {word}
-                  </span>{" "}
-                </span>
-              ))}
-            </h1>
-            <p className="ld-fade-up text-lg text-foam [text-shadow:0_1px_8px_rgb(6_26_48/0.9)] sm:text-xl" style={{ "--d": "900ms" } as CSSProperties}>
-              Fundá tu polis en una isla del Egeo y hacela crecer mientras hacés otra cosa.
-            </p>
-          </div>
-          <div className="ld-fade-up" style={{ "--d": "1050ms" } as CSSProperties}>
+          <HookSwitch a={<HookCopy hook={HOOKS.a} />} b={<HookCopy hook={HOOKS.b} />} />
+          <div className="ld-fade-up" style={{ "--d": "1550ms" } as CSSProperties}>
             <Suspense fallback={<ActionsSkeleton />}>
-              <HeroActions />
+              <HeroActions where="hero" />
             </Suspense>
           </div>
         </div>
@@ -83,30 +130,73 @@ export default function Home() {
           </h2>
           <Beats />
 
-          <aside className="panel-dark mt-14 flex items-start gap-4 p-4 sm:p-5">
-            <Image src="/assets/r-ambrosia.webp" alt="" width={48} height={48} className="sprite size-12 shrink-0 animate-float" />
-            <div>
-              <h2 className="font-display text-base font-bold text-gold">En la red de prueba de Solana</h2>
-              <p className="mt-1 max-w-3xl text-[15px] leading-snug text-foam/90">
-                Tu cuenta vive en la red de prueba de Solana, donde nada cuesta plata real. La ambrosía, el néctar de los
-                dioses, se paga con saldo de prueba gratis y sirve para terminar obras al instante o llamar al mercader.
-              </p>
-            </div>
-          </aside>
+          <div className="mt-14 grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <aside aria-labelledby="cost-title" className="panel-dark flex items-start gap-4 p-4 sm:p-5">
+              <Image src="/assets/r-ambrosia.webp" alt="" width={48} height={48} className="sprite size-12 shrink-0 animate-float" />
+              <div>
+                <h2 id="cost-title" className="font-display text-lg font-bold text-gold">
+                  Jugar no cuesta nada.
+                </h2>
+                <p className="mt-1 max-w-3xl text-[15px] leading-snug text-foam/90">
+                  El néctar es opcional: termina obras antes y llama al mercader. Hoy se compra con SOL de prueba (100 de
+                  néctar = 0,05 SOL de prueba) y el juego te manda SOL de prueba cada 12 horas. Nada de esto es plata real.
+                </p>
+              </div>
+            </aside>
+            <aside aria-labelledby="who-title" className="panel-dark flex items-start gap-4 p-4 sm:p-5">
+              <Image src="/assets/r-research.webp" alt="" width={48} height={48} className="sprite size-12 shrink-0" />
+              <div>
+                <h2 id="who-title" className="font-display text-lg font-bold text-gold">
+                  Hecho por un jugador de los de antes.
+                </h2>
+                <p className="mt-1 text-[15px] leading-snug text-foam/90">
+                  Desde Argentina, como proyecto independiente. Sin inversores y sin monedas para especular.
+                </p>
+              </div>
+            </aside>
+          </div>
         </section>
 
-        <footer className="mx-auto w-full max-w-6xl px-4 pb-8 text-sm font-bold text-foam [text-shadow:0_1px_6px_rgb(6_26_48/0.9)] sm:px-6">
-          Thalassa, un homenaje a la estrategia clásica por navegador.
+        <section aria-labelledby="faq-title" className="mx-auto w-full max-w-3xl px-4 pb-14 sm:px-6 sm:pb-20">
+          <h2 id="faq-title" className="mb-5 font-display text-3xl font-bold text-foam [text-shadow:0_2px_12px_rgb(6_26_48/0.9)] sm:text-4xl">
+            Preguntas frecuentes
+          </h2>
+          <Faq />
+        </section>
+
+        <section aria-labelledby="closing-title" className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6 sm:pb-24">
+          <div className="panel-dark flex flex-col items-start gap-4 p-6 sm:p-8">
+            <h2 id="closing-title" className="font-display text-3xl font-bold text-foam sm:text-4xl">
+              Tu isla ya tiene lugar.
+            </h2>
+            <Suspense fallback={<ActionsSkeleton />}>
+              <HeroActions where="final" />
+            </Suspense>
+          </div>
+        </section>
+
+        <footer className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6">
+          <LegalLinks />
         </footer>
       </div>
     </main>
   );
 }
 
-/** Reads the session at request time: returning players get a direct way back to their polis. */
-async function HeroActions() {
+/**
+ * Reads the session at request time: returning players get a direct way back to their polis.
+ * Visitors who came through an invite link see who invited them (hero only).
+ */
+async function HeroActions({ where }: { where: "hero" | "final" }) {
   const session = await optionalSession();
-  if (!session) return <PlayActions />;
+  if (!session) {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        {where === "hero" && <ReferralNote />}
+        <PlayActions where={where} />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-start gap-3">
       <span className="ld-cta-glow relative inline-flex rounded-xl">
