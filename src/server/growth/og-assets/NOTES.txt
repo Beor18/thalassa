@@ -1,0 +1,9 @@
+Fonts used to draw Open Graph images (next/og needs TTF/OTF/WOFF files on disk).
+
+cinzel-700.woff         Cinzel Bold, latin subset. Copyright The Cinzel Project Authors.
+alegreya-sans-700.woff  Alegreya Sans Bold, latin subset. Copyright The Alegreya Sans Project Authors.
+
+Both are licensed under the SIL Open Font License 1.1: https://openfontlicense.org
+Downloaded from Fontsource (https://fontsource.org).
+
+buildings/*.png        380px PNG copies of public/assets/b-*.webp (the OG renderer cannot draw WebP).
