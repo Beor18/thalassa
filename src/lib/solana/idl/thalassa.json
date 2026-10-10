@@ -1,0 +1,502 @@
+{
+  "address": "6ai9t1gagRGj8gYjGc2PHfQUAeQjzQgssWoAEGa2k1V2",
+  "metadata": {
+    "name": "thalassa",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Thalassa: buy ambrosia with SOL"
+  },
+  "instructions": [
+    {
+      "name": "buy_ambrosia",
+      "docs": [
+        "Buys `packs` packs of ambrosia, paying SOL into the treasury."
+      ],
+      "discriminator": [
+        86,
+        129,
+        156,
+        216,
+        92,
+        22,
+        140,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "citizen",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  116,
+                  105,
+                  122,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "packs",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Creates the global Config. The signer becomes the authority."
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "price_lamports_per_pack",
+          "type": "u64"
+        },
+        {
+          "name": "ambrosia_per_pack",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_price",
+      "docs": [
+        "Updates the pack price and the ambrosia per pack."
+      ],
+      "discriminator": [
+        16,
+        19,
+        182,
+        8,
+        149,
+        83,
+        72,
+        181
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "price_lamports_per_pack",
+          "type": "u64"
+        },
+        {
+          "name": "ambrosia_per_pack",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Moves `amount` lamports from the treasury to the authority."
+      ],
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Citizen",
+      "discriminator": [
+        46,
+        45,
+        63,
+        201,
+        241,
+        115,
+        110,
+        93
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AmbrosiaPurchased",
+      "discriminator": [
+        214,
+        93,
+        46,
+        33,
+        227,
+        94,
+        193,
+        40
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidPackCount",
+      "msg": "Packs must be between 1 and 100"
+    },
+    {
+      "code": 6001,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6002,
+      "name": "Unauthorized",
+      "msg": "Only the config authority can do this"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientTreasury",
+      "msg": "Treasury does not have enough lamports"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidPrice",
+      "msg": "Price per pack must be greater than zero"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidAmbrosiaPerPack",
+      "msg": "Ambrosia per pack must be greater than zero"
+    },
+    {
+      "code": 6007,
+      "name": "TreasuryBelowRent",
+      "msg": "Treasury must be left empty or above the rent exempt minimum"
+    }
+  ],
+  "types": [
+    {
+      "name": "AmbrosiaPurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "packs",
+            "type": "u16"
+          },
+          {
+            "name": "ambrosia",
+            "type": "u64"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "ambrosia_total",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Citizen",
+      "docs": [
+        "Layout (after the 8-byte discriminator):",
+        "owner 0..32, ambrosia_total 32..40, lamports_spent 40..48,",
+        "purchases 48..52, created_at 52..60, bump 60. Total 8 + 61 = 69 bytes."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "ambrosia_total",
+            "type": "u64"
+          },
+          {
+            "name": "lamports_spent",
+            "type": "u64"
+          },
+          {
+            "name": "purchases",
+            "type": "u32"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "docs": [
+        "Layout (after the 8-byte discriminator):",
+        "authority 0..32, price_lamports_per_pack 32..40, ambrosia_per_pack 40..48,",
+        "total_packs_sold 48..56, bump 56, treasury_bump 57. Total 8 + 58 = 66 bytes."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_lamports_per_pack",
+            "type": "u64"
+          },
+          {
+            "name": "ambrosia_per_pack",
+            "type": "u64"
+          },
+          {
+            "name": "total_packs_sold",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "treasury_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
