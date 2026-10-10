@@ -19,7 +19,7 @@ export default function TermsPage() {
       <ul>
         <li>El SOL de la red de prueba no tiene valor. No se compra con plata y no se puede cambiar por plata.</li>
         <li>
-          La ambrosía se compra con SOL de prueba y solo sirve adentro del juego. No se transfiere, no se vende y no se cambia
+          El néctar se compra con SOL de prueba y solo sirve adentro del juego. No se transfiere, no se vende y no se cambia
           por plata ni por SOL.
         </li>
         <li>Las compras quedan registradas en la red de prueba. Una compra hecha no se puede deshacer.</li>
@@ -51,7 +51,7 @@ export default function TermsPage() {
       <h2>Invitaciones</h2>
       <ul>
         <li>Cada jugador tiene un link para invitar. Vale para cuentas nuevas que entran con ese link en los 30 días siguientes.</li>
-        <li>Cuando la cuenta invitada llega a Intendencia 3, las dos suman 50 de ambrosía. Una sola vez por invitado.</li>
+        <li>Cuando la cuenta invitada llega a Intendencia 3, las dos suman 50 de néctar. Una sola vez por invitado.</li>
         <li>Hay un máximo de 5 premios por día para quien invita. Los que se pasan se acreditan después.</li>
         <li>No vale invitarse a uno mismo ni crear cuentas para cobrar premios. Si pasa, los quitamos.</li>
       </ul>

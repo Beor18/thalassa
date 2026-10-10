@@ -5,7 +5,7 @@ import { ambrosiaLedger, cities, players, referrals, reports } from "@/db/schema
 import { track } from "./analytics";
 import { referralIdRange } from "./referral-code";
 
-/** Ambrosía each side gets when the invitee reaches the required Intendencia level. */
+/** Néctar (premium currency, `ambrosia` in code and DB) each side gets when the invitee reaches the required Intendencia level. */
 export const REFERRAL_REWARD = 50;
 /** Intendencia (town_hall) level the invitee has to reach. */
 export const REFERRAL_TOWN_HALL = 3;
@@ -65,7 +65,7 @@ const settled = new Set<string>();
 /**
  * Pays the referral reward once the invitee reached the required Intendencia.
  * Idempotent (the referral row flips rewarded_at exactly once) and cheap (one indexed read,
- * then a per-process memo). Returns the ambrosía credited to the invitee, 0 otherwise.
+ * then a per-process memo). Returns the néctar credited to the invitee, 0 otherwise.
  */
 export async function settleReferral(inviteeId: string): Promise<number> {
   if (settled.has(inviteeId)) return 0;
@@ -113,7 +113,7 @@ export async function settleReferral(inviteeId: string): Promise<number> {
           kind: "system",
           title: "Regalo de bienvenida",
           body: {
-            text: `Llegaste a Intendencia ${REFERRAL_TOWN_HALL}. Como te invitó ${nameOf.get(row.referrerId) ?? "otro arconte"}, sumaron ${REFERRAL_REWARD} de ambrosía cada uno.`,
+            text: `Llegaste a Intendencia ${REFERRAL_TOWN_HALL}. Como te invitó ${nameOf.get(row.referrerId) ?? "otro arconte"}, sumaron ${REFERRAL_REWARD} de néctar cada uno.`,
           },
         },
         {
@@ -121,7 +121,7 @@ export async function settleReferral(inviteeId: string): Promise<number> {
           kind: "system",
           title: "Tu invitado creció",
           body: {
-            text: `${nameOf.get(inviteeId) ?? "Tu invitado"} llegó a Intendencia ${REFERRAL_TOWN_HALL}. Te sumamos ${REFERRAL_REWARD} de ambrosía. Seguí invitando desde la sección Invitar.`,
+            text: `${nameOf.get(inviteeId) ?? "Tu invitado"} llegó a Intendencia ${REFERRAL_TOWN_HALL}. Te sumamos ${REFERRAL_REWARD} de néctar. Seguí invitando desde la sección Invitar.`,
           },
         },
       ]);

@@ -28,7 +28,7 @@ export default function InvitePage() {
 }
 
 async function Content() {
-  // Settle first so the ambrosía in the header already includes any reward paid right now.
+  // Settle first so the néctar (ambrosia) in the header already includes any reward paid right now.
   const invitees = await getInviteesSettled(await requirePlayerId());
   const game = await getGame();
   const { snapshot, city } = game;
@@ -42,7 +42,7 @@ async function Content() {
           <h1 className="font-display text-2xl font-bold text-foam sm:text-3xl">El Egeo se juega con vecinos</h1>
           <p className="mt-1 max-w-2xl text-[15px] text-foam/90">
             Cuando tu invitado llega a Intendencia {REFERRAL_TOWN_HALL}, los dos suman{" "}
-            <b className="text-[#d7b8ff]">{REFERRAL_REWARD} de ambrosía</b>.
+            <b className="text-[#d7b8ff]">{REFERRAL_REWARD} de néctar</b>.
           </p>
         </div>
       </section>

@@ -10,4 +10,4 @@ export const SITE_URL = (
 export const SITE_NAME = "Thalassa";
 export const SITE_TAGLINE = "Tu polis en el Egeo";
 export const SITE_DESCRIPTION =
-  "Estrategia por navegador en el Egeo. Fundá tu polis, comerciá entre islas y conquistá el archipiélago. Se juega en la red de prueba de Solana, sin plata real.";
+  "Estrategia por navegador como la de antes. Fundá tu polis en el Egeo, comerciá entre islas y conquistá el archipiélago. Sin instalar nada y sin plata real.";

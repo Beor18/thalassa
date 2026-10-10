@@ -27,7 +27,7 @@ export async function ReferralNote({ className }: { className?: string }) {
       )}
     >
       Te invitó <b className="text-gold">{name}</b>. Cuando llegues a Intendencia {REFERRAL_TOWN_HALL}, suman{" "}
-      {REFERRAL_REWARD} de ambrosía cada uno.
+      {REFERRAL_REWARD} de néctar cada uno.
     </p>
   );
 }

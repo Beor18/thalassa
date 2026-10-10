@@ -56,7 +56,7 @@ export default function PrivacyPage() {
           puntos. Si no querés que te reconozcan, elegí un nombre que no sea el tuyo.
         </li>
         <li>
-          Las compras de ambrosía son transacciones en la red de prueba de Solana, que es pública: cualquiera puede verlas con
+          Las compras de néctar son transacciones en la red de prueba de Solana, que es pública: cualquiera puede verlas con
           un explorador. Eso no lo podemos borrar.
         </li>
       </ul>

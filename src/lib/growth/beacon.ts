@@ -66,3 +66,33 @@ export function visitSource(): Props {
   }
   return out;
 }
+
+/** Landing headline A/B test: the variant this tab saw ("a" or "b"), chosen before paint. */
+export const HOOK_KEY = "thalassa_hook";
+export type Hook = "a" | "b";
+
+export function readHook(): Hook | undefined {
+  try {
+    const v = sessionStorage.getItem(HOOK_KEY);
+    return v === "a" || v === "b" ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Same rule as the inline script in HookSwitch: ?hook= wins, then this tab's pick, then a coin flip. */
+export function pickHook(): Hook {
+  let v: string | null = null;
+  try {
+    v = new URLSearchParams(location.search).get("hook");
+    if (v !== "a" && v !== "b") v = sessionStorage.getItem(HOOK_KEY);
+    if (v !== "a" && v !== "b") v = Math.random() < 0.5 ? "a" : "b";
+    sessionStorage.setItem(HOOK_KEY, v);
+  } catch {
+    v = v === "b" ? "b" : "a";
+  }
+  return v as Hook;
+}
+
+/** Inline-script version of pickHook, run while the HTML is parsed. Sets data-hook on its parent. */
+export const PICK_HOOK_SCRIPT = `(function(){var el=document.currentScript&&document.currentScript.parentElement;if(!el)return;var k="${HOOK_KEY}",v=null;try{v=new URLSearchParams(location.search).get("hook");if(v!=="a"&&v!=="b")v=sessionStorage.getItem(k);if(v!=="a"&&v!=="b")v=Math.random()<0.5?"a":"b";sessionStorage.setItem(k,v)}catch(e){v=v==="b"?"b":"a"}el.setAttribute("data-hook",v)})()`;
