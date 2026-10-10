@@ -149,7 +149,7 @@ function Podium({ rows, me }: { rows: RankingRow[]; me: string }) {
           const mine = row.playerId === me;
           return (
             <li key={place} className={clsx("flex min-w-0 flex-col items-center", order)}>
-              <div className="pop-in flex min-w-0 flex-col items-center gap-1 pb-2 text-center" style={stagger(i, 160, 3, 500)}>
+              <div className="pop-in flex w-full min-w-0 flex-col items-center gap-1 pb-2 text-center" style={stagger(i, 160, 3, 500)}>
                 <span className="relative grid place-items-center">
                   {place === 1 && <LaurelIcon className="absolute -top-3 w-20 text-gold drop-shadow-[0_2px_6px_rgb(227_179_65/0.5)] sm:w-24" />}
                   <span
@@ -163,10 +163,13 @@ function Podium({ rows, me }: { rows: RankingRow[]; me: string }) {
                     <span className="sr-only">º puesto</span>
                   </span>
                 </span>
-                <span className={clsx("mt-1 w-full truncate font-display text-sm font-bold sm:text-base", mine ? "text-gold" : "text-foam")}>
+                <span
+                  title={row.name}
+                  className={clsx("mt-1 line-clamp-2 w-full font-display text-xs leading-tight font-bold break-words sm:text-base", mine ? "text-gold" : "text-foam")}
+                >
                   {row.name}
                 </span>
-                <span className="text-xs font-bold text-foam/75 tabular sm:text-sm">{fmt(row.score)} puntos</span>
+                <span className="text-xs font-bold text-foam/75 tabular sm:text-sm">{fmt(row.score)} {row.score === 1 ? "punto" : "puntos"}</span>
               </div>
               <div
                 aria-hidden

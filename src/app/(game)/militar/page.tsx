@@ -57,15 +57,17 @@ async function MilitaryContent() {
             ))}
           </ul>
         ) : (
-          <div className="panel flex flex-wrap items-center justify-between gap-3 p-4">
-            <Image src="/assets/u-ship.webp" alt="" width={64} height={64} className="sprite size-14 shrink-0 motion-safe:animate-float" />
-            <div className="min-w-0 flex-1">
-              <p className="font-bold">No hay barcos navegando.</p>
-              <p className="text-sm text-ink-soft">
-                Los bárbaros de {city.island.name} guardan un botín. Mandá tropas cuando tengas Cuartel y barcos.
-              </p>
+          <div className="panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <Image src="/assets/u-ship.webp" alt="" width={64} height={64} className="sprite size-14 shrink-0 motion-safe:animate-float" />
+              <div className="min-w-0">
+                <p className="font-bold">No hay barcos navegando.</p>
+                <p className="text-sm text-ink-soft">
+                  Los bárbaros de {city.island.name} guardan un botín. Mandá tropas cuando tengas Cuartel y barcos.
+                </p>
+              </div>
             </div>
-            <Link href={`/isla/${city.islandId}?panel=camp`} className={buttonClass("primary", "md")}>
+            <Link href={`/isla/${city.islandId}?panel=camp`} className={buttonClass("primary", "md", "shrink-0 self-start sm:self-auto")}>
               Ver el campamento bárbaro
             </Link>
           </div>

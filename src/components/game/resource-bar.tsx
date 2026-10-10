@@ -26,7 +26,7 @@ export interface ResourceBarProps {
 
 /** One swipeable row on phones (keeps the header short), wrapping chips from sm up. */
 export const BAR_LAYOUT =
-  "flex items-center gap-2.5 overflow-x-auto px-2 py-1 text-[13px] scrollbar-none [mask-image:linear-gradient(to_right,black_calc(100%-1.25rem),transparent)] sm:flex-wrap sm:gap-x-3 sm:gap-y-1.5 sm:overflow-visible sm:px-3 sm:py-2 sm:text-sm sm:[mask-image:none] md:gap-x-4";
+  "flex items-center gap-2.5 overflow-x-auto px-2 py-1 text-[13px] scrollbar-none [mask-image:linear-gradient(to_right,black_calc(100%-1.25rem),transparent)] sm:flex-wrap sm:gap-x-2 sm:gap-y-1.5 sm:overflow-visible sm:px-3 sm:py-2 sm:text-sm sm:[mask-image:none] lg:gap-x-4";
 
 /**
  * Live HUD. Interpolates production between server snapshots so numbers move in real time; when a

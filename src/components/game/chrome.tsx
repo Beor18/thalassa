@@ -109,7 +109,6 @@ function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean 
     >
       <Link
         href={advisor.href as never}
-        title={advisor.body}
         className="panel group flex items-center gap-2.5 px-2 py-1.5 transition-[filter,transform] duration-150 hover:brightness-[1.03] active:translate-y-px sm:gap-3 sm:px-4 sm:py-2.5"
       >
         <span
@@ -123,7 +122,7 @@ function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean 
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-display text-sm leading-tight font-bold sm:text-[15px]">{advisor.title}</span>
-          {/* Phones keep the advisor to one line; the full hint is in the link name and title. */}
+          {/* Phones keep the advisor to one line; screen readers still get the full hint. */}
           <span className="sr-only sm:not-sr-only sm:mt-0.5 sm:block sm:text-sm sm:leading-snug sm:text-ink-soft">{advisor.body}</span>
         </span>
         <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-bronze-dark/30 bg-gradient-to-b from-marble to-parchment-2 px-2.5 text-[13px] font-bold text-bronze-dark shadow-[0_2px_0_var(--color-parchment-3)] transition-colors group-hover:border-bronze-dark/60 group-hover:text-ink sm:h-10 sm:px-3 sm:text-sm">
