@@ -14,13 +14,14 @@ import {
   type PlayerState,
 } from "@/game/engine";
 import { ISLAND_FEATURE_IMAGE } from "@/game/layout";
-import type { IslandCityView, IslandView } from "@/server/queries";
+import type { IslandCityView, IslandView, MissionView } from "@/server/queries";
 import type { GameCity } from "@/server/game-context";
 import { buttonClass } from "@/components/ui/button";
 import { Countdown } from "@/components/ui/countdown";
 import { CostList, ResIcon } from "@/components/ui/res";
 import { fmt, fmt1, fmtDuration } from "@/lib/format";
 import { UnitStrip } from "@/components/military/units";
+import { TroopsAway } from "@/components/city/troops-away";
 import {
   AttackForm,
   ColonizeForm,
@@ -49,6 +50,8 @@ export interface IslandCtx {
   travelSec: number;
   /** when the first ship of the active city that is at sea comes back (null if none) */
   shipsBackAt: number | null;
+  /** missions of the active city that carry soldiers (outbound attacks and troops coming back) */
+  troopsAway: MissionView[];
 }
 
 // ---------------------------------------------------------------------------
@@ -162,10 +165,30 @@ function NotHere({ ctx, what }: { ctx: IslandCtx; what: string }) {
   );
 }
 
+/** Where to train more soldiers from the active city (its Cuartel), if it has one. */
+const trainHref = (city: GameCity) => {
+  const barracks = slotOf(city, "barracks");
+  return barracks === undefined ? undefined : `/ciudad/${city.id}?slot=${barracks}`;
+};
+
 function attackNextStep(ctx: IslandCtx): ReactNode {
   const { city } = ctx;
   const hasUnits = UNIT_TYPES.some((t) => (city.units[t] ?? 0) > 0);
   const barracks = slotOf(city, "barracks");
+  if (!hasUnits && ctx.troopsAway.length > 0) {
+    return (
+      <div className="flex flex-col gap-2 rounded-xl bg-parchment-2/70 p-3 ring-1 ring-parchment-3">
+        <p className="font-bold">Tus tropas están en camino</p>
+        <p className="text-sm text-ink-soft">No queda nadie en {city.name} para atacar. Esperá a que vuelvan o entrená más.</p>
+        <TroopsAway missions={ctx.troopsAway} now={ctx.now} />
+        {barracks !== undefined && (
+          <Link href={`/ciudad/${city.id}?slot=${barracks}`} className={buttonClass("secondary", "md", "self-start")}>
+            Ir al Cuartel
+          </Link>
+        )}
+      </div>
+    );
+  }
   if (!hasUnits && barracks === undefined) {
     return (
       <NextStep
@@ -348,6 +371,8 @@ export function campPanel(ctx: IslandCtx): PanelDef {
   const canLeaveAt = rebuildingUntil ? rebuildingUntil - travelSec * 1000 : 0;
   const nextStep = attackNextStep(ctx);
   const cooldown = fmtDuration((BALANCE.barbarianCooldown * 1000) / speed);
+  // Attacks from the active city already sailing to this camp.
+  const incoming = ctx.troopsAway.filter((m) => m.kind === "attack" && m.targetIslandId === island.id && m.targetLabel.startsWith("Bárbaros"));
 
   return {
     kicker: `Nivel ${level}`,
@@ -368,6 +393,7 @@ export function campPanel(ctx: IslandCtx): PanelDef {
             .
           </p>
         )}
+        {incoming.length > 0 && !nextStep && <TroopsAway missions={incoming} now={now} />}
         <section className="flex flex-col gap-2">
           <SectionTitle>Defensores</SectionTitle>
           <UnitStrip units={army.units} size={40} />
@@ -390,6 +416,7 @@ export function campPanel(ctx: IslandCtx): PanelDef {
             travelSec={travelSec}
             target={{ barbariansOnIsland: island.id }}
             defender={army}
+            trainHref={trainHref(city)}
             submitLabel="Atacar el campamento"
             blocked={
               canLeaveAt > now ? (
@@ -540,6 +567,7 @@ function rivalPlotPanel(ctx: IslandCtx, c: IslandCityView): PanelDef {
                 shipsDocked={city.ships}
                 travelSec={travelSec}
                 target={{ cityId: c.id }}
+                trainHref={trainHref(city)}
                 submitLabel={`Atacar ${c.name}`}
               />
             )

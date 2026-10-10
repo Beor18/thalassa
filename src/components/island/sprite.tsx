@@ -13,13 +13,16 @@ export function Sprite({
   alt = "",
   className,
   fallback,
-  priority,
+  eager,
+  sizes = "96px",
 }: {
   src: string;
   alt?: string;
   className?: string;
   fallback: ReactNode;
-  priority?: boolean;
+  /** load right away: the sprite is part of the first screen */
+  eager?: boolean;
+  sizes?: string;
 }) {
   const [broken, setBroken] = useState(false);
   // The image may fail before hydration attaches onError: check once the element is mounted.
@@ -36,7 +39,8 @@ export function Sprite({
       width={384}
       height={384}
       unoptimized
-      priority={priority}
+      sizes={sizes}
+      loading={eager ? "eager" : undefined}
       draggable={false}
       onError={() => setBroken(true)}
       className={clsx("sprite pointer-events-none h-auto w-full select-none", className)}

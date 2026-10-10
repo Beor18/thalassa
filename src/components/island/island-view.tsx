@@ -8,6 +8,9 @@ import { buttonClass } from "@/components/ui/button";
 import { ResIcon } from "@/components/ui/res";
 import { fmtDuration } from "@/lib/format";
 import { IconArrowRight, IconFlag, IconSwords } from "./icons";
+import { ISLAND_FEATURES, ISLAND_PLOT_POS } from "@/game/layout";
+import { troopMissions } from "@/components/city/troops-away";
+import type { FleetPath } from "./fleets";
 import { IslandScene } from "./island-scene";
 import { MINE_NAME } from "./names";
 import { PanelHost, PanelLink, PanelProvider, type PanelDef } from "./panel-host";
@@ -30,8 +33,10 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
         .filter((m) => m.originCityId === city.id)
         .map((m) => m.returnsAt ?? m.arrivesAt + (m.arrivesAt - m.departsAt))
         .sort((a, b) => a - b)[0] ?? null,
+    troopsAway: troopMissions(snapshot.missions, city.id),
   };
 
+  const fleets = fleetPaths(snapshot.missions, island);
   const panels: Record<string, PanelDef> = {
     sawmill: sawmillPanel(ctx),
     mine: minePanel(ctx),
@@ -69,12 +74,47 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
           </Link>
         </div>
         <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_400px]">
-          <IslandScene island={island} activeCityId={city.id} now={snapshot.now} />
+          <IslandScene island={island} activeCityId={city.id} now={snapshot.now} fleets={fleets} />
           <PanelHost panels={panels} summary={<IslandSummary ctx={ctx} />} />
         </div>
       </div>
     </PanelProvider>
   );
+}
+
+/** Where the player's ships sail on this island's map: from their city (or the open sea) to the target. */
+function fleetPaths(missions: Game["snapshot"]["missions"], island: IslandData): FleetPath[] {
+  const SEA = { x: 50, y: 112 };
+  const cityPos = (id: string) => {
+    const c = island.cities.find((x) => x.id === id);
+    return c ? ISLAND_PLOT_POS[c.slot] : null;
+  };
+  // Boats leave from the edge of a sprite, not from its middle, so they never sit on a ribbon.
+  const nudge = (a: { x: number; y: number }, b: { x: number; y: number }, d: number) => {
+    const dx = b.x - a.x;
+    const dy = (b.y - a.y) / 1.5;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: a.x + (dx / len) * d, y: a.y + ((dy / len) * d) * 1.5 };
+  };
+  const trip = (a: { x: number; y: number }, b: { x: number; y: number }) => ({ from: nudge(a, b, 6), to: nudge(b, a, 5) });
+  return missions.flatMap((m): FleetPath[] => {
+    const home = cityPos(m.originCityId);
+    if (m.targetIslandId !== island.id) {
+      // Coming back from another island to a city of this one.
+      return m.status === "returning" && home && m.returnsAt
+        ? [{ id: m.id, kind: m.kind, ...trip(SEA, home), departsAt: m.arrivesAt, arrivesAt: m.returnsAt, verb: "Vuelven en" }]
+        : [];
+    }
+    const targetCity = island.cities.find((c) => c.name === m.targetLabel);
+    const target =
+      m.kind === "attack" && !targetCity ? ISLAND_FEATURES.barbarians : targetCity ? ISLAND_PLOT_POS[targetCity.slot] : { x: 50, y: 70 };
+    const from = home ?? SEA;
+    if (m.status === "outbound") {
+      const verb = m.kind === "attack" ? "Ataque en" : m.kind === "colonize" ? "Colonos en" : "Carga en";
+      return [{ id: m.id, kind: m.kind, ...trip(from, target), departsAt: m.departsAt, arrivesAt: m.arrivesAt, verb }];
+    }
+    return m.returnsAt ? [{ id: m.id, kind: m.kind, ...trip(target, from), departsAt: m.arrivesAt, arrivesAt: m.returnsAt, verb: "Vuelven en" }] : [];
+  });
 }
 
 function SummaryRow({ panel, icon, title, detail }: { panel: string; icon: ReactNode; title: string; detail: ReactNode }) {

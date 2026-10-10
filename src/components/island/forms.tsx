@@ -241,7 +241,7 @@ export function DonateForm({
             inputMode="numeric"
             pattern="[0-9]*"
             autoComplete="off"
-            placeholder="500"
+            placeholder={fmt(Math.max(1, Math.min(500, remaining || 500)))}
             value={amount}
             onChange={(e) => setAmount(digits(e.target.value))}
             aria-invalid={tooMuch || undefined}
@@ -286,6 +286,7 @@ export function AttackForm({
   defender,
   submitLabel,
   blocked,
+  trainHref,
 }: {
   originCityId: string;
   originName: string;
@@ -298,6 +299,8 @@ export function AttackForm({
   submitLabel: string;
   /** why the attack can't leave yet (shown above the button) */
   blocked?: ReactNode;
+  /** the Cuartel of the origin city, offered when the forecast is a defeat */
+  trainHref?: string;
 }) {
   const [counts, setCounts] = useState<Partial<Record<UnitType, string>>>({});
   const { pending, error, submit } = useSubmit();
@@ -318,6 +321,8 @@ export function AttackForm({
   const lackShips = ships > shipsDocked;
   const preview = defender && total > 0 ? resolveCombat(units, defender.units, defender.wall) : null;
   const lost = preview ? Object.values(preview.attackerLosses).reduce((s, n) => s + (n ?? 0), 0) : 0;
+  // A defeat is not a button away: say it loud and make attacking anyway the quiet option.
+  const losing = Boolean(preview && !preview.attackerWins);
 
   const fillAll = () => {
     // Send everyone the docked ships can carry, strongest first.
@@ -396,19 +401,26 @@ export function AttackForm({
         )}
       </dl>
 
-      {preview && (
-        <p
-          className={clsx(
-            "rounded-xl px-3 py-2 text-sm font-bold",
-            preview.attackerWins ? "bg-success/12 text-success" : "bg-danger/10 text-danger",
-          )}
-        >
-          {preview.attackerWins
-            ? lost > 0
-              ? `Pronóstico: ganás y perdés unos ${fmt(lost)} soldados.`
-              : "Pronóstico: ganás sin bajas."
-            : "Pronóstico: perdés. Sumá más tropas."}
+      {preview && preview.attackerWins && (
+        <p className="rounded-xl bg-success/12 px-3 py-2 text-sm font-bold text-success">
+          {lost > 0 ? `Pronóstico: ganás y perdés unos ${fmt(lost)} soldados.` : "Pronóstico: ganás sin bajas."}
         </p>
+      )}
+      {preview && losing && (
+        <div role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-danger/45 bg-danger/10 p-3">
+          <p className="font-display text-base font-bold text-danger">Con esta fuerza vas a perder</p>
+          <p className="text-sm text-ink">
+            Tu ataque suma <strong className="tabular">{fmt(preview.attackPower)}</strong> y su defensa{" "}
+            <strong className="tabular">{fmt(preview.defensePower)}</strong>. Perderías unos{" "}
+            <strong className="tabular">{fmt(lost)}</strong> de tus {fmt(total)} soldados y no traerías botín.
+          </p>
+          <p className="text-sm text-ink-soft">Sumá tropas o entrená más antes de zarpar.</p>
+          {trainHref && (
+            <Link href={trainHref} className={buttonClass("primary", "md", "w-full")}>
+              Entrenar más tropas
+            </Link>
+          )}
+        </div>
       )}
       {!defender && total > 0 && (
         <p className="text-sm text-ink-soft">No sabés cuántas tropas defienden la ciudad. Mandá de más si dudás.</p>
@@ -421,8 +433,14 @@ export function AttackForm({
       )}
       {blocked && <p className="rounded-xl bg-parchment-2 px-3 py-2 text-sm font-bold text-ink-soft">{blocked}</p>}
 
-      <Button type="submit" size="lg" disabled={pending || !total || lackShips || Boolean(blocked)} aria-busy={pending}>
-        {pending ? "Zarpando…" : submitLabel}
+      <Button
+        type="submit"
+        size={losing ? "md" : "lg"}
+        variant={losing ? "secondary" : "primary"}
+        disabled={pending || !total || lackShips || Boolean(blocked)}
+        aria-busy={pending}
+      >
+        {pending ? "Zarpando…" : losing ? "Atacar igual" : submitLabel}
       </Button>
       <InlineError>{error}</InlineError>
     </form>
