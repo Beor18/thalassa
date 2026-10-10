@@ -1,0 +1,673 @@
+/*
+  Ambient life for the painted scenes (city and island).
+  Every moving piece animates transform or opacity only, so the compositor does the work and
+  CSS pauses it when the tab is hidden. With prefers-reduced-motion the loops never start and
+  the moving decorations are hidden: the painting stays still.
+*/
+
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fx-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Water: caustics masked to the sea, foam lapping on the coast               */
+/* ------------------------------------------------------------------------- */
+
+.fx-masked {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.fx-caustics {
+  position: absolute;
+  /* Oversized by one tile on every side so a one-tile drift loops without a seam. */
+  inset: calc(var(--tile) * -1);
+  background-image: url("/assets/fx/caustics.webp");
+  background-size: var(--tile) var(--tile);
+  background-repeat: repeat;
+}
+
+.fx-foam {
+  position: absolute;
+  inset: calc(var(--tile) * -1);
+  background-image: url("/assets/fx/caustics.webp"), linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55));
+  background-size: var(--tile) var(--tile), 100% 100%;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Sky: cloud shadows, gulls, sun glint, vignette                             */
+/* ------------------------------------------------------------------------- */
+
+/* A full-size track that slides across the scene; its child sits at the track's top-left corner. */
+.fx-track {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fx-cloud,
+.fx-cloud-shadow,
+.fx-cloud-wisp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w, 46%);
+  aspect-ratio: 2 / 1;
+  translate: -50% -50%;
+  background: var(--img) center / contain no-repeat;
+}
+
+.fx-cloud-shadow {
+  filter: brightness(0) blur(4px);
+  opacity: var(--o, 0.16);
+}
+
+.fx-cloud-wisp {
+  opacity: var(--o, 0.5);
+  filter: blur(1px);
+}
+
+.fx-gull {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--size, 3.2%);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  rotate: var(--heading, 90deg);
+}
+
+.fx-gull-body,
+.fx-gull-shadow {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/fx/seagull.webp") center / contain no-repeat;
+}
+
+.fx-gull-shadow {
+  /* On the ground, below and to the side of the bird. */
+  inset: auto;
+  left: var(--sx, 140%);
+  top: var(--sy, 260%);
+  width: 100%;
+  height: 100%;
+  filter: brightness(0) blur(1.5px);
+  opacity: 0.22;
+}
+
+.fx-glint {
+  position: absolute;
+  top: -20%;
+  left: 0;
+  width: 26%;
+  height: 140%;
+  translate: -50% 0;
+  rotate: 18deg;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 236 190 / 0.1) 30%,
+    rgb(255 244 214 / 0.28) 50%,
+    rgb(255 236 190 / 0.1) 70%,
+    transparent
+  );
+  mix-blend-mode: soft-light;
+}
+
+.fx-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 82% -8%, rgb(255 225 150 / 0.2), transparent 55%),
+    radial-gradient(ellipse 85% 80% at 50% 48%, transparent 62%, rgb(6 26 48 / 0.34) 100%);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Small emitters: smoke, dust, fire, sparkles, sparks, ripples               */
+/* ------------------------------------------------------------------------- */
+
+.fx-emitter {
+  position: absolute;
+  width: var(--size, 22%);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.fx-puff {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/fx/smoke.webp") center / contain no-repeat;
+  opacity: 0;
+  filter: var(--tint, none);
+}
+
+.fx-fire {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 214 120 / 0.95), rgb(255 140 40 / 0.55) 35%, rgb(220 70 20 / 0) 70%);
+  mix-blend-mode: screen;
+}
+
+.fx-ember {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgb(255 200 110);
+  box-shadow: 0 0 4px rgb(255 160 60 / 0.9);
+  opacity: 0;
+}
+
+.fx-twinkle {
+  position: absolute;
+  width: var(--s, 30%);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: url("/assets/fx/sparkle.webp") center / contain no-repeat;
+  opacity: 0;
+  filter: var(--tint, none);
+}
+
+.fx-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgb(255 236 170);
+  box-shadow: 0 0 3px 1px rgb(255 190 80 / 0.9);
+  opacity: 0;
+}
+
+.fx-ripple {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  aspect-ratio: 2.4 / 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1.5px solid rgb(230 243 251 / 0.75);
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Boats sailing around the island                                            */
+/* ------------------------------------------------------------------------- */
+
+.fx-boat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--size, 5.5%);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}
+
+.fx-boat-hull {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/fx/trireme-top.webp") center / contain no-repeat;
+  filter: drop-shadow(0 3px 2px rgb(6 26 48 / 0.45));
+}
+
+.fx-wake {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 34%;
+  height: 120%;
+  translate: -50% 0;
+  border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(ellipse 50% 60% at 50% 0%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0) 70%);
+  filter: blur(1.5px);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Animations: only when the person is fine with motion                       */
+/* ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .fx-drift-a {
+    animation: fx-drift-a var(--dur, 38s) linear infinite;
+  }
+  .fx-drift-b {
+    animation: fx-drift-b var(--dur, 52s) linear infinite;
+  }
+  .fx-lap-out {
+    animation: fx-lap-out var(--dur, 7s) var(--delay, 0s) ease-in-out infinite;
+  }
+  .fx-lap-in {
+    animation: fx-lap-in var(--dur, 7s) var(--delay, 0s) ease-in-out infinite;
+  }
+  .fx-shimmer {
+    animation: fx-shimmer var(--dur, 9s) var(--delay, 0s) ease-in-out infinite;
+  }
+
+  .fx-cloud-track {
+    animation: fx-cross var(--dur, 140s) var(--delay, 0s) linear infinite;
+  }
+
+  .fx-gull-track {
+    animation: fx-fly var(--dur, 30s) var(--delay, 0s) linear infinite;
+  }
+  .fx-gull-body,
+  .fx-gull-shadow {
+    animation: fx-flap 4.2s var(--flap-delay, 0s) ease-in-out infinite;
+  }
+
+  .fx-glint-track {
+    animation: fx-sweep var(--dur, 19s) var(--delay, 4s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  .fx-puff {
+    animation: fx-puff var(--dur, 4.8s) var(--delay, 0s) cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .fx-fire {
+    animation: fx-flicker 1.7s var(--delay, 0s) steps(1, end) infinite;
+  }
+  .fx-fire-soft {
+    animation: fx-flicker-soft 2.3s var(--delay, 0s) ease-in-out infinite;
+  }
+  .fx-ember {
+    animation: fx-ember var(--dur, 2.6s) var(--delay, 0s) ease-out infinite;
+  }
+
+  .fx-twinkle {
+    animation: fx-twinkle var(--dur, 4.2s) var(--delay, 0s) ease-in-out infinite;
+  }
+
+  .fx-spark {
+    animation: fx-spark 1.3s var(--delay, 0s) cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .fx-ripple {
+    animation: fx-ripple var(--dur, 3.2s) var(--delay, 0s) cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .fx-bob {
+    animation: fx-bob var(--dur, 3.6s) var(--delay, 0s) ease-in-out infinite;
+  }
+
+  .fx-boat-a {
+    animation: fx-boat-a-path 100s var(--delay, 0s) linear infinite;
+  }
+  .fx-boat-a .fx-boat-turn {
+    animation: fx-boat-a-turn 100s var(--delay, 0s) linear infinite;
+  }
+  .fx-boat-b {
+    animation: fx-boat-b-path 72s var(--delay, 0s) linear infinite;
+  }
+  .fx-boat-hull {
+    animation: fx-rock 3.4s var(--delay, 0s) ease-in-out infinite;
+  }
+  .fx-wake {
+    animation: fx-wake 1.6s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-moving {
+    display: none;
+  }
+}
+
+@keyframes fx-drift-a {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(var(--tile), var(--tile), 0);
+  }
+}
+
+@keyframes fx-drift-b {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(var(--tile) * -1), var(--tile), 0);
+  }
+}
+
+@keyframes fx-shimmer {
+  0%,
+  100% {
+    opacity: var(--lo, 0.35);
+  }
+  50% {
+    opacity: var(--hi, 0.7);
+  }
+}
+
+@keyframes fx-lap-out {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  35% {
+    opacity: var(--hi, 0.6);
+  }
+  70% {
+    opacity: 0.05;
+  }
+}
+
+@keyframes fx-lap-in {
+  0%,
+  100% {
+    opacity: var(--lo, 0.35);
+  }
+  45% {
+    opacity: var(--lo, 0.35);
+  }
+  65% {
+    opacity: var(--hi, 0.9);
+  }
+}
+
+@keyframes fx-cross {
+  from {
+    transform: translate3d(var(--x0, -30%), var(--y0, 20%), 0);
+  }
+  to {
+    transform: translate3d(var(--x1, 130%), var(--y1, 40%), 0);
+  }
+}
+
+/* A gull crosses in the first part of the cycle and stays out of sight for the rest. */
+@keyframes fx-fly {
+  0% {
+    transform: translate3d(var(--x0), var(--y0), 0);
+    opacity: 1;
+  }
+  38% {
+    transform: translate3d(var(--x1), var(--y1), 0);
+    opacity: 1;
+  }
+  38.1%,
+  100% {
+    transform: translate3d(var(--x1), var(--y1), 0);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-flap {
+  0%,
+  30%,
+  100% {
+    transform: scale(1, 1) translateY(0);
+  }
+  6%,
+  18% {
+    transform: scale(0.62, 0.96) translateY(-4%);
+  }
+  12%,
+  24% {
+    transform: scale(1, 1) translateY(2%);
+  }
+  65% {
+    transform: scale(0.97, 1) translateY(-6%);
+  }
+}
+
+@keyframes fx-sweep {
+  0% {
+    transform: translate3d(-30%, 0, 0);
+    opacity: 0;
+  }
+  2% {
+    opacity: 1;
+  }
+  20% {
+    transform: translate3d(130%, 0, 0);
+    opacity: 1;
+  }
+  20.1%,
+  100% {
+    transform: translate3d(130%, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-puff {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.25);
+    opacity: 0;
+  }
+  14% {
+    opacity: var(--peak, 0.6);
+  }
+  100% {
+    transform: translate3d(var(--dx, 18%), var(--rise, -190%), 0) scale(var(--grow, 1.5));
+    opacity: 0;
+  }
+}
+
+@keyframes fx-flicker {
+  0% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  11% {
+    opacity: 0.62;
+    transform: scale(0.94);
+  }
+  23% {
+    opacity: 0.95;
+    transform: scale(1.04);
+  }
+  37% {
+    opacity: 0.7;
+    transform: scale(0.97);
+  }
+  52% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  68% {
+    opacity: 0.75;
+    transform: scale(0.95);
+  }
+  81% {
+    opacity: 0.92;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes fx-flicker-soft {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes fx-ember {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--dx, 0%), -900%, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-twinkle {
+  0%,
+  62%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  74% {
+    opacity: 1;
+    transform: scale(1) rotate(25deg);
+  }
+  86% {
+    opacity: 0;
+    transform: scale(0.2) rotate(50deg);
+  }
+}
+
+@keyframes fx-spark {
+  0%,
+  55%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0;
+  }
+  58% {
+    opacity: 1;
+  }
+  85% {
+    transform: translate3d(var(--dx), var(--dy), 0) scale(0.4);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-ripple {
+  0% {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  15% {
+    opacity: var(--peak, 0.7);
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-5%) rotate(1.5deg);
+  }
+}
+
+@keyframes fx-rock {
+  0%,
+  100% {
+    transform: rotate(-2deg) scale(1);
+  }
+  50% {
+    transform: rotate(2deg) scale(1.02);
+  }
+}
+
+@keyframes fx-wake {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scaleY(0.9);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scaleY(1.1);
+  }
+}
+
+/* Boat A crosses the open sea along the bottom, west to east, then rests out of sight. */
+@keyframes fx-boat-a-path {
+  0% {
+    transform: translate3d(-8%, 95%, 0);
+    opacity: 1;
+  }
+  17% {
+    transform: translate3d(20%, 92%, 0);
+  }
+  32% {
+    transform: translate3d(45%, 95.5%, 0);
+  }
+  47% {
+    transform: translate3d(70%, 92.5%, 0);
+  }
+  70% {
+    transform: translate3d(108%, 95%, 0);
+    opacity: 1;
+  }
+  70.1%,
+  100% {
+    transform: translate3d(108%, 95%, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-boat-a-turn {
+  0% {
+    rotate: 86deg;
+  }
+  17% {
+    rotate: 90deg;
+  }
+  32% {
+    rotate: 90deg;
+  }
+  47% {
+    rotate: 88deg;
+  }
+  70%,
+  100% {
+    rotate: 92deg;
+  }
+}
+
+/* Boat B comes in from the east and slows into the lagoon by the eastern plots. */
+@keyframes fx-boat-b-path {
+  0% {
+    transform: translate3d(108%, 71%, 0);
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  34% {
+    transform: translate3d(95%, 66.5%, 0);
+  }
+  58% {
+    transform: translate3d(88%, 63%, 0);
+    opacity: 1;
+  }
+  66%,
+  100% {
+    transform: translate3d(86.5%, 62.2%, 0);
+    opacity: 0;
+  }
+}
