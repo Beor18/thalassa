@@ -56,16 +56,16 @@ export function Merchant({
                 />
                 <span
                   className={clsx(
-                    "flex min-h-14 items-center gap-2 rounded-xl border-2 px-2.5 py-2 transition",
+                    "flex min-h-14 items-center gap-2 rounded-xl border-2 px-2.5 py-2 transition-[border-color,background-color,box-shadow,transform] duration-150 group-active:scale-[0.98]",
                     "border-parchment-3 bg-marble/50 group-hover:border-bronze/60",
                     "peer-checked:border-bronze peer-checked:bg-marble peer-checked:shadow-[0_0_0_3px_rgb(168_113_42/0.2)]",
                     "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold",
                   )}
                 >
-                  <ResIcon kind={r} size={28} />
+                  <ResIcon kind={r} size={28} className="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110" />
                   <span className="min-w-0 leading-tight">
                     <span className="block font-bold">{RESOURCE_INFO[r].label}</span>
-                    <span className={clsx("block text-xs tabular-nums lining-nums", isFull ? "font-bold text-terracotta" : "text-ink-soft")}>
+                    <span className={clsx("block text-xs tabular", isFull ? "font-bold text-terracotta" : "text-ink-soft")}>
                       {isFull ? "Depósito lleno" : `${fmt(res[r])} / ${fmt(storage)}`}
                     </span>
                   </span>
@@ -83,13 +83,14 @@ export function Merchant({
           size="lg"
           disabled={!canPay || full}
           pendingLabel="El mercader está cargando…"
+          celebrate
           className="w-full sm:w-auto sm:self-start"
         >
           Traer {fmt(amount)} de {RESOURCE_INFO[resource].label.toLowerCase()}
         </ActionButton>
         <p className="inline-flex flex-wrap items-center gap-1 text-sm text-ink-soft">
-          Cuesta <ResIcon kind="ambrosia" size={16} /> <b className="tabular-nums lining-nums text-ink">{price}</b>. Tenés{" "}
-          <b className="tabular-nums lining-nums text-ink">{fmt(ambrosia)}</b>.
+          Cuesta <ResIcon kind="ambrosia" size={16} /> <b className="tabular text-ink">{price}</b>. Tenés{" "}
+          <b className="tabular text-ink">{fmt(ambrosia)}</b>.
           {!canPay && <span className="font-bold text-danger"> Te falta ambrosía.</span>}
           {canPay && full && <span className="font-bold text-danger"> Ese depósito ya está lleno.</span>}
         </p>

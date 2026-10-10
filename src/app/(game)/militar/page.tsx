@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { countUnits, militaryPower, unitUpkeep } from "@/game/engine";
 import { getGame } from "@/server/game-context";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { buttonClass } from "@/components/ui/button";
 import { fmt } from "@/lib/format";
+import { stagger } from "@/components/motion/reveal";
 import { CityForces, MissionCard, missionEventAt } from "@/components/military/forces";
 
 export const metadata: Metadata = { title: "Flota y tropas" };
@@ -32,9 +34,9 @@ async function MilitaryContent() {
 
   return (
     <GameShell game={game}>
-      <div className="flex flex-col gap-2">
+      <div className="rise-in flex flex-col gap-2">
         <h1 className="font-display text-2xl font-bold text-foam drop-shadow sm:text-3xl">Flota y tropas</h1>
-        <dl className="panel-dark flex flex-wrap gap-x-6 gap-y-2 px-4 py-2.5 text-sm">
+        <dl className="panel-glass flex flex-wrap gap-x-6 gap-y-2 px-4 py-2.5 text-sm">
           <Stat label="Poder en casa" value={fmt(power)} />
           <Stat label="Soldados en casa" value={fmt(home)} />
           <Stat label="Soldados en el mar" value={fmt(away)} />
@@ -44,19 +46,20 @@ async function MilitaryContent() {
         </dl>
       </div>
 
-      <section aria-labelledby="sea-title" className="flex flex-col gap-2">
+      <section aria-labelledby="sea-title" className="rise-in flex flex-col gap-2" style={stagger(1, 80, 3, 40)}>
         <h2 id="sea-title" className="font-display text-xl font-bold text-foam">
           En el mar
         </h2>
         {missions.length ? (
           <ul className="grid gap-3 lg:grid-cols-2">
-            {missions.map((m) => (
-              <MissionCard key={m.id} mission={m} now={snapshot.now} />
+            {missions.map((m, i) => (
+              <MissionCard key={m.id} mission={m} now={snapshot.now} index={i} />
             ))}
           </ul>
         ) : (
           <div className="panel flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
+            <Image src="/assets/u-ship.webp" alt="" width={64} height={64} className="sprite size-14 shrink-0 motion-safe:animate-float" />
+            <div className="min-w-0 flex-1">
               <p className="font-bold">No hay barcos navegando.</p>
               <p className="text-sm text-ink-soft">
                 Los bárbaros de {city.island.name} guardan un botín. Mandá tropas cuando tengas Cuartel y barcos.
@@ -69,7 +72,7 @@ async function MilitaryContent() {
         )}
       </section>
 
-      <section aria-labelledby="cities-title" className="flex flex-col gap-2">
+      <section aria-labelledby="cities-title" className="rise-in flex flex-col gap-2" style={stagger(2, 80, 3, 40)}>
         <h2 id="cities-title" className="font-display text-xl font-bold text-foam">
           {snapshot.cities.length === 1 ? "Tu ciudad" : "Tus ciudades"}
         </h2>

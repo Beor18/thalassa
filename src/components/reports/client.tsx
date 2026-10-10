@@ -23,7 +23,12 @@ export function MarkReportsRead({ latestUnreadId }: { latestUnreadId: string | n
 export function NewTag({ unread }: { unread: boolean }) {
   const [isNew] = useState(unread);
   if (!isNew) return null;
-  return <span className="rounded-full bg-terracotta px-2 py-0.5 text-xs font-extrabold text-marble">Nuevo</span>;
+  return (
+    <span className="relative inline-flex rounded-full bg-terracotta px-2 py-0.5 text-xs font-extrabold text-marble">
+      <span aria-hidden className="absolute inset-0 rounded-full bg-terracotta motion-safe:animate-[pulse-ring_1.6s_var(--ease-out-quint)_0.6s_3_both]" />
+      <span className="relative">Nuevo</span>
+    </span>
+  );
 }
 
 /** Header line that keeps describing what was new when the page opened. */

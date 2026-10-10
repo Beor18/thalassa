@@ -5,6 +5,8 @@ import clsx from "clsx";
 import { address, type KeyPairSigner, type TransactionSigner } from "@solana/kit";
 import { useWalletAccountTransactionSigner } from "@solana/react";
 import { useConnect, type UiWallet, type UiWalletAccount } from "@wallet-standard/react";
+import { celebrate } from "@/components/motion/celebrate";
+import { Tilt } from "@/components/motion/tilt";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { ResIcon } from "@/components/ui/res";
@@ -297,6 +299,7 @@ function ShopBody({
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<{ signature: string; packs: number; credited: number | null } | null>(null);
+  const buyRef = useRef<HTMLButtonElement>(null);
   const { state, reload, refreshing } = chain;
   const ready = state.status === "ready" ? state : null;
   const config = ready?.config ?? null;
@@ -316,6 +319,7 @@ function ShopBody({
       setStage("crediting");
       const credited = await creditWithRetry();
       setReceipt({ signature, packs, credited });
+      celebrate(buyRef.current, { tone: "ambrosia", count: 24, spread: 140 });
       toast(
         credited && credited > 0
           ? `Sumaste ${fmt(credited)} de ambrosía.`
@@ -356,20 +360,21 @@ function ShopBody({
                 onChange={() => setPacks(n)}
                 className="peer sr-only"
               />
-              <span
+              <Tilt
                 className={clsx(
-                  "flex h-full flex-col items-center gap-0.5 rounded-xl border-2 px-2 py-3 text-center transition",
+                  "rounded-xl border-2 transition-[border-color,background-color,box-shadow] duration-200",
                   "border-parchment-3 bg-marble/50 group-hover:border-bronze/60",
-                  "peer-checked:border-ambrosia peer-checked:bg-marble peer-checked:shadow-[0_0_0_3px_rgb(155_93_229/0.2)]",
+                  "peer-checked:border-ambrosia peer-checked:bg-marble peer-checked:shadow-[0_0_0_3px_rgb(155_93_229/0.2),0_10px_24px_-12px_rgb(111_54_184/0.7)]",
                   "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold",
                 )}
               >
+              <span className="flex h-full flex-col items-center gap-0.5 px-2 py-3 text-center">
                 <span className="font-display text-base font-bold sm:text-lg">
                   {n} {n === 1 ? "pack" : "packs"}
                 </span>
                 {config ? (
                   <>
-                    <span className="inline-flex items-center gap-1 font-bold text-[#6f36b8] tabular-nums lining-nums">
+                    <span className="inline-flex items-center gap-1 font-bold text-ambrosia-dark tabular">
                       <ResIcon kind="ambrosia" size={18} />
                       {fmt(Number(config.ambrosiaPerPack) * n)}
                     </span>
@@ -382,6 +387,7 @@ function ShopBody({
                   </>
                 )}
               </span>
+              </Tilt>
             </label>
           ))}
         </div>
@@ -402,11 +408,12 @@ function ShopBody({
       {blocker ?? (
         <div className="flex flex-col gap-2">
           <Button
+            ref={buyRef}
             variant="ambrosia"
             size="lg"
             onClick={buy}
-            disabled={!signer || !config || busy || !!short || refreshing}
-            aria-busy={busy}
+            loading={busy}
+            disabled={!signer || !config || !!short || refreshing}
             className="w-full sm:w-auto sm:self-start"
           >
             {busy ? STAGE_LABEL[stage as Exclude<Stage, "idle">] : `Comprar ${packs} ${packs === 1 ? "pack" : "packs"}`}
@@ -429,7 +436,7 @@ function ShopBody({
       {error && <Notice tone="error">{error}</Notice>}
 
       {receipt && (
-        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-olive/15 px-3 py-2 text-[15px]">
+        <div role="status" className="pop-in flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-olive/15 px-3 py-2 text-[15px] ring-1 ring-olive/30">
           <span className="font-bold text-success">
             Compra confirmada: {receipt.packs} {receipt.packs === 1 ? "pack" : "packs"}
             {receipt.credited ? ` · +${fmt(receipt.credited)} de ambrosía` : ""}
@@ -564,7 +571,7 @@ function WalletCard({
       </div>
       <div className="flex flex-col gap-2 border-t border-foam/15 pt-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Button variant="sea" onClick={claim} disabled={!!pending} aria-busy={pending === "faucet"}>
+          <Button variant="sea" onClick={claim} disabled={!!pending} loading={pending === "faucet"}>
             {pending === "faucet" ? "Pidiendo SOL…" : "Pedir SOL de prueba"}
           </Button>
           <p className="text-sm text-foam/80">Te alcanza para un pack. Es gratis, no vale plata real y podés pedir cada 12 horas.</p>

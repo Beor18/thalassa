@@ -9,6 +9,7 @@ import { buttonClass } from "@/components/ui/button";
 import { Countdown, TimeProgress } from "@/components/ui/countdown";
 import { CostList } from "@/components/ui/res";
 import { fmt } from "@/lib/format";
+import { stagger } from "@/components/motion/reveal";
 import { IconArrowRight } from "@/components/island/icons";
 import { ShipPortrait, UnitPortrait, UnitStrip, unitName } from "./units";
 
@@ -77,7 +78,8 @@ export function CityForces({ city, speed, now, shipsAtSea }: { city: GameCity; s
         />
         {soldiers > 0 && (
           <p className="tabular text-sm text-ink-soft">
-            {fmt(soldiers)} soldados · poder {fmt(power)} · cuestan {fmt(upkeep)} de oro por hora
+            {fmt(soldiers)} {soldiers === 1 ? "soldado" : "soldados"} · poder {fmt(power)} · {soldiers === 1 ? "cuesta" : "cuestan"}{" "}
+            {fmt(upkeep)} de oro por hora
           </p>
         )}
       </section>
@@ -124,7 +126,7 @@ export function CityForces({ city, speed, now, shipsAtSea }: { city: GameCity; s
                         <Countdown endsAt={b.endsAt} serverNow={now} doneLabel="Listas" />
                       </span>
                     </div>
-                    <TimeProgress startedAt={b.startedAt} endsAt={b.endsAt} serverNow={now} />
+                    <TimeProgress startedAt={b.startedAt} endsAt={b.endsAt} serverNow={now} className="mt-1" />
                   </div>
                 </li>
               );
@@ -148,7 +150,7 @@ const KIND: Record<MissionView["kind"], { label: string; className: string }> = 
 
 export const missionEventAt = (m: MissionView) => (m.status === "outbound" ? m.arrivesAt : (m.returnsAt ?? m.arrivesAt));
 
-export function MissionCard({ mission: m, now }: { mission: MissionView; now: number }) {
+export function MissionCard({ mission: m, now, index = 0 }: { mission: MissionView; now: number; index?: number }) {
   const outbound = m.status === "outbound";
   const kind = KIND[m.kind];
   const cargo: Partial<Record<Resource, number>> = {};
@@ -160,7 +162,7 @@ export function MissionCard({ mission: m, now }: { mission: MissionView; now: nu
   const hasCargo = Object.keys(cargo).length > 0;
 
   return (
-    <li className="panel flex flex-col gap-2.5 p-3 sm:p-4">
+    <li className="panel rise-in flex flex-col gap-2.5 p-3 sm:p-4" style={stagger(index, 60, 6, 120)}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-extrabold tracking-wide uppercase", kind.className)}>{kind.label}</span>
         <span className="text-sm font-bold text-ink-soft">{outbound ? "De ida" : "De vuelta"}</span>
@@ -207,11 +209,7 @@ export function MissionCard({ mission: m, now }: { mission: MissionView; now: nu
         {!hasUnits && !hasCargo && !outbound && <span className="text-ink-soft">Vuelven vacíos</span>}
       </div>
 
-      <TimeProgress
-        startedAt={outbound ? m.departsAt : m.arrivesAt}
-        endsAt={missionEventAt(m)}
-        serverNow={now}
-      />
+      <TimeProgress startedAt={outbound ? m.departsAt : m.arrivesAt} endsAt={missionEventAt(m)} serverNow={now} marker="ship" />
     </li>
   );
 }

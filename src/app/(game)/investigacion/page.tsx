@@ -6,8 +6,11 @@ import clsx from "clsx";
 import { TECHS, TECH_BRANCHES, TECH_IDS, type TechBranch, type TechDef } from "@/game/data";
 import { buildingLevel } from "@/game/engine";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
+import { stagger } from "@/components/motion/reveal";
 import { LivePoints } from "@/components/research/live-points";
+import { ResearchedStamp } from "@/components/research/stamp";
 import { ActionButton } from "@/components/ui/action-button";
+import { buttonClass } from "@/components/ui/button";
 import { Countdown } from "@/components/ui/countdown";
 import { ResIcon } from "@/components/ui/res";
 import { fmt, fmt1 } from "@/lib/format";
@@ -23,7 +26,7 @@ const BRANCH_ART: Record<TechBranch, string> = {
   seafaring: "/assets/u-ship.webp",
 };
 
-const INDENT = ["", "ml-4", "ml-8", "ml-12"] as const;
+const INDENT = ["", "ml-3", "ml-6", "ml-9"] as const;
 
 /** Techs of a branch in prerequisite order (each one right after the one it needs), with depth. */
 function branchTree(branch: TechBranch): { tech: TechDef; depth: number }[] {
@@ -77,36 +80,38 @@ async function Content() {
 
   return (
     <GameShell game={game}>
-      <section className="panel-dark flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <section className="panel-dark rise-in flex flex-col gap-4 overflow-hidden p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-4">
-          <Image src="/assets/r-research.webp" alt="" width={64} height={64} className="sprite size-14 shrink-0 sm:size-16" />
+          <span className="relative grid shrink-0 place-items-center">
+            <span aria-hidden className="absolute inset-1 rounded-full bg-sea-300/25 blur-xl motion-safe:animate-[float_4s_ease-in-out_infinite]" />
+            <Image src="/assets/r-research.webp" alt="" width={64} height={64} loading="eager" className="sprite relative size-14 sm:size-16" />
+          </span>
           <div>
-            <h1 className="font-display text-sm font-bold tracking-[0.25em] text-sea-300">INVESTIGACIÓN</h1>
+            <h1 className="font-display text-sm font-bold tracking-[0.25em] text-sea-300">Investigación</h1>
             <p className="font-display text-3xl font-black text-foam sm:text-4xl">
-              <LivePoints value={p.research} perHour={perHour} serverNow={snapshot.now} />{" "}
-              <span className="text-base font-bold text-foam/70">puntos</span>
+              <LivePoints value={p.research} perHour={perHour} serverNow={snapshot.now} unitClassName="text-base font-bold text-foam/70" />
             </p>
           </div>
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:text-right">
           <dt className="text-foam/70">Por hora</dt>
-          <dd className="tabular-nums lining-nums font-bold text-sea-300">+{fmt1(perHour)}</dd>
+          <dd className="font-bold text-sea-300 tabular">+{fmt1(perHour)}</dd>
           <dt className="text-foam/70">Científicos</dt>
-          <dd className="tabular-nums lining-nums font-bold text-foam">{fmt(scientists)}</dd>
+          <dd className="font-bold text-foam tabular">{fmt(scientists)}</dd>
           <dt className="text-foam/70">Investigadas</dt>
-          <dd className="tabular-nums lining-nums font-bold text-foam">
+          <dd className="font-bold text-foam tabular">
             {researched.size} de {TECH_IDS.length}
           </dd>
         </dl>
       </section>
 
       {hint && (
-        <div className="panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-          <Image src="/assets/b-academy.webp" alt="" width={56} height={56} className="sprite size-14 shrink-0" />
+        <div className="panel rise-in flex flex-col gap-3 p-4 sm:flex-row sm:items-center" style={stagger(1, 60)}>
+          <Image src="/assets/b-academy.webp" alt="" width={56} height={56} className="sprite size-14 shrink-0 motion-safe:animate-float" />
           <p className="flex-1 text-[15px]">{hint.text}</p>
           <Link
             href={hint.href}
-            className="inline-flex h-10 shrink-0 items-center justify-center self-start rounded-lg border border-parchment-3 bg-parchment-2 px-4 text-[15px] font-bold text-ink transition hover:bg-parchment-3/70 sm:self-auto"
+            className={buttonClass("secondary", "md", "shrink-0 self-start sm:self-auto")}
           >
             {hint.cta}
           </Link>
@@ -114,33 +119,66 @@ async function Content() {
       )}
 
       <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {(Object.keys(TECH_BRANCHES) as TechBranch[]).map((branch) => {
+        {(Object.keys(TECH_BRANCHES) as TechBranch[]).map((branch, b) => {
           const tree = branchTree(branch);
           const done = tree.filter(({ tech }) => researched.has(tech.id)).length;
           return (
-            <section key={branch} aria-labelledby={`branch-${branch}`} className="panel flex flex-col gap-2 p-3 sm:p-4">
+            <section
+              key={branch}
+              aria-labelledby={`branch-${branch}`}
+              className="panel rise-in flex flex-col gap-2 p-3 sm:p-4"
+              style={stagger(b, 70, 4, 80)}
+            >
               <header className="flex items-center gap-3 pb-1">
                 <Image src={BRANCH_ART[branch]} alt="" width={40} height={40} className="sprite size-10 shrink-0" />
                 <h2 id={`branch-${branch}`} className="flex-1 font-display text-lg font-bold">
                   {TECH_BRANCHES[branch]}
                 </h2>
-                <span className="tabular-nums lining-nums text-sm font-bold text-ink-soft">
+                <span className="text-sm font-bold text-ink-soft tabular">
                   {done}/{tree.length}
                 </span>
               </header>
+              {/* Progress of the branch */}
+              <span aria-hidden className="-mt-1 mb-1 block h-1 overflow-hidden rounded-full bg-ink/10">
+                <span
+                  className="draw-x block h-full rounded-full bg-gradient-to-r from-olive to-gold"
+                  style={{ width: `${(done / Math.max(1, tree.length)) * 100}%`, ...stagger(b, 70, 4, 400) }}
+                />
+              </span>
               <ol className="flex flex-col gap-2">
-                {tree.map(({ tech, depth }) => (
-                  <li key={tech.id} className={clsx(INDENT[Math.min(depth, INDENT.length - 1)], depth > 0 && "border-l-2 border-parchment-3 pl-2")}>
-                    <TechCard
-                      tech={tech}
-                      researched={researched.has(tech.id)}
-                      unlocked={!tech.requires || researched.has(tech.requires)}
-                      points={p.research}
-                      perHour={perHour}
-                      now={snapshot.now}
-                    />
-                  </li>
-                ))}
+                {tree.map(({ tech, depth }, i) => {
+                  const isDone = researched.has(tech.id);
+                  const delay = stagger(i, 55, 7, 160 + b * 70);
+                  return (
+                    <li key={tech.id} className={clsx("relative", INDENT[Math.min(depth, INDENT.length - 1)], depth > 0 && "pl-3")}>
+                      {depth > 0 && (
+                        <>
+                          {/* Connector from the research it needs, drawn in as the tree appears */}
+                          <span
+                            aria-hidden
+                            className={clsx("draw-y absolute -top-2 bottom-1/2 left-0 w-0.5 rounded-full", isDone ? "bg-olive/60" : "bg-parchment-3")}
+                            style={delay}
+                          />
+                          <span
+                            aria-hidden
+                            className={clsx("draw-x absolute top-1/2 left-0 h-0.5 w-3 rounded-full", isDone ? "bg-olive/60" : "bg-parchment-3")}
+                            style={stagger(i, 55, 7, 420 + b * 70)}
+                          />
+                        </>
+                      )}
+                      <div className="rise-in" style={delay}>
+                        <TechCard
+                          tech={tech}
+                          researched={isDone}
+                          unlocked={!tech.requires || researched.has(tech.requires)}
+                          points={p.research}
+                          perHour={perHour}
+                          now={snapshot.now}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             </section>
           );
@@ -172,44 +210,40 @@ function TechCard({
   return (
     <article
       className={clsx(
-        "flex flex-col gap-1.5 rounded-xl border p-3 transition",
+        "relative flex flex-col gap-1.5 rounded-xl border p-3 transition-[box-shadow,transform,border-color] duration-200",
         status === "done" && "border-olive/40 bg-olive/10",
-        status === "ready" && "border-bronze bg-marble shadow-[0_0_0_3px_rgb(227_179_65/0.25)]",
+        status === "ready" &&
+          "border-bronze bg-marble shadow-[0_0_0_3px_rgb(227_179_65/0.25),0_8px_20px_-12px_rgb(122_79_24/0.6)] hover:-translate-y-0.5 hover:shadow-[0_0_0_3px_rgb(227_179_65/0.4),0_12px_24px_-12px_rgb(122_79_24/0.7)]",
         status === "short" && "border-parchment-3 bg-marble/60",
         status === "locked" && "border-dashed border-parchment-3 bg-transparent",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className={clsx("font-display text-base font-bold", status === "locked" ? "text-ink-soft" : "text-ink")}>{tech.name}</h3>
-        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums lining-nums text-ink-soft" title="Costo en puntos de investigación">
+        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-ink-soft tabular" title="Costo en puntos de investigación">
           <ResIcon kind="research" size={16} />
           {fmt(tech.cost)}
         </span>
       </div>
       <p className={clsx("text-[15px] leading-snug", status === "locked" ? "text-ink-soft" : "text-ink")}>{tech.effect}</p>
 
-      {status === "done" && (
-        <p className="inline-flex items-center gap-1.5 text-sm font-bold text-success">
-          <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m3 8.5 3.2 3L13 4.5" />
-          </svg>
-          Investigada
-        </p>
-      )}
+      {status === "done" && <ResearchedStamp className="self-start" />}
       {status === "locked" && tech.requires && (
         <p className="text-sm font-bold text-ink-soft">Bloqueada: requiere {TECHS[tech.requires].name}</p>
       )}
       {status === "ready" && (
         <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
           <span className="text-sm font-bold text-bronze-dark">Disponible</span>
-          <ActionButton action={researchAction.bind(null, { tech: tech.id })} size="sm" className="h-10 px-4" pendingLabel="Investigando…">
+          <ActionButton action={researchAction.bind(null, { tech: tech.id })} size="sm" className="h-10 px-4" pendingLabel="Investigando…" celebrate>
             Investigar
           </ActionButton>
         </div>
       )}
       {status === "short" && (
         <p className="text-sm text-ink-soft">
-          <span className="font-bold text-terracotta">Te faltan {fmt(Math.ceil(missing))} puntos</span>
+          <span className="font-bold text-terracotta">
+            {Math.ceil(missing) === 1 ? "Te falta 1 punto" : `Te faltan ${fmt(Math.ceil(missing))} puntos`}
+          </span>
           {perHour > 0 && (
             <>
               {" · llegás en "}

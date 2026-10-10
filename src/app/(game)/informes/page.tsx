@@ -30,14 +30,14 @@ async function ReportsContent() {
     <GameShell game={game}>
       <MarkReportsRead latestUnreadId={latestUnread} />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
-        <div className="flex flex-col gap-0.5">
+        <div className="rise-in flex flex-col gap-0.5">
           <h1 className="font-display text-2xl font-bold text-foam drop-shadow sm:text-3xl">Informes</h1>
           <UnreadSummary unread={unread} total={reports.length} />
         </div>
 
         {reports.length === 0 ? (
-          <div className="panel flex flex-col items-center gap-3 p-8 text-center">
-            <span className="grid size-14 place-items-center rounded-full bg-parchment-2 text-bronze-dark ring-1 ring-parchment-3">
+          <div className="panel rise-in flex flex-col items-center gap-3 p-8 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-parchment-2 text-bronze-dark ring-1 ring-parchment-3 motion-safe:animate-float">
               <IconScroll size={26} />
             </span>
             <div>
@@ -50,9 +50,9 @@ async function ReportsContent() {
           </div>
         ) : (
           <ol className="flex flex-col gap-3">
-            {reports.map((r) => (
+            {reports.map((r, i) => (
               <li key={r.id}>
-                <ReportCard report={r} now={snapshot.now} />
+                <ReportCard report={r} now={snapshot.now} index={i} />
               </li>
             ))}
           </ol>

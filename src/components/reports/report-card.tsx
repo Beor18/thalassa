@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
@@ -9,6 +9,7 @@ import { CostList } from "@/components/ui/res";
 import { fmt } from "@/lib/format";
 import { IconScroll, IconSwords, IconTemple } from "@/components/island/icons";
 import { UnitPortrait } from "@/components/military/units";
+import { LaurelIcon } from "@/components/game/icons";
 import { NewTag } from "./client";
 
 export interface ReportRow {
@@ -88,23 +89,26 @@ function When({ at, now, className }: { at: Date; now: number; className?: strin
   );
 }
 
-export function ReportCard({ report, now }: { report: ReportRow; now: number }) {
-  if (report.kind === "battle") return <BattleReport report={report} now={now} />;
-  return <SimpleReport report={report} now={now} />;
+/** `index` is the card's place in the list: the first ones animate in, one after another. */
+export function ReportCard({ report, now, index = 0 }: { report: ReportRow; now: number; index?: number }) {
+  if (report.kind === "battle") return <BattleReport report={report} now={now} index={index} />;
+  return <SimpleReport report={report} now={now} index={index} />;
 }
+
+const delayOf = (index: number, extra = 0) => ({ "--d": `${Math.min(index, 6) * 80 + extra}ms` }) as CSSProperties;
 
 // ---------------------------------------------------------------------------
 // Battle
 // ---------------------------------------------------------------------------
 
-function BattleReport({ report, now }: { report: ReportRow; now: number }) {
+function BattleReport({ report, now, index }: { report: ReportRow; now: number; index: number }) {
   const b = report.body as BattleBody;
   const role = b.role ?? "attacker";
   const target = b.target;
 
   if (b.empty || !b.attacker || !b.defender) {
     return (
-      <article className="panel overflow-hidden">
+      <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
         <div className="flex items-center justify-between gap-3 bg-sea-700 px-4 py-2 text-foam">
           <span className="font-display text-lg font-bold">Sin combate</span>
           <When at={report.createdAt} now={now} />
@@ -138,13 +142,22 @@ function BattleReport({ report, now }: { report: ReportRow; now: number }) {
         : "";
 
   return (
-    <article className="panel overflow-hidden">
-      <div className={clsx("flex items-center justify-between gap-3 px-4 py-2 text-marble", won ? "bg-success" : "bg-danger")}>
-        <span className="inline-flex items-center gap-2 font-display text-lg font-bold">
-          <IconSwords size={18} />
+    <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
+      {/* Banner unfurls: gold laurel for a victory, deep red for a defeat */}
+      <div
+        className={clsx(
+          "wipe-in relative flex items-center justify-between gap-3 overflow-hidden px-4 py-2.5",
+          won
+            ? "shine bg-gradient-to-r from-bronze via-gold to-gold-light text-ink [--sheen-delay:0.7s]"
+            : "bg-gradient-to-r from-[#5e130e] via-danger to-[#8f1f18] text-marble",
+        )}
+        style={delayOf(index, 120)}
+      >
+        <span className="relative inline-flex items-center gap-2 font-display text-xl font-bold tracking-wide">
+          {won ? <LaurelIcon className="w-9 text-bronze-deep" /> : <IconSwords size={20} />}
           {won ? "Victoria" : "Derrota"}
         </span>
-        <When at={report.createdAt} now={now} className="text-marble/90" />
+        <When at={report.createdAt} now={now} className={clsx("relative", won ? "font-bold text-ink/80" : "text-marble/90")} />
       </div>
       <div className="flex flex-col gap-3 p-4">
         <div>
@@ -238,7 +251,7 @@ function BattleReport({ report, now }: { report: ReportRow; now: number }) {
         <div className="flex flex-col gap-1.5 rounded-xl bg-parchment-2/60 p-3 ring-1 ring-parchment-3">
           <p className="text-sm font-bold">{role === "attacker" ? "Botín" : "Lo que se llevaron"}</p>
           {hasLoot ? (
-            <CostList cost={loot} />
+            <CostList cost={loot} pop popDelay={Math.min(index, 6) * 80 + 500} />
           ) : (
             <p className="text-sm text-ink-soft">
               {role === "attacker" ? "No trajiste nada esta vez." : "No se llevaron nada."}
@@ -271,7 +284,7 @@ function Cell({ sent, lost }: { sent?: number; lost?: number }) {
 // Transport, colony, system
 // ---------------------------------------------------------------------------
 
-function SimpleReport({ report, now }: { report: ReportRow; now: number }) {
+function SimpleReport({ report, now, index }: { report: ReportRow; now: number; index: number }) {
   let icon: ReactNode;
   let body: ReactNode;
 
@@ -286,7 +299,7 @@ function SimpleReport({ report, now }: { report: ReportRow; now: number }) {
             De {t.from.name} ({t.from.playerName}) a {t.to.name} ({t.to.playerName}), en {t.to.islandName}.
           </p>
         )}
-        {Object.keys(cargo).length > 0 && <CostList cost={cargo} className="mt-1" />}
+        {Object.keys(cargo).length > 0 && <CostList cost={cargo} className="mt-1" pop popDelay={Math.min(index, 6) * 80 + 300} />}
       </>
     );
   } else if (report.kind === "colony") {
@@ -315,7 +328,7 @@ function SimpleReport({ report, now }: { report: ReportRow; now: number }) {
   }
 
   return (
-    <article className="panel flex gap-3 p-4">
+    <article className="panel rise-in flex gap-3 p-4" style={delayOf(index)}>
       <span className="grid size-11 shrink-0 place-items-center rounded-full bg-parchment-2 text-bronze-dark ring-1 ring-parchment-3">{icon}</span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
