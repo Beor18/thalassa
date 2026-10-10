@@ -53,7 +53,9 @@ export function useSheetDialog(active: boolean, panel: RefObject<HTMLElement | n
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !el) return;
-      const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((n) => n.offsetParent !== null || n === document.activeElement);
+      const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (n) => n.offsetParent !== null || n === document.activeElement,
+      );
       if (!items.length) return;
       const first = items[0];
       const last = items[items.length - 1];

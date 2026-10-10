@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { fmtDuration } from "@/lib/format";
 import { useServerClock } from "@/lib/use-server-clock";
 import { heading } from "@/components/fx/ambient";
+import { fx } from "@/components/fx/classes";
 
 export interface FleetPath {
   id: string;
@@ -42,9 +43,12 @@ export function Fleets({ paths, serverNow }: { paths: FleetPath[]; serverNow: nu
             style={{ transform: `translate3d(${x}%, ${y}%, 0)` }}
           >
             <div className="absolute top-0 left-0 w-[5.5%] -translate-x-1/2 -translate-y-1/2">
-              <div className="relative aspect-square" style={{ rotate: `${heading(p.from.x, p.from.y, p.to.x, p.to.y).toFixed(1)}deg` } as CSSProperties}>
-                <span className="fx-wake" />
-                <span className="fx-boat-hull" />
+              <div
+                className="relative aspect-square"
+                style={{ rotate: `${heading(p.from.x, p.from.y, p.to.x, p.to.y).toFixed(1)}deg` } as CSSProperties}
+              >
+                <span className={fx.wake} />
+                <span className={fx.boatHull} />
               </div>
               <span
                 className={clsx(

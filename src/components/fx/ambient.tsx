@@ -23,28 +23,16 @@ export function heading(x0: number, y0: number, x1: number, y1: number): number 
 // ---------------------------------------------------------------------------
 
 /**
- * Sunlight dancing on the water. Two pre-baked layers (caustic lines already clipped to the
- * shallows of this painting) cross-fade and drift a few pixels: plain textures and opacity,
- * no masks or blend modes for the GPU to work on every frame.
+ * The sea of a painting coming alive: caustic light in the shallows, foam breaking on the rocks
+ * and the swell just off the coast. Two layers baked for that painting (already clipped to its
+ * water) take turns, drifting a few pixels: plain textures and opacity, no masks or blend modes
+ * for the GPU to redo every frame. `a` carries the breaking foam, `b` the swell.
  */
-export function WaterLight({ a, b, opacity = 1, dur = 8 }: { a: string; b: string; opacity?: number; dur?: number }) {
+export function SeaShimmer({ a, b, opacity = 1, dur = 7.5 }: { a: string; b: string; opacity?: number; dur?: number }) {
   return (
     <div aria-hidden className={fx.layer} style={{ opacity }}>
-      <div className={clsx(fx.baked, fx.shimmerA)} style={{ backgroundImage: `url(${a})`, "--dur": `${dur}s` } as Vars} />
       <div className={clsx(fx.baked, fx.shimmerB)} style={{ backgroundImage: `url(${b})`, "--dur": `${dur}s` } as Vars} />
-    </div>
-  );
-}
-
-/**
- * Foam along the coast: an outer band that swells and an inner band that brightens a moment later,
- * so the waves seem to roll in and break on the rocks. Both bands are baked for this painting.
- */
-export function CoastFoam({ inner, outer, dur = 7, delay = 0 }: { inner: string; outer: string; dur?: number; delay?: number }) {
-  return (
-    <div aria-hidden className={fx.layer}>
-      <div className={clsx(fx.baked, fx.lapOut)} style={{ backgroundImage: `url(${outer})`, "--dur": `${dur}s`, "--delay": `${delay}s` } as Vars} />
-      <div className={clsx(fx.baked, fx.lapIn)} style={{ backgroundImage: `url(${inner})`, "--dur": `${dur}s`, "--delay": `${delay}s` } as Vars} />
+      <div className={clsx(fx.baked, fx.shimmerA)} style={{ backgroundImage: `url(${a})`, "--dur": `${dur}s` } as Vars} />
     </div>
   );
 }

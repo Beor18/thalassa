@@ -6,7 +6,7 @@ import { ISLAND_FEATURES, ISLAND_FEATURE_IMAGE, ISLAND_PLOT_POS } from "@/game/l
 import type { IslandView } from "@/server/queries";
 import { Countdown } from "@/components/ui/countdown";
 import { ResIcon } from "@/components/ui/res";
-import { CloudShadows, CoastFoam, Fire, Gulls, IslandBoats, Smoke, SunGlint, Twinkles, Vignette, WaterLight } from "@/components/fx/ambient";
+import { CloudShadows, Fire, Gulls, IslandBoats, Smoke, SunGlint, Twinkles, Vignette, SeaShimmer } from "@/components/fx/ambient";
 import { fx } from "@/components/fx/classes";
 import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
@@ -67,7 +67,11 @@ function Spot({
     >
       <span
         aria-hidden
-        className={clsx(fx.ground, fx.groundHover, "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100")}
+        className={clsx(
+          fx.ground,
+          fx.groundHover,
+          "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100",
+        )}
         style={{ "--top": "74%", "--w": "86%" } as Vars}
       />
       <span aria-hidden className="opacity-0 transition-opacity duration-150 group-aria-[current=true]:opacity-100">
@@ -102,8 +106,26 @@ function MineLife({ resource }: { resource: LuxuryResource }) {
     case "sulfur":
       return (
         <>
-          <Smoke x={30} y={20} size={30} dur={6.2} peak={0.55} rise={-150} tint="sepia(1) saturate(3.2) hue-rotate(8deg) brightness(1.05)" />
-          <Smoke x={64} y={18} size={24} dur={7} peak={0.45} rise={-140} offset={1.7} puffs={2} tint="sepia(1) saturate(3.2) hue-rotate(8deg) brightness(1.05)" />
+          <Smoke
+            x={30}
+            y={20}
+            size={30}
+            dur={6.2}
+            peak={0.55}
+            rise={-150}
+            tint="sepia(1) saturate(3.2) hue-rotate(8deg) brightness(1.05)"
+          />
+          <Smoke
+            x={64}
+            y={18}
+            size={24}
+            dur={7}
+            peak={0.45}
+            rise={-140}
+            offset={1.7}
+            puffs={2}
+            tint="sepia(1) saturate(3.2) hue-rotate(8deg) brightness(1.05)"
+          />
         </>
       );
     case "marble":
@@ -155,8 +177,7 @@ export function IslandScene({
               className="pointer-events-none object-cover select-none"
             />
 
-            <WaterLight a={`${MASK}/island-caustics-a.webp`} b={`${MASK}/island-caustics-b.webp`} opacity={0.7} dur={9} />
-            <CoastFoam inner={`${MASK}/island-foam-in.webp`} outer={`${MASK}/island-foam-out.webp`} dur={8} />
+            <SeaShimmer a={`${MASK}/island-water-a.webp`} b={`${MASK}/island-water-b.webp`} opacity={0.8} dur={8.5} />
             <IslandBoats />
 
             <Spot
@@ -263,14 +284,21 @@ export function IslandScene({
                       style={{ "--top": "50%", "--w": "100%" } as Vars}
                     />
                     <span aria-hidden className="opacity-0 group-aria-[current=true]:opacity-100">
-                      <span className={clsx(fx.ground, fx.groundSelected, fx.glowPulse)} style={{ "--top": "50%", "--w": "100%" } as Vars} />
+                      <span
+                        className={clsx(fx.ground, fx.groundSelected, fx.glowPulse)}
+                        style={{ "--top": "50%", "--w": "100%" } as Vars}
+                      />
                     </span>
                     <span
                       aria-hidden
                       className={clsx(fx.ground, fx.groundRipple)}
                       style={{ "--top": "50%", "--w": "100%", "--delay": `${(-slot * 0.8).toFixed(1)}s`, "--dur": "3.6s" } as Vars}
                     />
-                    <span aria-hidden className={clsx("relative -translate-y-[30%]", fx.float)} style={{ "--delay": `${(-slot * 0.5).toFixed(1)}s` } as Vars}>
+                    <span
+                      aria-hidden
+                      className={clsx("relative -translate-y-[30%]", fx.float)}
+                      style={{ "--delay": `${(-slot * 0.5).toFixed(1)}s` } as Vars}
+                    >
                       <span
                         className={clsx(
                           fx.medallion,

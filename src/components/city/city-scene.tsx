@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { BUILDINGS, CITY_SLOTS, type BuildingType, type SlotKind } from "@/game/data";
 import { CITY_PLOTS, CITY_SPRITE_WIDTH, CONSTRUCTION_IMAGE, SHIP_IMAGE } from "@/game/layout";
 import { Countdown } from "@/components/ui/countdown";
-import { CloudShadows, CoastFoam, Gulls, HammerSparks, Ripples, Smoke, SunGlint, Twinkles, Vignette, WaterLight } from "@/components/fx/ambient";
+import { CloudShadows, Gulls, HammerSparks, Ripples, Smoke, SunGlint, Twinkles, Vignette, SeaShimmer } from "@/components/fx/ambient";
 import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { fx as scene } from "@/components/fx/classes";
@@ -26,15 +26,7 @@ const SCAFFOLD = "/assets/fx/scaffold.webp";
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
 
-export function CityScene({
-  city,
-  serverNow,
-  selected,
-}: {
-  city: GameCity;
-  serverNow: number;
-  selected: number | null;
-}) {
+export function CityScene({ city, serverNow, selected }: { city: GameCity; serverNow: number; selected: number | null }) {
   const docked = Math.min(city.ships, MOORINGS.length);
   const focusX = selected != null ? CITY_PLOTS[selected].x : CITY_PLOTS[0].x;
   const snapshot: CitySnapshot = {
@@ -73,8 +65,7 @@ export function CityScene({
             />
 
             {/* Sea: light dancing in the shallows, slow swell further out, foam on the rocks */}
-            <WaterLight a={`${MASK}/city-caustics-a.webp`} b={`${MASK}/city-caustics-b.webp`} opacity={0.75} dur={8} />
-            <CoastFoam inner={`${MASK}/city-foam-in.webp`} outer={`${MASK}/city-foam-out.webp`} dur={7.5} />
+            <SeaShimmer a={`${MASK}/city-water-a.webp`} b={`${MASK}/city-water-b.webp`} opacity={0.85} dur={7.5} />
 
             {MOORINGS.slice(0, docked).map((m, i) => (
               <span
@@ -221,7 +212,9 @@ function Plot({
           )}
           style={{ "--top": "76%" } as Vars}
         />
-        {selected && <span aria-hidden className={clsx(scene.ground, scene.groundRippleGold)} style={{ "--top": "76%", "--dur": "2.6s" } as Vars} />}
+        {selected && (
+          <span aria-hidden className={clsx(scene.ground, scene.groundRippleGold)} style={{ "--top": "76%", "--dur": "2.6s" } as Vars} />
+        )}
 
         {/* Lifts on hover; the rim behind it lights up in gold */}
         <span
@@ -290,13 +283,21 @@ function Plot({
       className="group absolute z-(--z) grid aspect-[2/1] min-h-12 w-[10%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full hover:z-50 focus-visible:z-50"
       style={zStyle}
     >
-      <span aria-hidden className={clsx(scene.ground, selected ? [scene.groundSelected, scene.glowPulse] : scene.groundEmpty)} style={{ "--top": "50%", "--w": "100%" } as Vars} />
+      <span
+        aria-hidden
+        className={clsx(scene.ground, selected ? [scene.groundSelected, scene.glowPulse] : scene.groundEmpty)}
+        style={{ "--top": "50%", "--w": "100%" } as Vars}
+      />
       <span
         aria-hidden
         className={clsx(scene.ground, selected ? scene.groundRippleGold : scene.groundRipple)}
         style={{ "--top": "50%", "--w": "100%", "--delay": `${(-slot * 0.7).toFixed(1)}s`, "--dur": selected ? "2.4s" : "3.4s" } as Vars}
       />
-      <span aria-hidden className={clsx("relative -translate-y-[38%]", scene.float)} style={{ "--delay": `${(-slot * 0.45).toFixed(2)}s` } as Vars}>
+      <span
+        aria-hidden
+        className={clsx("relative -translate-y-[38%]", scene.float)}
+        style={{ "--delay": `${(-slot * 0.45).toFixed(2)}s` } as Vars}
+      >
         <span
           className={clsx(
             scene.medallion,

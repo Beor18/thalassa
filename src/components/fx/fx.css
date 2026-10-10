@@ -31,20 +31,13 @@
   pointer-events: none;
 }
 
+/* Still values for reduced motion; the loops below take over otherwise. */
 .fx-shimmer-a {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .fx-shimmer-b {
-  opacity: 0.2;
-}
-
-.fx-lap-out {
-  opacity: 0;
-}
-
-.fx-lap-in {
-  opacity: 0.45;
+  opacity: 0.25;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -58,7 +51,6 @@
   pointer-events: none;
 }
 
-.fx-cloud,
 .fx-cloud-shadow,
 .fx-cloud-wisp {
   position: absolute;
@@ -224,7 +216,9 @@
   aspect-ratio: 2.4 / 1;
   translate: -50% -50%;
   border-radius: 50%;
-  border: 1.5px solid rgb(230 243 251 / 0.75);
+  box-shadow:
+    0 0 0 1px rgb(230 243 251 / 0.45),
+    inset 0 0 6px rgb(230 243 251 / 0.35);
   opacity: 0;
 }
 
@@ -271,12 +265,6 @@
   .fx-shimmer-b {
     animation: fx-shimmer-b var(--dur, 8s) ease-in-out infinite;
   }
-  .fx-lap-out {
-    animation: fx-lap-out var(--dur, 7s) var(--delay, 0s) ease-in-out infinite;
-  }
-  .fx-lap-in {
-    animation: fx-lap-in var(--dur, 7s) var(--delay, 0s) ease-in-out infinite;
-  }
 
   .fx-cloud-track {
     animation: fx-cross var(--dur, 140s) var(--delay, 0s) linear infinite;
@@ -320,9 +308,6 @@
     animation: fx-ripple var(--dur, 3.2s) var(--delay, 0s) cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
 
-  .fx-bob {
-    animation: fx-bob var(--dur, 3.6s) var(--delay, 0s) ease-in-out infinite;
-  }
 
   .fx-boat-a {
     animation: fx-boat-a-path 100s var(--delay, 0s) linear infinite;
@@ -347,14 +332,15 @@
   }
 }
 
+/* A: lines and breaking foam peak after the swell (B) has rolled in. */
 @keyframes fx-shimmer-a {
   0%,
   100% {
-    opacity: 0.2;
+    opacity: 0.3;
     transform: translate3d(0, 0, 0);
   }
-  50% {
-    opacity: 0.8;
+  65% {
+    opacity: 0.95;
     transform: translate3d(3px, -2px, 0);
   }
 }
@@ -362,36 +348,12 @@
 @keyframes fx-shimmer-b {
   0%,
   100% {
-    opacity: 0.75;
+    opacity: 0.1;
     transform: translate3d(0, 0, 0);
   }
-  50% {
-    opacity: 0.15;
-    transform: translate3d(-3px, 2px, 0);
-  }
-}
-
-@keyframes fx-lap-out {
-  0%,
-  100% {
-    opacity: 0;
-  }
   35% {
-    opacity: 0.75;
-  }
-  70% {
-    opacity: 0.05;
-  }
-}
-
-@keyframes fx-lap-in {
-  0%,
-  45%,
-  100% {
-    opacity: 0.3;
-  }
-  65% {
-    opacity: 0.95;
+    opacity: 0.85;
+    transform: translate3d(-3px, 2px, 0);
   }
 }
 
@@ -574,16 +536,6 @@
   100% {
     transform: scale(1.35);
     opacity: 0;
-  }
-}
-
-@keyframes fx-bob {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-1.5deg);
-  }
-  50% {
-    transform: translateY(-5%) rotate(1.5deg);
   }
 }
 

@@ -83,18 +83,24 @@ export function doneMessage(type: BuildingType, level: number): string {
 
 export function SceneEvents({ cityId, snapshot, children }: { cityId: string; snapshot: CitySnapshot; children: ReactNode }) {
   const key = JSON.stringify(snapshot);
-  const [shown, setShown] = useState(key);
+  const stamp = `${cityId}|${key}`;
+  const [shown, setShown] = useState(stamp);
   const [events, setEvents] = useState<SceneEvent[]>([]);
   const [seen, setSeen] = useState<string[]>([]);
   const [message, setMessage] = useState("");
 
-  // Live: the server sent a new snapshot while the page is open.
-  if (key !== shown) {
-    setShown(key);
-    const fresh = diff(JSON.parse(shown) as CitySnapshot, snapshot, true).filter((e) => !seen.includes(e.id));
+  // Live: the server sent a new snapshot of the same city while the page is open.
+  if (stamp !== shown) {
+    setShown(stamp);
+    const cut = shown.indexOf("|");
+    const sameCity = shown.slice(0, cut) === cityId;
+    // A finished level is celebrated once; a new construction always gets its scaffolding moment.
+    const fresh = sameCity
+      ? diff(JSON.parse(shown.slice(cut + 1)) as CitySnapshot, snapshot, true).filter((e) => e.kind === "start" || !seen.includes(e.id))
+      : [];
     if (fresh.length) {
-      setEvents((list) => [...list, ...fresh]);
-      setSeen((list) => [...list, ...fresh.map((e) => e.id)]);
+      setEvents((list) => [...list.filter((x) => !fresh.some((e) => e.id === x.id)), ...fresh]);
+      setSeen((list) => [...list, ...fresh.filter((e) => e.kind === "done").map((e) => e.id)]);
       const done = fresh.filter((e) => e.kind === "done");
       if (done.length) setMessage(done.map((e) => doneMessage(e.type, e.level)).join(" "));
     }
@@ -107,7 +113,11 @@ export function SceneEvents({ cityId, snapshot, children }: { cityId: string; sn
     const stored = readStore(cityId);
     const current = JSON.parse(key) as CitySnapshot;
     const late = stored ? diff(stored.snap, current, false).filter((e) => e.kind === "done" && !stored.seen.includes(e.id)) : [];
-    writeStore(cityId, current, late.map((e) => e.id));
+    writeStore(
+      cityId,
+      current,
+      late.map((e) => e.id),
+    );
     if (!late.length) return;
     requestAnimationFrame(() => {
       setSeen((list) => [...list, ...late.map((e) => e.id)]);
@@ -252,8 +262,7 @@ function Celebration({ event, onDone }: { event: SceneEvent; onDone: () => void 
             <motion.span
               className="absolute inset-[-35%] rounded-full mix-blend-screen"
               style={{
-                background:
-                  "repeating-conic-gradient(from 0deg, rgb(255 226 140 / 0.55) 0deg 7deg, transparent 7deg 22deg)",
+                background: "repeating-conic-gradient(from 0deg, rgb(255 226 140 / 0.55) 0deg 7deg, transparent 7deg 22deg)",
                 maskImage: "radial-gradient(closest-side, black 20%, transparent 72%)",
                 WebkitMaskImage: "radial-gradient(closest-side, black 20%, transparent 72%)",
               }}
