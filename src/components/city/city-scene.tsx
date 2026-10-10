@@ -21,7 +21,7 @@ const MOORINGS = [
   { x: 29.5, y: 88 },
 ];
 
-const MASK = "/assets/fx/masks";
+const WATER = "/assets/fx/water";
 const SCAFFOLD = "/assets/fx/scaffold.webp";
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
@@ -65,7 +65,7 @@ export function CityScene({ city, serverNow, selected }: { city: GameCity; serve
             />
 
             {/* Sea: light dancing in the shallows, slow swell further out, foam on the rocks */}
-            <SeaShimmer a={`${MASK}/city-water-a.webp`} b={`${MASK}/city-water-b.webp`} opacity={0.85} dur={7.5} />
+            <SeaShimmer a={`${WATER}/city-water-a.webp`} b={`${WATER}/city-water-b.webp`} opacity={0.85} dur={7.5} />
 
             {MOORINGS.slice(0, docked).map((m, i) => (
               <span

@@ -271,15 +271,15 @@ function BarracksSection({ game }: { game: Game }) {
                 pendingLabel="Terminando…"
                 action={finishNowAction.bind(null, { cityId: city.id, what: "training" })}
               >
-                Terminar entrenamiento ya por {fmt(price)} de ambrosía
+                Terminar entrenamiento ya por {fmt(price)} de néctar
               </ActionButton>
             ) : (
               <p className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-soft">
                 <span>
-                  Terminar ya cuesta {fmt(price)} de ambrosía y tenés {fmt(snapshot.player.ambrosia)}.
+                  Terminar ya cuesta {fmt(price)} de néctar y tenés {fmt(snapshot.player.ambrosia)}.
                 </span>
                 <Link href="/tesoro" className={buttonClass("ambrosia", "sm")}>
-                  Conseguir ambrosía
+                  Conseguir néctar
                 </Link>
               </p>
             ))}

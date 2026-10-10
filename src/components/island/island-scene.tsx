@@ -23,7 +23,7 @@ type Tone = "parchment" | "gold" | "dark";
 
 /** Ribbon placement per coastal plot: under the sprite unless a neighbour sits right there. */
 const PLOT_LABEL_SIDE: Side[] = ["below", "below", "below", "below", "below", "left", "left", "above"];
-const MASK = "/assets/fx/masks";
+const WATER = "/assets/fx/water";
 const CITY_WIDTH = 11;
 
 const at = (pos: { x: number; y: number }, width: number): CSSProperties => ({
@@ -177,7 +177,7 @@ export function IslandScene({
               className="pointer-events-none object-cover select-none"
             />
 
-            <SeaShimmer a={`${MASK}/island-water-a.webp`} b={`${MASK}/island-water-b.webp`} opacity={0.8} dur={8.5} />
+            <SeaShimmer a={`${WATER}/island-water-a.webp`} b={`${WATER}/island-water-b.webp`} opacity={0.8} dur={8.5} />
             <IslandBoats />
 
             <Spot

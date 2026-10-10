@@ -12,7 +12,7 @@ import type { Game } from "@/server/game-context";
 import { Block, Duration, Note, Reason } from "./bits";
 import { asPlayer, missingText, slotHref } from "./lib";
 
-/** Construction running on this plot: progress, finish with ambrosia, cancel. */
+/** Construction running on this plot: progress, finish with nectar (the premium currency), cancel. */
 export function ConstructionBlock({ game }: { game: Game }) {
   const { snapshot, city } = game;
   const work = city.construction;
@@ -40,16 +40,16 @@ export function ConstructionBlock({ game }: { game: Game }) {
           pendingLabel="Terminando…"
           action={finishNowAction.bind(null, { cityId: city.id, what: "construction" })}
         >
-          Terminar ya por {fmt(price)} de ambrosía
+          Terminar ya por {fmt(price)} de néctar
         </ActionButton>
       ) : (
         <div className="flex flex-col gap-2 rounded-lg bg-marble/50 p-3 ring-1 ring-parchment-3">
           <p className="flex items-center gap-1.5 text-sm text-ink-soft">
             <ResIcon kind="ambrosia" size={18} />
-            Terminar ya cuesta {fmt(price)} de ambrosía y tenés {fmt(ambrosia)}.
+            Terminar ya cuesta {fmt(price)} de néctar y tenés {fmt(ambrosia)}.
           </p>
           <Link href="/tesoro" className={buttonClass("ambrosia", "md", "w-full")}>
-            Conseguir ambrosía
+            Conseguir néctar
           </Link>
         </div>
       )}
