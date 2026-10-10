@@ -1,0 +1,521 @@
+/* Landing: the painted Aegean, alive. Transforms and opacity only; loops pause off-screen. */
+
+.ld-scene[data-paused="true"] *,
+.ld-scene[data-paused="true"] *::before,
+.ld-scene[data-paused="true"] *::after {
+  animation-play-state: paused !important;
+}
+
+/* ---- Painting ------------------------------------------------------------ */
+
+.ld-ken-burns {
+  transform-origin: 62% 55%;
+  animation: ld-kenBurns 32s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+  will-change: transform;
+}
+
+@keyframes ld-kenBurns {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+/* Caustics only where the painting has water (the bay, center left). */
+.ld-water-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mix-blend-mode: soft-light;
+  opacity: 0.85;
+  -webkit-mask-image: radial-gradient(ellipse 48% 34% at 36% 72%, black 35%, transparent 75%);
+  mask-image: radial-gradient(ellipse 48% 34% at 36% 72%, black 35%, transparent 75%);
+}
+
+.ld-caustics-a,
+.ld-caustics-b {
+  position: absolute;
+  inset: -256px;
+  background: url("/assets/fx/caustics.webp") repeat;
+  will-change: transform;
+}
+.ld-caustics-a {
+  background-size: 256px 256px;
+  animation: ld-causticsA 26s linear infinite;
+}
+.ld-caustics-b {
+  background-size: 360px 360px;
+  opacity: 0.6;
+  animation: ld-causticsB 34s linear infinite;
+}
+
+@keyframes ld-causticsA {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(256px, 128px, 0);
+  }
+}
+@keyframes ld-causticsB {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-360px, 180px, 0);
+  }
+}
+
+/* ---- Trireme -------------------------------------------------------------- */
+
+.ld-ship-lane {
+  position: absolute;
+  left: 0;
+  top: 33%;
+  width: 100%;
+  height: 0;
+}
+@media (min-width: 768px) {
+  .ld-ship-lane {
+    top: 47%;
+  }
+}
+
+.ld-ship {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: ld-sail 64s linear infinite;
+  animation-delay: -14s;
+}
+
+/* Rows from the harbor mouth (right) toward the open sea (left), shrinking into the distance. */
+@keyframes ld-sail {
+  0% {
+    transform: translate3d(78vw, 2vh, 0) scale(1);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+  }
+  94%,
+  100% {
+    transform: translate3d(36vw, -4vh, 0) scale(0.7);
+    opacity: 0;
+  }
+}
+
+.ld-ship-sprite {
+  display: block;
+  width: clamp(72px, 8vw, 112px);
+  height: auto;
+  /* Matches the painting's late light: a touch darker and warmer than the game sprite. */
+  filter: drop-shadow(0 8px 6px rgb(6 26 48 / 0.5)) saturate(0.85) brightness(0.86) sepia(0.12);
+  transform-origin: 50% 80%;
+  animation: ld-shipBob 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+
+@keyframes ld-shipBob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(1.2deg);
+  }
+}
+
+/* White water trailing behind the stern (the ship rows left). */
+.ld-wake {
+  position: absolute;
+  left: 55%;
+  bottom: 12%;
+  width: 140%;
+  height: 12%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(230 243 251 / 0.55), transparent);
+  filter: blur(4px);
+}
+
+/* ---- Sky ----------------------------------------------------------------- */
+
+.ld-cloud {
+  position: absolute;
+  height: auto;
+  pointer-events: none;
+  will-change: transform;
+}
+.ld-cloud-a {
+  top: -4%;
+  left: 0;
+  width: min(52vw, 640px);
+  opacity: 0.7;
+  animation: ld-drift 150s linear infinite;
+  animation-delay: -60s;
+}
+.ld-cloud-b {
+  top: 7%;
+  left: 0;
+  width: min(36vw, 440px);
+  opacity: 0.5;
+  animation: ld-drift 210s linear infinite;
+  animation-delay: -150s;
+}
+
+@keyframes ld-drift {
+  from {
+    transform: translate3d(-55vw, 0, 0);
+  }
+  to {
+    transform: translate3d(110vw, 0, 0);
+  }
+}
+
+.ld-gull-lane {
+  position: absolute;
+  left: 0;
+  animation: ld-gullFly var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes ld-gullFly {
+  0% {
+    transform: translate3d(108vw, 0, 0);
+  }
+  25% {
+    transform: translate3d(78vw, -14px, 0);
+  }
+  50% {
+    transform: translate3d(48vw, 6px, 0);
+  }
+  75% {
+    transform: translate3d(18vw, -10px, 0);
+  }
+  100% {
+    transform: translate3d(-12vw, 0, 0);
+  }
+}
+
+.ld-gull {
+  display: block;
+  rotate: -90deg;
+  opacity: 0.9;
+  filter: drop-shadow(0 8px 6px rgb(6 26 48 / 0.25));
+  animation: ld-flap var(--flap) cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+}
+
+@keyframes ld-flap {
+  0%,
+  40% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0.55);
+  }
+}
+
+/* ---- Golden dust ------------------------------------------------------------ */
+
+.ld-dust,
+.ld-glint {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  opacity: 0;
+  animation: ld-dust var(--dur) cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  animation-delay: var(--delay);
+}
+.ld-dust {
+  background: radial-gradient(circle, #fff6d6 0%, #ffe7a3 35%, rgb(227 179 65 / 0.6) 60%, transparent 75%);
+  box-shadow: 0 0 10px 2px rgb(227 179 65 / 0.45);
+}
+.ld-glint {
+  background: url("/assets/fx/sparkle.webp") center / contain no-repeat;
+}
+
+@keyframes ld-dust {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.95;
+  }
+  45% {
+    opacity: 0.5;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(var(--dx), -140px, 0) scale(1);
+    opacity: 0;
+  }
+}
+
+.ld-sun-rays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: conic-gradient(
+    from 196deg at 88% -12%,
+    transparent 0deg,
+    rgb(255 214 140 / 0.16) 6deg,
+    transparent 13deg,
+    rgb(255 214 140 / 0.1) 22deg,
+    transparent 30deg,
+    rgb(255 214 140 / 0.12) 41deg,
+    transparent 50deg,
+    transparent 360deg
+  );
+  animation: ld-breathe 9s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+}
+
+@keyframes ld-breathe {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Title reveal --------------------------------------------------------- */
+
+.ld-title-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.ld-letter {
+  display: inline-block;
+  animation: ld-letterRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 55ms + 120ms);
+}
+
+@keyframes ld-letterRise {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em) scale(0.96);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/* A copy of the title, clipped to the letters, carries one sweep of light after they land. */
+.ld-title-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: transparent;
+  text-shadow: none;
+  background: linear-gradient(100deg, transparent 38%, rgb(255 250 228 / 0.95) 50%, transparent 62%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ld-titleShine 1.5s cubic-bezier(0.37, 0, 0.63, 1) 1.15s both;
+}
+
+@keyframes ld-titleShine {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+.ld-word {
+  display: inline-block;
+  animation: ld-wordRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 45ms + 520ms);
+}
+
+.ld-fade-up {
+  animation: ld-wordRise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes ld-wordRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+.ld-scroll-cue {
+  animation: ld-cue 2.4s cubic-bezier(0.37, 0, 0.63, 1) 2.2s infinite;
+}
+
+@keyframes ld-cue {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+}
+
+/* ---- Beats ---------------------------------------------------------------- */
+
+.ld-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid rgb(111 179 230 / 0.28);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.12) inset,
+    0 30px 60px -30px rgb(2 10 20 / 0.9);
+  isolation: isolate;
+}
+
+.ld-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 60px rgb(6 26 48 / 0.55);
+}
+
+.ld-stage-plaza {
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 62%, rgb(244 232 204 / 0.95), rgb(217 192 138 / 0.85) 55%, transparent 80%),
+    radial-gradient(ellipse at 50% 120%, #c4a46a, transparent 60%),
+    linear-gradient(180deg, #2a6aa5, #134a7c 60%, #0f3a63);
+}
+
+.ld-stage-sea {
+  background: url("/assets/fx/world-sea.webp") center / 640px 640px repeat;
+}
+
+.ld-stage-dusk {
+  background:
+    radial-gradient(ellipse 70% 40% at 70% 70%, rgb(196 85 45 / 0.35), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 50% 68%, rgb(217 192 138 / 0.7), rgb(122 79 24 / 0.5) 60%, transparent 85%),
+    linear-gradient(180deg, #3b2a4a, #6b3a2a 45%, #2b2118);
+}
+
+.ld-stage-caustics {
+  position: absolute;
+  inset: -200px;
+  background: url("/assets/fx/caustics.webp") repeat;
+  background-size: 300px 300px;
+  opacity: 0.22;
+  mix-blend-mode: screen;
+  animation: ld-causticsA 30s linear infinite;
+}
+
+.ld-route {
+  stroke-dasharray: 6 9;
+  animation: ld-routeFlow 1.6s linear infinite;
+}
+
+@keyframes ld-routeFlow {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+
+.ld-bob {
+  animation: ld-bobUp 3s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes ld-bobUp {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.ld-smoke {
+  animation: ld-smoke 5s ease-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes ld-smoke {
+  0% {
+    transform: translate3d(0, 10px, 0) scale(0.5);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(14px, -40px, 0) scale(1.25);
+    opacity: 0;
+  }
+}
+
+.ld-cta-glow::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 14px;
+  pointer-events: none;
+  border: 2px solid rgb(227 179 65 / 0.8);
+  animation: ld-ctaPulse 2.2s cubic-bezier(0.22, 1, 0.36, 1) 2.4s 3 both;
+}
+
+@keyframes ld-ctaPulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-ken-burns,
+  .ld-caustics-a,
+  .ld-caustics-b,
+  .ld-ship,
+  .ld-ship-sprite,
+  .ld-cloud,
+  .ld-gull-lane,
+  .ld-gull,
+  .ld-dust,
+  .ld-glint,
+  .ld-sun-rays,
+  .ld-stage-caustics,
+  .ld-route,
+  .ld-bob,
+  .ld-smoke,
+  .ld-scroll-cue {
+    animation: none !important;
+  }
+  .ld-ship,
+  .ld-gull-lane,
+  .ld-dust,
+  .ld-glint,
+  .ld-smoke {
+    display: none;
+  }
+}

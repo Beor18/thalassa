@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import type { UiWallet } from "@wallet-standard/react";
 import { Button } from "@/components/ui/button";
+import "./landing.css";
 import { FriendlyError, isUserRejection } from "@/lib/solana/client";
 import { hasLocalWallet, loadOrCreateLocalWallet, setWalletKind, signMessageWithLocal } from "@/lib/solana/local-wallet";
 import { requestLoginMessage, verifyLogin } from "@/lib/solana/login";
@@ -54,15 +55,11 @@ export function PlayActions() {
 
   return (
     <div className="flex flex-col items-start gap-3">
-      <Button
-        size="lg"
-        onClick={play}
-        disabled={busy}
-        aria-busy={busy}
-        className="h-14 min-w-60 px-8 text-lg disabled:opacity-90"
-      >
-        {phase !== "idle" ? PHASE_LABEL[phase] : navigating ? "Zarpando…" : "Jugar ahora"}
-      </Button>
+      <span className="ld-cta-glow relative inline-flex rounded-xl">
+        <Button size="lg" onClick={play} loading={busy} className="h-14 min-w-60 px-8 text-lg">
+          {phase !== "idle" ? PHASE_LABEL[phase] : navigating ? "Zarpando…" : "Jugar ahora"}
+        </Button>
+      </span>
       <p className="max-w-sm text-sm text-foam/85">
         {hasKey
           ? "Seguís con la llave de juego guardada en este navegador."
@@ -77,7 +74,7 @@ export function PlayActions() {
         type="button"
         onClick={() => dialogRef.current?.showModal()}
         disabled={busy}
-        className="-mx-1 rounded px-1 py-2 text-[15px] font-bold text-foam underline decoration-gold/70 underline-offset-4 transition hover:text-gold disabled:opacity-50"
+        className="-mx-1 min-h-10 rounded px-1 py-2 text-[15px] font-bold text-foam underline decoration-gold/70 underline-offset-4 transition-colors hover:text-gold disabled:opacity-50"
       >
         Entrar con mi billetera
       </button>
@@ -149,7 +146,7 @@ function WalletDialog({
               type="submit"
               aria-label="Cerrar"
               disabled={!!busy}
-              className="-mt-2 -mr-2 grid size-10 place-items-center rounded-lg text-2xl leading-none text-ink-soft transition hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+              className="-mt-2 -mr-2 grid size-10 place-items-center rounded-lg text-2xl leading-none text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-40"
             >
               <span aria-hidden>×</span>
             </button>
@@ -171,7 +168,7 @@ function WalletDialog({
                     disabled={!!busy}
                     aria-busy={mine}
                     className={clsx(
-                      "flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
+                      "flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-[background-color,border-color,transform,opacity] duration-150 active:translate-y-px",
                       mine
                         ? "border-bronze bg-parchment-2"
                         : "border-parchment-3 bg-marble/60 hover:border-bronze hover:bg-marble disabled:opacity-50",

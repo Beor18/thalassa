@@ -49,6 +49,8 @@ export const fx = {
   ribbonDark: "fx-ribbon-dark",
   ribbonFace: "fx-ribbon-face",
   ribbonGold: "fx-ribbon-gold",
+  ribbonLeft: "fx-ribbon-left",
+  ribbonAbove: "fx-ribbon-above",
   ribbonLarge: "fx-ribbon-large",
   ribbonSub: "fx-ribbon-sub",
   ribbonTitle: "fx-ribbon-title",

@@ -11,6 +11,7 @@ export function SceneRibbon({
   sub,
   tone = "parchment",
   top = 90,
+  side = "below",
   reveal = false,
   className,
 }: {
@@ -18,6 +19,8 @@ export function SceneRibbon({
   sub?: ReactNode;
   tone?: "parchment" | "gold" | "dark";
   top?: number;
+  /** under the sprite (default), to its left or above it when a neighbour sits below */
+  side?: "below" | "left" | "above";
   reveal?: boolean;
   className?: string;
 }) {
@@ -28,6 +31,8 @@ export function SceneRibbon({
         scene.ribbon,
         tone === "gold" && scene.ribbonGold,
         tone === "dark" && scene.ribbonDark,
+        side === "left" && scene.ribbonLeft,
+        side === "above" && scene.ribbonAbove,
         reveal && scene.reveal,
         className,
       )}

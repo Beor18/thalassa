@@ -20,6 +20,18 @@
   z-index: 2;
 }
 
+.fx-ribbon-left {
+  left: auto;
+  right: 94%;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.fx-ribbon-above {
+  top: auto;
+  bottom: 96%;
+}
+
 .fx-ribbon-face {
   display: flex;
   flex-direction: column;
@@ -70,6 +82,13 @@
 .fx-ribbon-large .fx-ribbon-title {
   font-size: 14.5px;
   max-width: none;
+}
+
+/* The spot whose panel is open: a gold line inside its ribbon. */
+.group[aria-current="true"] .fx-ribbon-face {
+  box-shadow:
+    inset 0 0 0 2px rgb(227 179 65 / 0.95),
+    inset 0 1px 0 rgb(255 255 255 / 0.6);
 }
 
 .fx-ribbon-dark .fx-ribbon-face {
@@ -151,8 +170,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: var(--m, 30px);
+  height: var(--m, 30px);
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #fffaf0, #f4e8cc 55%, #ead8ad);
   color: #7a4f18;
@@ -182,6 +201,7 @@
 
 /* This file sits outside Tailwind layers, so utilities cannot override it: states live here. */
 .fx-rim-on,
+.group[aria-current="true"] .fx-rim,
 .group:focus-visible .fx-rim {
   opacity: 1;
 }
