@@ -154,18 +154,19 @@
   }
 }
 
+/* Relative to the element's own `rotate` (the stamp keeps its tilt after landing). */
 @keyframes stamp-in {
   0% {
     opacity: 0;
-    transform: scale(1.9) rotate(-22deg);
+    transform: scale(1.9) rotate(-14deg);
   }
   60% {
     opacity: 1;
-    transform: scale(0.94) rotate(-7deg);
+    transform: scale(0.94) rotate(1deg);
   }
   100% {
     opacity: 1;
-    transform: scale(1) rotate(-8deg);
+    transform: none;
   }
 }
 
@@ -235,6 +236,32 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes vessel-glow {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes mote-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-46px) scale(1) rotate(90deg);
   }
 }
 
@@ -397,6 +424,11 @@ body::before {
 .draw-y {
   transform-origin: top;
   animation: draw-y 0.5s var(--ease-out-quint) both;
+  animation-delay: var(--d, 0ms);
+}
+.grow-up {
+  transform-origin: bottom;
+  animation: draw-y 0.6s var(--ease-out-quint) both;
   animation-delay: var(--d, 0ms);
 }
 .draw-x {

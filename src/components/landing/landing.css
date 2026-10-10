@@ -151,10 +151,10 @@
   will-change: transform;
 }
 .ld-cloud-a {
-  top: -4%;
+  top: -9%;
   left: 0;
   width: min(52vw, 640px);
-  opacity: 0.7;
+  opacity: 0.55;
   animation: ld-drift 150s linear infinite;
   animation-delay: -60s;
 }
@@ -378,8 +378,8 @@
 
 /* ---- Beats ---------------------------------------------------------------- */
 
+/* Positioned by the markup (absolute inset-0 inside a 4:3 box). */
 .ld-stage {
-  position: relative;
   overflow: hidden;
   border-radius: 1.25rem;
   border: 1px solid rgb(111 179 230 / 0.28);

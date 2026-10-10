@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Button, buttonClass } from "@/components/ui/button";
 
@@ -11,7 +12,15 @@ export default function GameError({ error, retry }: { error: Error & { digest?: 
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-      <div className="panel w-full px-6 py-8">
+      <div className="panel rise-in w-full px-6 py-8">
+        {/* The compass has lost north: it swings, looking for the wind */}
+        <Image
+          src="/assets/fx/compass-rose.webp"
+          alt=""
+          width={72}
+          height={72}
+          className="mx-auto mb-3 size-16 opacity-90 drop-shadow-[0_4px_6px_rgb(43_33_24/0.35)] motion-safe:animate-[compass-seek_3.2s_var(--ease-in-out-sine)_infinite]"
+        />
         <h1 className="font-display text-2xl font-bold">Se cortó el viento</h1>
         <p className="mt-2 text-ink-soft">Algo falló al cargar esta parte del Egeo. Tu polis está a salvo.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">

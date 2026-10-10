@@ -50,7 +50,7 @@ export function TimeProgress({
   const done = pct >= 100;
   return (
     <div
-      className={clsx("relative w-full", marker === "ship" ? "h-7" : "h-2", className)}
+      className={clsx("relative w-full", marker === "ship" ? "h-10" : "h-2", className)}
       role="progressbar"
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}
@@ -87,9 +87,9 @@ export function TimeProgress({
           <Image
             src="/assets/fx/trireme-top.webp"
             alt=""
-            width={28}
-            height={28}
-            className="absolute top-1/2 left-0 -mt-3.5 -ml-3.5 size-7 drop-shadow-[0_2px_2px_rgb(6_26_48/0.45)] motion-safe:animate-[ship-bob_2.4s_var(--ease-in-out-sine)_infinite]"
+            width={48}
+            height={48}
+            className="absolute top-1/2 left-0 -mt-5 -ml-5 size-10 drop-shadow-[0_3px_2px_rgb(6_26_48/0.45)] motion-safe:animate-[ship-bob_2.4s_var(--ease-in-out-sine)_infinite]"
             style={{ transform: "rotate(90deg)" }}
           />
         </div>

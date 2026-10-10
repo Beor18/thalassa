@@ -115,7 +115,7 @@ function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean 
         <span
           aria-hidden
           className={clsx(
-            "relative grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-b from-bronze-light to-bronze-dark text-sea-950 shadow-[0_1px_0_rgb(255_255_255/0.4)_inset,0_2px_6px_-2px_rgb(43_33_24/0.6)] ring-2 ring-gold/40",
+            "relative grid size-8 shrink-0 place-items-center rounded-full sm:size-11 bg-gradient-to-b from-bronze-light to-bronze-dark text-sea-950 shadow-[0_1px_0_rgb(255_255_255/0.4)_inset,0_2px_6px_-2px_rgb(43_33_24/0.6)] ring-1 ring-gold/40 sm:ring-2",
             fresh && "ring-pulse",
           )}
         >
