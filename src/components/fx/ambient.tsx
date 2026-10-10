@@ -22,54 +22,30 @@ export function heading(x0: number, y0: number, x1: number, y1: number): number 
 // Water
 // ---------------------------------------------------------------------------
 
-/** Moving caustic light, clipped to the water by a mask derived from the painting. */
-export function Caustics({
-  mask,
-  tile = 220,
-  opacity = 0.4,
-  blend = "overlay",
-  dur = 40,
-  reverse = false,
-}: {
-  mask: string;
-  tile?: number;
-  opacity?: number;
-  blend?: CSSProperties["mixBlendMode"];
-  dur?: number;
-  reverse?: boolean;
-}) {
+/**
+ * Sunlight dancing on the water. Two pre-baked layers (caustic lines already clipped to the
+ * shallows of this painting) cross-fade and drift a few pixels: plain textures and opacity,
+ * no masks or blend modes for the GPU to work on every frame.
+ */
+export function WaterLight({ a, b, opacity = 1, dur = 8 }: { a: string; b: string; opacity?: number; dur?: number }) {
   return (
-    <div aria-hidden className={fx.masked} style={{ "--mask": `url(${mask})`, opacity, mixBlendMode: blend } as Vars}>
-      <div
-        className={clsx(fx.caustics, reverse ? fx.driftB : fx.driftA)}
-        style={{ "--tile": `${tile}px`, "--dur": `${dur}s` } as Vars}
-      />
+    <div aria-hidden className={fx.layer} style={{ opacity }}>
+      <div className={clsx(fx.baked, fx.shimmerA)} style={{ backgroundImage: `url(${a})`, "--dur": `${dur}s` } as Vars} />
+      <div className={clsx(fx.baked, fx.shimmerB)} style={{ backgroundImage: `url(${b})`, "--dur": `${dur}s` } as Vars} />
     </div>
   );
 }
 
 /**
  * Foam along the coast: an outer band that swells and an inner band that brightens a moment later,
- * so the waves seem to roll in and break on the rocks.
+ * so the waves seem to roll in and break on the rocks. Both bands are baked for this painting.
  */
 export function CoastFoam({ inner, outer, dur = 7, delay = 0 }: { inner: string; outer: string; dur?: number; delay?: number }) {
   return (
-    <>
-      <div
-        aria-hidden
-        className={clsx(fx.masked, fx.lapOut)}
-        style={{ "--mask": `url(${outer})`, "--dur": `${dur}s`, "--delay": `${delay}s`, "--hi": 0.55, opacity: 0 } as Vars}
-      >
-        <div className={clsx(fx.foam, fx.driftA)} style={{ "--tile": "120px", "--dur": "70s" } as Vars} />
-      </div>
-      <div
-        aria-hidden
-        className={clsx(fx.masked, fx.lapIn)}
-        style={{ "--mask": `url(${inner})`, "--dur": `${dur}s`, "--delay": `${delay}s`, "--lo": 0.22, "--hi": 0.85, opacity: 0.22 } as Vars}
-      >
-        <div className={clsx(fx.foam, fx.driftB)} style={{ "--tile": "90px", "--dur": "55s" } as Vars} />
-      </div>
-    </>
+    <div aria-hidden className={fx.layer}>
+      <div className={clsx(fx.baked, fx.lapOut)} style={{ backgroundImage: `url(${outer})`, "--dur": `${dur}s`, "--delay": `${delay}s` } as Vars} />
+      <div className={clsx(fx.baked, fx.lapIn)} style={{ backgroundImage: `url(${inner})`, "--dur": `${dur}s`, "--delay": `${delay}s` } as Vars} />
+    </div>
   );
 }
 
@@ -160,11 +136,12 @@ export function Gulls({ gulls }: { gulls: GullSpec[] }) {
               } as Vars
             }
           >
-            <div
-              className={fx.gullShadow}
-              style={{ "--sx": `${g.shadow?.[0] ?? 120}%`, "--sy": `${g.shadow?.[1] ?? 220}%` } as Vars}
-            />
-            <div className={fx.gullBody} />
+            <div className={fx.gullShadow} style={{ "--sx": `${g.shadow?.[0] ?? 120}%`, "--sy": `${g.shadow?.[1] ?? 220}%` } as Vars}>
+              <i />
+            </div>
+            <div className={fx.gullBody}>
+              <i />
+            </div>
           </div>
         </div>
       ))}
@@ -235,7 +212,9 @@ export function Smoke({
               "--tint": tint,
             } as Vars
           }
-        />
+        >
+          <i />
+        </span>
       ))}
     </span>
   );
@@ -285,7 +264,9 @@ export function Twinkles({
               "--tint": tint,
             } as Vars
           }
-        />
+        >
+          <i />
+        </span>
       ))}
     </>
   );

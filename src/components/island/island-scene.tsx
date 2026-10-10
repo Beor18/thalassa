@@ -6,7 +6,7 @@ import { ISLAND_FEATURES, ISLAND_FEATURE_IMAGE, ISLAND_PLOT_POS } from "@/game/l
 import type { IslandView } from "@/server/queries";
 import { Countdown } from "@/components/ui/countdown";
 import { ResIcon } from "@/components/ui/res";
-import { Caustics, CloudShadows, CoastFoam, Fire, Gulls, IslandBoats, Smoke, SunGlint, Twinkles, Vignette } from "@/components/fx/ambient";
+import { CloudShadows, CoastFoam, Fire, Gulls, IslandBoats, Smoke, SunGlint, Twinkles, Vignette, WaterLight } from "@/components/fx/ambient";
 import { fx } from "@/components/fx/classes";
 import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
@@ -155,10 +155,8 @@ export function IslandScene({
               className="pointer-events-none object-cover select-none"
             />
 
-            <Caustics mask={`${MASK}/island-nearshore.webp`} tile={170} opacity={0.32} blend="screen" dur={28} />
-            <Caustics mask={`${MASK}/island-nearshore.webp`} tile={260} opacity={0.5} dur={44} reverse />
-            <Caustics mask={`${MASK}/island-water.webp`} tile={420} opacity={0.2} blend="soft-light" dur={84} />
-            <CoastFoam inner={`${MASK}/island-coast-in.webp`} outer={`${MASK}/island-coast-out.webp`} dur={8} />
+            <WaterLight a={`${MASK}/island-caustics-a.webp`} b={`${MASK}/island-caustics-b.webp`} opacity={0.7} dur={9} />
+            <CoastFoam inner={`${MASK}/island-foam-in.webp`} outer={`${MASK}/island-foam-out.webp`} dur={8} />
             <IslandBoats />
 
             <Spot

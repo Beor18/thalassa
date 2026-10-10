@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { BUILDINGS, CITY_SLOTS, type BuildingType, type SlotKind } from "@/game/data";
 import { CITY_PLOTS, CITY_SPRITE_WIDTH, CONSTRUCTION_IMAGE, SHIP_IMAGE } from "@/game/layout";
 import { Countdown } from "@/components/ui/countdown";
-import { Caustics, CloudShadows, CoastFoam, Gulls, HammerSparks, Ripples, Smoke, SunGlint, Twinkles, Vignette } from "@/components/fx/ambient";
+import { CloudShadows, CoastFoam, Gulls, HammerSparks, Ripples, Smoke, SunGlint, Twinkles, Vignette, WaterLight } from "@/components/fx/ambient";
 import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { fx as scene } from "@/components/fx/classes";
@@ -73,10 +73,8 @@ export function CityScene({
             />
 
             {/* Sea: light dancing in the shallows, slow swell further out, foam on the rocks */}
-            <Caustics mask={`${MASK}/city-nearshore.webp`} tile={190} opacity={0.3} blend="screen" dur={30} />
-            <Caustics mask={`${MASK}/city-nearshore.webp`} tile={290} opacity={0.5} dur={46} reverse />
-            <Caustics mask={`${MASK}/city-water.webp`} tile={420} opacity={0.22} blend="soft-light" dur={80} />
-            <CoastFoam inner={`${MASK}/city-coast-in.webp`} outer={`${MASK}/city-coast-out.webp`} dur={7.5} />
+            <WaterLight a={`${MASK}/city-caustics-a.webp`} b={`${MASK}/city-caustics-b.webp`} opacity={0.75} dur={8} />
+            <CoastFoam inner={`${MASK}/city-foam-in.webp`} outer={`${MASK}/city-foam-out.webp`} dur={7.5} />
 
             {MOORINGS.slice(0, docked).map((m, i) => (
               <span

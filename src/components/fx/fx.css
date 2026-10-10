@@ -22,33 +22,29 @@
 /* Water: caustics masked to the sea, foam lapping on the coast               */
 /* ------------------------------------------------------------------------- */
 
-.fx-masked {
+/* A scene-sized layer baked for one painting (caustics or foam already clipped to its water). */
+.fx-baked {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   pointer-events: none;
-  -webkit-mask-image: var(--mask);
-  mask-image: var(--mask);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
 }
 
-.fx-caustics {
-  position: absolute;
-  /* Oversized by one tile on every side so a one-tile drift loops without a seam. */
-  inset: calc(var(--tile) * -1);
-  background-image: url("/assets/fx/caustics.webp");
-  background-size: var(--tile) var(--tile);
-  background-repeat: repeat;
+.fx-shimmer-a {
+  opacity: 0.5;
 }
 
-.fx-foam {
-  position: absolute;
-  inset: calc(var(--tile) * -1);
-  background-image: url("/assets/fx/caustics.webp"), linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55));
-  background-size: var(--tile) var(--tile), 100% 100%;
+.fx-shimmer-b {
+  opacity: 0.2;
+}
+
+.fx-lap-out {
+  opacity: 0;
+}
+
+.fx-lap-in {
+  opacity: 0.45;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -98,7 +94,6 @@
 .fx-gull-shadow {
   position: absolute;
   inset: 0;
-  background: url("/assets/fx/seagull.webp") center / contain no-repeat;
 }
 
 .fx-gull-shadow {
@@ -108,8 +103,19 @@
   top: var(--sy, 260%);
   width: 100%;
   height: 100%;
-  filter: brightness(0) blur(1.5px);
   opacity: 0.22;
+}
+
+/* The picture lives in a child: filters on a still child are painted once, not every frame. */
+.fx-gull-body > i,
+.fx-gull-shadow > i {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/fx/seagull.webp") center / contain no-repeat;
+}
+
+.fx-gull-shadow > i {
+  filter: brightness(0) blur(1.5px);
 }
 
 .fx-glint {
@@ -123,12 +129,11 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgb(255 236 190 / 0.1) 30%,
-    rgb(255 244 214 / 0.28) 50%,
-    rgb(255 236 190 / 0.1) 70%,
+    rgb(255 236 190 / 0.07) 30%,
+    rgb(255 244 214 / 0.2) 50%,
+    rgb(255 236 190 / 0.07) 70%,
     transparent
   );
-  mix-blend-mode: soft-light;
 }
 
 .fx-vignette {
@@ -155,8 +160,13 @@
 .fx-puff {
   position: absolute;
   inset: 0;
-  background: url("/assets/fx/smoke.webp") center / contain no-repeat;
   opacity: 0;
+}
+
+.fx-puff > i {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/fx/smoke.webp") center / contain no-repeat;
   filter: var(--tint, none);
 }
 
@@ -164,8 +174,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: radial-gradient(circle, rgb(255 214 120 / 0.95), rgb(255 140 40 / 0.55) 35%, rgb(220 70 20 / 0) 70%);
-  mix-blend-mode: screen;
+  background: radial-gradient(circle, rgb(255 222 140 / 0.9), rgb(255 140 40 / 0.5) 35%, rgb(220 70 20 / 0) 70%);
 }
 
 .fx-ember {
@@ -185,8 +194,13 @@
   width: var(--s, 30%);
   aspect-ratio: 1;
   translate: -50% -50%;
-  background: url("/assets/fx/sparkle.webp") center / contain no-repeat;
   opacity: 0;
+}
+
+.fx-twinkle > i {
+  position: absolute;
+  inset: 0;
+  background: url("/assets/fx/sparkle.webp") center / contain no-repeat;
   filter: var(--tint, none);
 }
 
@@ -251,20 +265,17 @@
 /* ------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: no-preference) {
-  .fx-drift-a {
-    animation: fx-drift-a var(--dur, 38s) linear infinite;
+  .fx-shimmer-a {
+    animation: fx-shimmer-a var(--dur, 8s) ease-in-out infinite;
   }
-  .fx-drift-b {
-    animation: fx-drift-b var(--dur, 52s) linear infinite;
+  .fx-shimmer-b {
+    animation: fx-shimmer-b var(--dur, 8s) ease-in-out infinite;
   }
   .fx-lap-out {
     animation: fx-lap-out var(--dur, 7s) var(--delay, 0s) ease-in-out infinite;
   }
   .fx-lap-in {
     animation: fx-lap-in var(--dur, 7s) var(--delay, 0s) ease-in-out infinite;
-  }
-  .fx-shimmer {
-    animation: fx-shimmer var(--dur, 9s) var(--delay, 0s) ease-in-out infinite;
   }
 
   .fx-cloud-track {
@@ -336,31 +347,27 @@
   }
 }
 
-@keyframes fx-drift-a {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(var(--tile), var(--tile), 0);
-  }
-}
-
-@keyframes fx-drift-b {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(calc(var(--tile) * -1), var(--tile), 0);
-  }
-}
-
-@keyframes fx-shimmer {
+@keyframes fx-shimmer-a {
   0%,
   100% {
-    opacity: var(--lo, 0.35);
+    opacity: 0.2;
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    opacity: var(--hi, 0.7);
+    opacity: 0.8;
+    transform: translate3d(3px, -2px, 0);
+  }
+}
+
+@keyframes fx-shimmer-b {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.15;
+    transform: translate3d(-3px, 2px, 0);
   }
 }
 
@@ -370,7 +377,7 @@
     opacity: 0;
   }
   35% {
-    opacity: var(--hi, 0.6);
+    opacity: 0.75;
   }
   70% {
     opacity: 0.05;
@@ -379,14 +386,12 @@
 
 @keyframes fx-lap-in {
   0%,
+  45%,
   100% {
-    opacity: var(--lo, 0.35);
-  }
-  45% {
-    opacity: var(--lo, 0.35);
+    opacity: 0.3;
   }
   65% {
-    opacity: var(--hi, 0.9);
+    opacity: 0.95;
   }
 }
 

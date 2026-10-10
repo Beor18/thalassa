@@ -200,7 +200,14 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
               <span aria-hidden className="absolute top-1.5 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/25 lg:hidden" />
               <div className="min-w-0 flex-1 pt-1">
                 {panel.kicker && <p className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">{panel.kicker}</p>}
-                <h2 id={headingId} ref={headingRef} tabIndex={-1} className="font-display text-xl leading-tight font-bold outline-none">
+                <h2
+                  id={headingId}
+                  ref={headingRef}
+                  tabIndex={-1}
+                  // Focus lands here by script when the panel opens; an underline is enough of a cue.
+                  style={{ outline: "none" }}
+                  className="font-display text-xl leading-tight font-bold decoration-bronze underline-offset-4 focus-visible:underline"
+                >
                   {panel.title}
                 </h2>
               </div>

@@ -101,23 +101,19 @@ export function SceneEvents({ cityId, snapshot, children }: { cityId: string; sn
   }
 
   // Late: compare with what this tab saw last time (runs again when a cached page comes back).
+  // The store is updated right away and the frame is never cancelled: a second run of this
+  // effect (Strict Mode, a page shown again) finds nothing new instead of losing the moment.
   useEffect(() => {
     const stored = readStore(cityId);
     const current = JSON.parse(key) as CitySnapshot;
-    if (!stored) {
-      writeStore(cityId, current, []);
-      return;
-    }
-    const late = diff(stored.snap, current, false).filter((e) => e.kind === "done" && !stored.seen.includes(e.id));
-    const seenNow = [...stored.seen, ...late.map((e) => e.id)];
-    writeStore(cityId, current, seenNow);
-    const frame = requestAnimationFrame(() => {
-      setSeen(seenNow);
-      if (!late.length) return;
-      setEvents((list) => [...list, ...late]);
+    const late = stored ? diff(stored.snap, current, false).filter((e) => e.kind === "done" && !stored.seen.includes(e.id)) : [];
+    writeStore(cityId, current, late.map((e) => e.id));
+    if (!late.length) return;
+    requestAnimationFrame(() => {
+      setSeen((list) => [...list, ...late.map((e) => e.id)]);
+      setEvents((list) => [...list, ...late.filter((e) => !list.some((x) => x.id === e.id))]);
       setMessage(late.map((e) => doneMessage(e.type, e.level)).join(" "));
     });
-    return () => cancelAnimationFrame(frame);
     // Only on mount: later snapshots are handled live.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityId]);
