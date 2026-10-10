@@ -1,25 +1,30 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { fmtDuration } from "@/lib/format";
 import { useServerClock } from "@/lib/use-server-clock";
+import { whenVisible } from "@/lib/when-visible";
 
 /** Live "time left" label. Refreshes server data once when it reaches zero. */
 export function Countdown({ endsAt, serverNow, doneLabel = "Listo" }: { endsAt: number; serverNow: number; doneLabel?: string }) {
   const router = useRouter();
   const now = useServerClock(serverNow);
   const left = endsAt - now;
-  const firedFor = useRef<number | null>(null);
+  const done = left <= 0;
 
+  // Keyed on `done`, not on every tick, so a refresh waiting for a hidden tab isn't dropped.
   useEffect(() => {
-    if (left > 0 || firedFor.current === endsAt) return;
-    firedFor.current = endsAt;
-    const t = setTimeout(() => router.refresh(), 600);
-    return () => clearTimeout(t);
-  }, [left, endsAt, router]);
+    if (!done) return;
+    let cancel = () => {};
+    const t = setTimeout(() => (cancel = whenVisible(() => router.refresh())), 600);
+    return () => {
+      clearTimeout(t);
+      cancel();
+    };
+  }, [done, endsAt, router]);
 
   return (
     <span className="tabular" suppressHydrationWarning>

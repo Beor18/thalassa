@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { RESOURCE_INFO, type Resource } from "@/game/data";
 import { fmt, fmtDuration } from "@/lib/format";
 import { useServerClock } from "@/lib/use-server-clock";
+import { whenVisible } from "@/lib/when-visible";
 import { clamp, curvePath, pointOnCurve, pointOnLoop, routeCurve, type Curve, type Pt } from "./geometry";
 import type { MapIsland } from "./island-marker";
 import type { FleetKind, FleetView, WorldFx } from "./types";
@@ -146,17 +147,22 @@ export function Fleets({
     return () => cancelAnimationFrame(raf);
   }, [routes, serverNow, reducedMotion, fx.shipTopDown]);
 
-  // When a ship reaches port, ask the server for the new state (once per leg).
+  // When a ship reaches port, ask the server for the new state (once per leg, and only on a visible tab).
+  const arrived = routes
+    .filter((r) => poseAt(r, now).done)
+    .map((r) => `${r.fleet.id}:${r.fleet.status}`)
+    .join(",");
   useEffect(() => {
-    const due = routes.find((r) => {
-      const key = `${r.fleet.id}:${r.fleet.status}`;
-      return poseAt(r, now).done && !refreshed.current.has(key);
-    });
-    if (!due) return;
-    refreshed.current.add(`${due.fleet.id}:${due.fleet.status}`);
-    const t = setTimeout(() => router.refresh(), 800);
-    return () => clearTimeout(t);
-  }, [now, routes, router]);
+    const fresh = arrived.split(",").filter((key) => key && !refreshed.current.has(key));
+    if (!fresh.length) return;
+    for (const key of fresh) refreshed.current.add(key);
+    let cancel = () => {};
+    const t = setTimeout(() => (cancel = whenVisible(() => router.refresh())), 800);
+    return () => {
+      clearTimeout(t);
+      cancel();
+    };
+  }, [arrived, router]);
 
   return routes.map((r) => {
     const f = r.fleet;
