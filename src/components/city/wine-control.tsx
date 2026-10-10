@@ -67,7 +67,8 @@ export function WineControl({
         <div className="rounded-lg bg-marble/55 px-3 py-2 ring-1 ring-parchment-3/80">
           <dt className="text-xs font-bold text-ink-soft">Consumo</dt>
           <dd className="inline-flex items-center gap-1 text-xl font-extrabold tabular">
-            <ResIcon kind="wine" size={18} />−{fmt1(use)}/h
+            <ResIcon kind="wine" size={18} />
+            {use > 0.05 ? `−${fmt1(use)}` : "0"}/h
           </dd>
         </div>
         <div className="rounded-lg bg-marble/55 px-3 py-2 ring-1 ring-parchment-3/80">

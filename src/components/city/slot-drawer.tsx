@@ -108,75 +108,91 @@ export function SlotDrawer({
         exit={{ opacity: 0, transition: { duration: 0.2 } }}
         transition={{ duration: 0.22 }}
       >
-        <Link href={closeHref} replace scroll={false} tabIndex={-1} onClick={() => setClosing(true)} className="block size-full bg-sea-950/60" />
+        <Link
+          href={closeHref}
+          replace
+          scroll={false}
+          tabIndex={-1}
+          onClick={() => setClosing(true)}
+          className="block size-full bg-sea-950/60"
+        />
       </motion.div>
-      <motion.section
-        ref={panelRef}
-        role={isSheet ? "dialog" : undefined}
-        aria-modal={isSheet ? true : undefined}
-        aria-labelledby={headingId}
-        tabIndex={-1}
-        drag={isSheet && !reduce ? "y" : false}
-        dragListener={false}
-        dragControls={drag}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0.04, bottom: 0.9 }}
-        dragMomentum={false}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 110 || info.velocity.y > 650) close();
-        }}
-        initial={animateIn ? hidden : false}
-        animate={closing && isSheet ? { y: "104%" } : { opacity: 1, x: 0, y: 0 }}
-        exit={reduce ? { opacity: 0, transition: { duration: 0.12 } } : isSheet ? { y: "104%", transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } } : { opacity: 0, x: 16, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
-        transition={SPRING}
-        className={clsx(
-          // Same look as .panel, written as utilities so the corners can change per breakpoint.
-          "fixed inset-x-0 bottom-0 z-[80] mx-auto flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-y-auto overscroll-contain outline-none",
-          "rounded-t-[14px] border border-b-0 border-parchment-3 bg-parchment bg-[linear-gradient(180deg,rgb(255_255_255/0.35),transparent_40%)] shadow-panel",
-          "pb-[max(1rem,env(safe-area-inset-bottom))] text-ink",
-          // Desktop: fills the column next to the scene and scrolls on its own, never past the scene.
-          "lg:absolute lg:inset-x-0 lg:top-0 lg:bottom-auto lg:z-auto lg:max-h-full lg:max-w-none lg:rounded-[14px] lg:border-b lg:pb-4",
-        )}
-      >
-        {/* Grab the handle or the header to swipe the sheet down. */}
-        <div
-          className="sticky top-0 z-10 touch-none rounded-t-[14px] bg-parchment/95 backdrop-blur-sm lg:touch-auto"
-          onPointerDown={(e) => {
-            if (isSheet && e.pointerType !== "mouse") drag.start(e);
+      {/* Desktop: fills the column next to the scene; the panel sticks to the top while the page scrolls. */}
+      <div className="lg:absolute lg:inset-0">
+        <motion.section
+          ref={panelRef}
+          role={isSheet ? "dialog" : undefined}
+          aria-modal={isSheet ? true : undefined}
+          aria-labelledby={headingId}
+          tabIndex={-1}
+          drag={isSheet && !reduce ? "y" : false}
+          dragListener={false}
+          dragControls={drag}
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0.04, bottom: 0.9 }}
+          dragMomentum={false}
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 110 || info.velocity.y > 650) close();
           }}
+          initial={animateIn ? hidden : false}
+          animate={closing && isSheet ? { y: "104%" } : { opacity: 1, x: 0, y: 0 }}
+          exit={
+            reduce
+              ? { opacity: 0, transition: { duration: 0.12 } }
+              : isSheet
+                ? { y: "104%", transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } }
+                : { opacity: 0, x: 16, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }
+          }
+          transition={SPRING}
+          className={clsx(
+            // Same look as .panel, written as utilities so the corners can change per breakpoint.
+            "fixed inset-x-0 bottom-0 z-[80] mx-auto flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-y-auto overscroll-contain outline-none",
+            "rounded-t-[14px] border border-b-0 border-parchment-3 bg-parchment bg-[linear-gradient(180deg,rgb(255_255_255/0.35),transparent_40%)] shadow-panel",
+            "pb-[max(1rem,env(safe-area-inset-bottom))] text-ink",
+            // Desktop: as tall as the scene at most (and never taller than the window), scrolls on its own.
+            "lg:sticky lg:top-3 lg:bottom-auto lg:z-auto lg:max-h-[min(100%,calc(100dvh-1.5rem))] lg:max-w-none lg:rounded-[14px] lg:border-b lg:pb-4",
+          )}
         >
-          <div aria-hidden className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-ink/25 lg:hidden" />
-          <header className="flex items-start gap-3 border-b border-parchment-3/70 px-4 pt-3 pb-3">
-            <div className="min-w-0 flex-1">
-              {eyebrow && <p className="text-xs font-bold tracking-wider text-bronze-dark uppercase">{eyebrow}</p>}
-              <h2
-                id={headingId}
-                ref={headingRef}
-                tabIndex={-1}
-                // Focus lands here by script when the panel opens; an underline is enough of a cue.
-                style={{ outline: "none" }}
-                className="font-display text-xl leading-tight font-bold text-ink decoration-bronze underline-offset-4 focus-visible:underline"
+          {/* Grab the handle or the header to swipe the sheet down. */}
+          <div
+            className="sticky top-0 z-10 touch-none rounded-t-[14px] bg-parchment/95 backdrop-blur-sm lg:touch-auto"
+            onPointerDown={(e) => {
+              if (isSheet && e.pointerType !== "mouse") drag.start(e);
+            }}
+          >
+            <div aria-hidden className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-ink/25 lg:hidden" />
+            <header className="flex items-start gap-3 border-b border-parchment-3/70 px-4 pt-3 pb-3">
+              <div className="min-w-0 flex-1">
+                {eyebrow && <p className="text-xs font-bold tracking-wider text-bronze-dark uppercase">{eyebrow}</p>}
+                <h2
+                  id={headingId}
+                  ref={headingRef}
+                  tabIndex={-1}
+                  // Focus lands here by script when the panel opens; an underline is enough of a cue.
+                  style={{ outline: "none" }}
+                  className="font-display text-xl leading-tight font-bold text-ink decoration-bronze underline-offset-4 focus-visible:underline"
+                >
+                  {title}
+                </h2>
+              </div>
+              <Link
+                href={closeHref}
+                replace
+                scroll={false}
+                aria-label="Cerrar panel"
+                onClick={() => setClosing(true)}
+                className="-mt-1 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
               >
-                {title}
-              </h2>
-            </div>
-            <Link
-              href={closeHref}
-              replace
-              scroll={false}
-              aria-label="Cerrar panel"
-              onClick={() => setClosing(true)}
-              className="-mt-1 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
-            >
-              <span aria-hidden>×</span>
-            </Link>
-          </header>
-        </div>
-        {/* Keyed by plot: switching plots replays the short cascade. */}
-        <div key={slot} className={clsx("flex flex-col gap-4 px-4 pt-4", animateIn && fx.stagger)}>
-          {children}
-        </div>
-      </motion.section>
+                <span aria-hidden>×</span>
+              </Link>
+            </header>
+          </div>
+          {/* Keyed by plot: switching plots replays the short cascade. */}
+          <div key={slot} className={clsx("flex flex-col gap-4 px-4 pt-4", animateIn && fx.stagger)}>
+            {children}
+          </div>
+        </motion.section>
+      </div>
     </>
   );
 }

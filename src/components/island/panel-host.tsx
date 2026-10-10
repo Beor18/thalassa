@@ -51,13 +51,23 @@ export function PanelProvider({ ids, children }: { ids: string[]; children: Reac
 
   const close = useCallback(() => {
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("panel")) return;
+    const id = url.searchParams.get("panel");
+    if (!id) return;
     url.searchParams.delete("panel");
     if ((window.history.state as Record<string, unknown> | null)?.[STATE_KEY]) window.history.back();
     else window.history.replaceState({}, "", url);
-    const el = opener.current;
+    // Opened from a link elsewhere (the advisor, a direct visit): fall back to its spot on the map.
+    const el = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>(`a[href="?panel=${CSS.escape(id)}"]`);
     opener.current = null;
-    if (el?.isConnected) requestAnimationFrame(() => el.focus({ preventScroll: true }));
+    // Give focus back to what opened the panel once it is usable again (the summary stays inert
+    // until the URL change lands, which can take a few frames after history.back()).
+    let tries = 0;
+    const refocus = () => {
+      if (!el?.isConnected) return;
+      if (el.closest("[inert]") && tries++ < 20) requestAnimationFrame(refocus);
+      else el.focus({ preventScroll: true });
+    };
+    requestAnimationFrame(refocus);
   }, []);
 
   return <Ctx value={{ current, open, close }}>{children}</Ctx>;
@@ -156,79 +166,81 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
           />
         )}
         {panel && (
-          <motion.section
-            key="panel"
-            ref={panelRef}
-            role={isSheet ? "dialog" : undefined}
-            aria-modal={isSheet ? true : undefined}
-            aria-labelledby={headingId}
-            tabIndex={-1}
-            drag={isSheet && !reduce ? "y" : false}
-            dragListener={false}
-            dragControls={drag}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0.04, bottom: 0.9 }}
-            dragMomentum={false}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 110 || info.velocity.y > 650) close();
-            }}
-            initial={hydrated && !reduce ? hidden : false}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            exit={
-              reduce
-                ? { opacity: 0, transition: { duration: 0.12 } }
-                : isSheet
-                  ? { y: "104%", transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } }
-                  : { opacity: 0, x: 16, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }
-            }
-            transition={SPRING}
-            className={clsx(
-              // Same look as .panel, written as utilities so the corners can change per breakpoint.
-              "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] text-ink outline-none",
-              "rounded-t-[14px] border border-b-0 border-parchment-3 bg-parchment bg-[linear-gradient(180deg,rgb(255_255_255/0.35),transparent_40%)] shadow-panel",
-              // Tablets: a centered sheet instead of a full-width slab.
-              "md:max-lg:right-auto md:max-lg:left-1/2 md:max-lg:w-xl md:max-lg:-translate-x-1/2",
-              "lg:absolute lg:inset-x-0 lg:top-0 lg:bottom-auto lg:z-10 lg:max-h-full lg:rounded-[14px] lg:border-b lg:pb-0",
-            )}
-          >
-            <header
-              className="sticky top-0 z-10 flex touch-none items-start gap-3 rounded-t-[14px] border-b border-parchment-3 bg-parchment px-4 pt-3 pb-3 lg:touch-auto"
-              onPointerDown={(e) => {
-                if (isSheet && e.pointerType !== "mouse") drag.start(e);
+          // Desktop: fills the column next to the scene; the panel sticks to the top while the page scrolls.
+          <div key="panel" className="lg:absolute lg:inset-0">
+            <motion.section
+              ref={panelRef}
+              role={isSheet ? "dialog" : undefined}
+              aria-modal={isSheet ? true : undefined}
+              aria-labelledby={headingId}
+              tabIndex={-1}
+              drag={isSheet && !reduce ? "y" : false}
+              dragListener={false}
+              dragControls={drag}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0.04, bottom: 0.9 }}
+              dragMomentum={false}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 110 || info.velocity.y > 650) close();
               }}
+              initial={hydrated && !reduce ? hidden : false}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={
+                reduce
+                  ? { opacity: 0, transition: { duration: 0.12 } }
+                  : isSheet
+                    ? { y: "104%", transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } }
+                    : { opacity: 0, x: 16, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }
+              }
+              transition={SPRING}
+              className={clsx(
+                // Same look as .panel, written as utilities so the corners can change per breakpoint.
+                "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] text-ink outline-none",
+                "rounded-t-[14px] border border-b-0 border-parchment-3 bg-parchment bg-[linear-gradient(180deg,rgb(255_255_255/0.35),transparent_40%)] shadow-panel",
+                // Tablets: a centered sheet instead of a full-width slab.
+                "md:max-lg:right-auto md:max-lg:left-1/2 md:max-lg:w-xl md:max-lg:-translate-x-1/2",
+                "lg:sticky lg:top-3 lg:bottom-auto lg:z-10 lg:max-h-[min(100%,calc(100dvh-1.5rem))] lg:rounded-[14px] lg:border-b lg:pb-0",
+              )}
             >
-              <span aria-hidden className="absolute top-1.5 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/25 lg:hidden" />
-              <div className="min-w-0 flex-1 pt-1">
-                {panel.kicker && <p className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">{panel.kicker}</p>}
-                <h2
-                  id={headingId}
-                  ref={headingRef}
-                  tabIndex={-1}
-                  // Focus lands here by script when the panel opens; an underline is enough of a cue.
-                  style={{ outline: "none" }}
-                  className="font-display text-xl leading-tight font-bold decoration-bronze underline-offset-4 focus-visible:underline"
-                >
-                  {panel.title}
-                </h2>
-              </div>
-              <a
-                href={pathname}
-                onClick={(e) => {
-                  e.preventDefault();
-                  close();
+              <header
+                className="sticky top-0 z-10 flex touch-none items-start gap-3 rounded-t-[14px] border-b border-parchment-3 bg-parchment px-4 pt-3 pb-3 lg:touch-auto"
+                onPointerDown={(e) => {
+                  if (isSheet && e.pointerType !== "mouse") drag.start(e);
                 }}
-                aria-label="Cerrar panel"
-                title="Cerrar (Esc)"
-                className="-mr-1.5 grid size-10 shrink-0 place-items-center rounded-lg text-ink-soft transition hover:bg-ink/5 hover:text-ink focus-visible:ring-2 focus-visible:ring-bronze-dark"
               >
-                <IconCross size={20} />
-              </a>
-            </header>
-            {/* Keyed by panel: switching spots replays the short cascade. */}
-            <div key={current} className={clsx("flex flex-col gap-4 p-4", hydrated && !reduce && fx.stagger)}>
-              {panel.body}
-            </div>
-          </motion.section>
+                <span aria-hidden className="absolute top-1.5 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/25 lg:hidden" />
+                <div className="min-w-0 flex-1 pt-1">
+                  {panel.kicker && <p className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">{panel.kicker}</p>}
+                  <h2
+                    id={headingId}
+                    ref={headingRef}
+                    tabIndex={-1}
+                    // Focus lands here by script when the panel opens; an underline is enough of a cue.
+                    style={{ outline: "none" }}
+                    className="font-display text-xl leading-tight font-bold decoration-bronze underline-offset-4 focus-visible:underline"
+                  >
+                    {panel.title}
+                  </h2>
+                </div>
+                <a
+                  href={pathname}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    close();
+                  }}
+                  aria-label="Cerrar panel"
+                  title="Cerrar (Esc)"
+                  className="-mr-1.5 grid size-10 shrink-0 place-items-center rounded-lg text-ink-soft transition hover:bg-ink/5 hover:text-ink focus-visible:ring-2 focus-visible:ring-bronze-dark"
+                >
+                  <IconCross size={20} />
+                </a>
+              </header>
+              {/* Keyed by panel: switching spots replays the short cascade. */}
+              <div key={current} className={clsx("flex flex-col gap-4 p-4", hydrated && !reduce && fx.stagger)}>
+                {panel.body}
+              </div>
+            </motion.section>
+          </div>
         )}
       </AnimatePresence>
     </aside>
