@@ -172,6 +172,6 @@ export const PROGRAM_ERRORS: Record<number, string> = {
   6003: "La tesorería no tiene fondos suficientes.",
   6004: "La cantidad tiene que ser mayor que cero.",
   6005: "El precio del pack no es válido.",
-  6006: "La cantidad de ambrosía por pack no es válida.",
+  6006: "La cantidad de néctar por pack no es válida.",
   6007: "La tesorería tiene que quedar vacía o por encima del mínimo de la red.",
 };

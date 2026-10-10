@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, gt, like, ne, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db";
 import { ambrosiaLedger, cities, islands, missions, players } from "@/db/schema";
 import { BALANCE, ISLAND_PLOTS, RESOURCES, type BuildingType, type Resource, type ResourceBag, type TechId, type UnitBag, type UnitType } from "@/game/data";
@@ -7,6 +7,7 @@ import {
   GameError,
   ISLAND_MAX_LEVEL,
   advance,
+  ambrosiaToFinish,
   buildingLevel,
   buyShip,
   cancelConstruction,
@@ -60,11 +61,45 @@ export const build = (playerId: string, cityId: string, slot: number, type: Buil
 
 export const cancelBuild = (playerId: string, cityId: string) => withPlayer(playerId, (p) => cancelConstruction(p, cityId));
 
+/** Néctar spent (positive) in the last 24 h on ledger rows whose reason matches `pattern`. */
+async function spentToday(tx: Tx, playerId: string, pattern: string, now: number) {
+  const [row] = await tx
+    .select({ spent: sql<number>`coalesce(-sum(${ambrosiaLedger.delta}), 0)::int`, n: count() })
+    .from(ambrosiaLedger)
+    .where(
+      and(
+        eq(ambrosiaLedger.playerId, playerId),
+        like(ambrosiaLedger.reason, pattern),
+        gt(ambrosiaLedger.createdAt, new Date(now - 24 * 3_600_000)),
+      ),
+    );
+  return { spent: row?.spent ?? 0, times: row?.n ?? 0 };
+}
+
 export const finishNow = (playerId: string, cityId: string, what: "construction" | "training") =>
   withPlayer(playerId, async (p, { tx, now }) => {
-    const price = finishWithAmbrosia(p, cityId, what, now);
-    await tx.insert(ambrosiaLedger).values({ playerId, delta: -price, reason: `finish:${what}` });
-    return price;
+    const city = getCity(p, cityId);
+    if (what === "training") {
+      // Troops can't be rushed into a war: only short queues, and never with an own attack at sea.
+      const endsAt = city.training.reduce((m, b) => Math.max(m, b.endsAt), 0);
+      if (endsAt - now > BALANCE.trainingFinishMaxMinutes * 60_000) {
+        throw new GameError(`Solo podés apurar entrenamientos a los que les falte una hora o menos.`);
+      }
+      const [atSea] = await tx
+        .select({ n: count() })
+        .from(missions)
+        .where(and(eq(missions.playerId, playerId), eq(missions.kind, "attack"), eq(missions.status, "outbound")));
+      if (atSea.n > 0) throw new GameError("No podés apurar tropas mientras tenés un ataque en viaje.");
+    }
+    const endsAt = what === "construction" ? city.construction?.endsAt : city.training.reduce((m, b) => Math.max(m, b.endsAt), 0);
+    const price = endsAt && endsAt > now ? ambrosiaToFinish(now, endsAt) : 0;
+    const { spent } = await spentToday(tx, playerId, "finish:%", now);
+    if (price > 0 && spent + price > BALANCE.finishDailyCap) {
+      throw new GameError(`Llegaste al tope diario: ${BALANCE.finishDailyCap} de néctar por día para terminar al instante.`);
+    }
+    const paid = finishWithAmbrosia(p, cityId, what, now);
+    await tx.insert(ambrosiaLedger).values({ playerId, delta: -paid, reason: `finish:${what}` });
+    return paid;
   });
 
 export const assignWorkers = (playerId: string, cityId: string, next: { woodWorkers?: number; luxWorkers?: number; scientists?: number }) =>
@@ -93,9 +128,13 @@ export const purchaseShip = (playerId: string, cityId: string) =>
 export const doResearch = (playerId: string, tech: TechId) => withPlayer(playerId, (p) => research(p, tech));
 
 export const tradeAmbrosia = (playerId: string, cityId: string, resource: Resource) =>
-  withPlayer(playerId, async (p, { tx }) => {
+  withPlayer(playerId, async (p, { tx, now }) => {
+    const { times } = await spentToday(tx, playerId, `merchant:${cityId}:%`, now);
+    if (times >= BALANCE.merchantPerCityPerDay) {
+      throw new GameError(`El mercader pasa ${BALANCE.merchantPerCityPerDay} veces por día por ciudad. Volvé mañana.`);
+    }
     merchantTrade(p, cityId, resource);
-    await tx.insert(ambrosiaLedger).values({ playerId, delta: -BALANCE.merchantAmbrosia, reason: `merchant:${resource}` });
+    await tx.insert(ambrosiaLedger).values({ playerId, delta: -BALANCE.merchantAmbrosia, reason: `merchant:${cityId}:${resource}` });
   });
 
 export const rename = (playerId: string, cityId: string, name: string) => withPlayer(playerId, (p) => renameCity(p, cityId, name));

@@ -16,7 +16,7 @@ Para los que crecieron dejando la ciudad construyendo y volviendo después del c
 
 - **Diez minutos alcanzan.** Pensado para ratos cortos, no para la noche entera.
 - **Un toque y jugás.** Sin instalar nada, sin mail y sin contraseña. Funciona en la compu y en el celular, y se instala como app.
-- **La plata no compra ejércitos.** La moneda premium compra tiempo y estilo, con topes. Sin cajas sorpresa, sin mercado con plata real, sin publicidad.
+- **La plata no compra ejércitos.** El néctar, la moneda premium, compra tiempo y estilo, con topes. Sin cajas sorpresa, sin mercado con plata real, sin publicidad.
 - **Arte pintado propio.** Cada edificio, tropa e isla está pintado para el juego.
 - **Tu cuenta es tuya.** Entrás con una llave que vive en tu navegador o en tu billetera, y cada compra se puede verificar en la red de Solana. El jugador no necesita saber nada de esto para jugar.
 
@@ -26,7 +26,7 @@ Un producto independiente que se paga con sus jugadores. Sin inversores y sin mo
 
 | Fuente | Precio previsto |
 | --- | --- |
-| Moneda premium, en packs | US$ 0,99 a US$ 19,99, con tope de US$ 50 por mes |
+| Néctar (moneda premium), en packs | US$ 0,99 a US$ 19,99, con tope de US$ 50 por mes |
 | Pase de temporada (8 semanas) | US$ 4,99, con camino gratis para todos |
 | Cosméticos: estandartes, estilos de polis, velas | Con la moneda premium |
 

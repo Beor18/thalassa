@@ -12,7 +12,7 @@ const days = Math.max(1, Math.min(365, Number(args[0] ?? 7) || 7));
 const since = new Date(Date.now() - days * 86_400_000);
 const sinceIso = since.toISOString();
 
-/** ambrosía per pack and its price on devnet (onchain/README.md) */
+/** néctar (ambrosia) per pack and its price on devnet (onchain/README.md) */
 const AMBROSIA_PER_PACK = 100;
 const SOL_PER_PACK = 0.05;
 
@@ -79,7 +79,7 @@ const activity = await one(sql`
     count(*)::float / greatest(1, count(distinct props->>'day')) as avg_dau
   from analytics_events where name = 'active_day' and created_at >= ${sinceIso}::timestamptz and player_id is not null`);
 
-// --- Money (ambrosía ledger) ----------------------------------------------------------------
+// --- Money (néctar, ambrosia_ledger in the DB) ----------------------------------------------------------------
 const money = await one(sql`
   select
     coalesce(sum(delta) filter (where reason = 'onchain:buy_ambrosia'), 0) as bought,
@@ -124,7 +124,7 @@ line("Empezaron una obra", n(cohort.built), pct(n(cohort.built), created));
 line("Investigaron algo", n(cohort.researched), pct(n(cohort.researched), created));
 line("Mandaron un ataque", n(cohort.attacked), pct(n(cohort.attacked), created));
 line("Pidieron SOL de prueba", n(cohort.faucet), pct(n(cohort.faucet), created));
-line("Compraron ambrosía", n(cohort.bought), pct(n(cohort.bought), created));
+line("Compraron néctar", n(cohort.bought), pct(n(cohort.bought), created));
 line("Llegaron invitados", n(cohort.invited), pct(n(cohort.invited), created));
 console.log(`  Ingresos: ${num(n(logins.new_logins))} cuentas nuevas, ${num(n(logins.returning_logins))} regresos con firma`);
 
@@ -144,12 +144,12 @@ const bought = n(money.bought);
 const buyers = n(money.buyers);
 const sol = (bought / AMBROSIA_PER_PACK) * SOL_PER_PACK;
 const usd = (v: number) => (solUsd ? ` (≈ US$ ${(v * solUsd).toFixed(2)})` : "");
-console.log("\nAmbrosía (precio de red de prueba: 100 = 0,05 SOL)");
-line("Ambrosía comprada", bought, `${num(n(money.purchases))} compras · ${sol.toFixed(3)} SOL${usd(sol)}`);
+console.log("\nNéctar (precio de red de prueba: 100 = 0,05 SOL)");
+line("Néctar comprado", bought, `${num(n(money.purchases))} compras · ${sol.toFixed(3)} SOL${usd(sol)}`);
 line("Compradores", buyers, `${pct(buyers, n(activity.active_players))} de los activos`);
 line("ARPPU", buyers ? `${(sol / buyers).toFixed(3)} SOL` : "–", buyers ? `por comprador${usd(sol / buyers)}` : "");
-line("Ambrosía regalada por invitar", n(money.referral_given));
-line("Ambrosía gastada", n(money.spent));
+line("Néctar regalado por invitar", n(money.referral_given));
+line("Néctar gastado", n(money.spent));
 for (const r of spentBy) console.log(`    ${pad(String(r.reason), 32)}${num(n(r.amount))}`);
 
 console.log("\nInvitaciones");

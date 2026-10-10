@@ -15,7 +15,7 @@ export const RESOURCE_INFO: Record<Resource | "gold" | "research" | "citizens" |
   gold: { label: "Oro", icon: "/assets/r-gold.webp" },
   research: { label: "Investigación", icon: "/assets/r-research.webp" },
   citizens: { label: "Ciudadanos", icon: "/assets/r-citizens.webp" },
-  ambrosia: { label: "Ambrosía", icon: "/assets/r-ambrosia.webp" },
+  ambrosia: { label: "Néctar", icon: "/assets/r-ambrosia.webp" },
 };
 
 export const emptyBag = (): ResourceBag => ({ wood: 0, wine: 0, marble: 0, crystal: 0, sulfur: 0 });
@@ -397,6 +397,10 @@ export const BALANCE = {
   ambrosiaPerMinute: 1,
   merchantAmbrosia: 20,
   merchantAmount: 1000,
+  /** anti pay-to-win caps (see docs/negocio/modelo-de-negocio.md) */
+  finishDailyCap: 300,
+  trainingFinishMaxMinutes: 60,
+  merchantPerCityPerDay: 3,
   barbarianCooldown: 4 * 3600,
   newbieProtectionHours: 72,
   startingResources: { wood: 1000, wine: 300, marble: 400, crystal: 150, sulfur: 150 } satisfies ResourceBag,

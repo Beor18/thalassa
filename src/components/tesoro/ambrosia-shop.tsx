@@ -112,7 +112,7 @@ export function AmbrosiaShop({ sessionWallet, citizenPda }: { sessionWallet: str
     <section aria-labelledby="shop-title" className="panel flex flex-col gap-4 p-4 sm:p-5">
       <div>
         <h2 id="shop-title" className="font-display text-xl font-bold">
-          Comprar ambrosía
+          Comprar néctar
         </h2>
         <p className="text-[15px] text-ink-soft">Pagás con SOL de prueba desde la misma cuenta con la que entraste.</p>
       </div>
@@ -275,7 +275,7 @@ const STAGE_LABEL: Record<Exclude<Stage, "idle">, string> = {
   preparing: "Preparando la compra…",
   signing: "Firmá en tu billetera…",
   confirming: "Confirmando en la red…",
-  crediting: "Sumando tu ambrosía…",
+  crediting: "Sumando tu néctar…",
 };
 
 function ShopBody({
@@ -322,8 +322,8 @@ function ShopBody({
       celebrate(buyRef.current, { tone: "ambrosia", count: 24, spread: 140 });
       toast(
         credited && credited > 0
-          ? `Sumaste ${fmt(credited)} de ambrosía.`
-          : "La compra se confirmó. Si no ves la ambrosía, tocá Sincronizar compras.",
+          ? `Sumaste ${fmt(credited)} de néctar.`
+          : "La compra se confirmó. Si no ves el néctar, tocá Sincronizar compras.",
       );
       reload();
     } catch (err) {
@@ -439,7 +439,7 @@ function ShopBody({
         <div role="status" className="pop-in flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-olive/15 px-3 py-2 text-[15px] ring-1 ring-olive/30">
           <span className="font-bold text-success">
             Compra confirmada: {receipt.packs} {receipt.packs === 1 ? "pack" : "packs"}
-            {receipt.credited ? ` · +${fmt(receipt.credited)} de ambrosía` : ""}
+            {receipt.credited ? ` · +${fmt(receipt.credited)} de néctar` : ""}
           </span>
           <a
             href={explorerTx(receipt.signature)}
@@ -455,7 +455,7 @@ function ShopBody({
 
       <div className="flex flex-col gap-2 border-t border-parchment-3 pt-3 text-sm text-ink-soft">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p>Si compraste y la ambrosía no aparece, sincronizá.</p>
+          <p>Si compraste y el néctar no aparece, sincronizá.</p>
           <ActionButton action={syncAmbrosiaAction} variant="secondary" size="sm" pendingLabel="Sincronizando…" className="h-10">
             Sincronizar compras
           </ActionButton>
@@ -466,7 +466,7 @@ function ShopBody({
         </p>
         {ready?.citizen && (
           <p className="tabular-nums lining-nums">
-            En la red figuran {fmt(Number(ready.citizen.ambrosiaTotal))} de ambrosía en {ready.citizen.purchases}{" "}
+            En la red figuran {fmt(Number(ready.citizen.ambrosiaTotal))} de néctar en {ready.citizen.purchases}{" "}
             {ready.citizen.purchases === 1 ? "compra" : "compras"}.
           </p>
         )}

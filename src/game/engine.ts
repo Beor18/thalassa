@@ -447,7 +447,7 @@ export function finishWithAmbrosia(p: PlayerState, cityId: string, what: "constr
     what === "construction" ? city.construction?.endsAt : city.training.reduce((m, b) => Math.max(m, b.endsAt), 0) || undefined;
   if (!endsAt || endsAt <= now) throw new GameError("No hay nada para terminar.");
   const price = ambrosiaToFinish(now, endsAt);
-  if (p.ambrosia < price) throw new GameError(`Necesitás ${price} de ambrosía.`);
+  if (p.ambrosia < price) throw new GameError(`Necesitás ${price} de néctar.`);
   p.ambrosia -= price;
   if (what === "construction" && city.construction) city.construction.endsAt = now;
   if (what === "training") for (const b of city.training) b.endsAt = Math.min(b.endsAt, now);
@@ -533,7 +533,7 @@ export function research(p: PlayerState, tech: TechId) {
 
 export function merchantTrade(p: PlayerState, cityId: string, resource: Resource) {
   const city = getCity(p, cityId);
-  if (p.ambrosia < BALANCE.merchantAmbrosia) throw new GameError(`Necesitás ${BALANCE.merchantAmbrosia} de ambrosía.`);
+  if (p.ambrosia < BALANCE.merchantAmbrosia) throw new GameError(`Necesitás ${BALANCE.merchantAmbrosia} de néctar.`);
   const cap = storageCap(p, city);
   if (city.res[resource] >= cap) throw new GameError("El depósito ya está lleno de eso.");
   p.ambrosia -= BALANCE.merchantAmbrosia;
@@ -726,7 +726,7 @@ export function advisorHint(p: PlayerState, city: CityState, speed: number): Adv
     return { title: "Hacé un Puerto", body: "Sin barcos no salís de la isla.", href: `${cityHref}?slot=12` };
   }
   if (p.ambrosia === 0 && !building) {
-    return { title: "Probá la ambrosía", body: "Se compra con SOL de prueba y termina cualquier obra al instante.", href: "/tesoro" };
+    return { title: "Probá el néctar", body: "Se compra con SOL de prueba y termina cualquier obra al instante.", href: "/tesoro" };
   }
   return null;
 }

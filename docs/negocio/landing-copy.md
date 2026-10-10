@@ -39,19 +39,19 @@ Reglas que este texto cumple: voseo, frases cortas, títulos que afirman, subtí
 - **Debajo, sin llave guardada:** Sin mail, sin contraseña y sin plata real. Tu llave de juego queda en este navegador.
 - **Debajo, con llave guardada:** Seguís con la llave de juego guardada en este navegador.
 - **Enlace secundario:** Entrar con mi billetera
-- **Si llegó con invitación:** Te invitó **{nombre}**. Cuando llegues a Intendencia 3, suman 50 de ambrosía cada uno.
+- **Si llegó con invitación:** Te invitó **{nombre}**. Cuando llegues a Intendencia 3, suman 50 de néctar cada uno.
 - **Si ya tiene sesión:** botón "Volver a mi polis" y debajo "Entraste como {ABCD…WXYZ}. Salir".
 
 ### Prueba A/B
 
-- Reparto 50/50 por visita: el número de visita (al azar, vive en la pestaña) define la variante antes de pintar, sin parpadeo.
+- Reparto 50/50 por pestaña: un script en línea tira una moneda antes de pintar, la guarda en la pestaña y muestra solo esa variante, sin parpadeo (`src/components/growth/hook-switch.tsx`). El servidor siempre manda A; quien no tiene JavaScript ve A.
 - Se registra `hook: a|b` en `landing_view` y `play_click`.
 - Gana la que tenga más `play_click / landing_view` con al menos 300 visitas por variante. Si la diferencia es menor a 3 puntos, queda A.
 - Se puede forzar con `?hook=b` en los links de cada publicación para medir por canal.
 
 ## 3. Así se juega
 
-**Rótulo:** ASÍ SE JUEGA
+**Título de la sección (queda el de la versión animada):** De aldea a potencia del Egeo
 
 | | Título | Texto |
 | --- | --- | --- |
@@ -61,8 +61,8 @@ Reglas que este texto cumple: voseo, frases cortas, títulos que afirman, subtí
 
 ## 4. Lo que cuesta
 
-- **Título:** Jugar no cuesta nada.
-- **Texto:** La ambrosía es opcional: termina obras antes y llama al mercader. Hoy se compra con SOL de prueba (100 de ambrosía = 0,05 SOL de prueba) y el juego te manda SOL de prueba cada 12 horas. Nada de esto es plata real.
+- **Título (publicado):** Jugar no cuesta nada.
+- **Texto:** El néctar es opcional: termina obras antes y llama al mercader. Hoy se compra con SOL de prueba (100 de néctar = 0,05 SOL de prueba) y el juego te manda SOL de prueba cada 12 horas. Nada de esto es plata real.
 
 Cuando exista la versión con plata real, este bloque muestra la escalera en dólares de `modelo-de-negocio.md` y el tope mensual.
 
@@ -70,7 +70,7 @@ Cuando exista la versión con plata real, este bloque muestra la escalera en dó
 
 Hoy no hay jugadores para citar, así que no los inventamos.
 
-- **Ahora:** "Lo hace un jugador de los de antes, desde Argentina. Proyecto independiente, sin inversores." Con foto o firma del fundador si quiere.
+- **Ahora (publicado):** título "Hecho por un jugador de los de antes." y texto "Desde Argentina, como proyecto independiente. Sin inversores y sin monedas para especular." Se puede sumar foto o firma del fundador si quiere.
 - **El arte habla:** las pinturas del juego son la prueba de oficio. Mostrar una polis real crecida.
 - **Contador:** "Ya hay {n} polis en el Egeo" aparece recién con 100 o más. Antes, no se muestra.
 - **Galería:** con 12 o más polis públicas, mostrar 6 reales con enlace a su página.
@@ -80,7 +80,7 @@ Hoy no hay jugadores para citar, así que no los inventamos.
 ## 6. Preguntas frecuentes
 
 **¿Cuesta plata?**
-No. Jugar no cuesta nada. Hoy todo pasa en la red de prueba de Solana, donde nada vale plata real. La ambrosía es opcional y se compra con SOL de prueba, que el juego te manda cada 12 horas.
+No. Jugar no cuesta nada. Hoy todo pasa en la red de prueba de Solana, donde nada vale plata real. El néctar es opcional y se compra con SOL de prueba, que el juego te manda cada 12 horas.
 
 **¿Qué es la red de prueba?**
 Una versión de Solana para probar. Funciona igual que la de verdad, pero sus monedas no valen nada. Así jugás sin arriesgar un peso.
@@ -92,8 +92,7 @@ No. Jugar ahora te crea una llave de juego en este navegador. Si ya tenés una b
 Perdés la llave y con ella el acceso a tu polis. Si vas a jugar desde varios equipos, entrá con tu propia billetera.
 
 **¿Se gana pagando?**
-No. La ambrosía compra tiempo: termina obras y entrenamientos antes y llama al mercader. No compra tropas, barcos, investigación ni puntos. Estamos sumando topes diarios para que nadie gane solo por pagar.
-*(Cuando los topes estén activos, cambiar la última frase por: "Y tiene topes diarios: nadie gana solo por pagar.")*
+No. El néctar compra tiempo: termina obras y entrenamientos antes y llama al mercader. No compra tropas, barcos, investigación ni puntos. Y tiene topes diarios: nadie gana solo por pagar.
 
 **¿Se juega en el celular?**
 Sí, desde el navegador. También la podés instalar como app desde el menú del navegador.
@@ -132,7 +131,7 @@ Thalassa · estrategia clásica por navegador · Términos · Privacidad
 | Sin billeteras instaladas | No encontramos billeteras de Solana en este navegador. Instalá una, recargá esta página y elegila acá. O cerrá esto y tocá Jugar ahora: no hace falta billetera. |
 | Enlace de instalación | Instalar Phantom (el nombre acá es necesario para que la persona sepa qué instalar) |
 | Volver con sesión | Volver a mi polis · Entraste como {ABCD…WXYZ}. Salir |
-| Invitación | Te invitó {nombre}. Cuando llegues a Intendencia 3, suman 50 de ambrosía cada uno. |
+| Invitación | Te invitó {nombre}. Cuando llegues a Intendencia 3, suman 50 de néctar cada uno. |
 
 ## 10. Metadatos para buscadores y redes
 

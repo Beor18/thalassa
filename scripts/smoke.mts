@@ -82,6 +82,17 @@ try {
   check(snapB && snapB.cities[0].res.wood > 1200 - 500 && snapB.cities[0].res.wood < 1200, "transport delivered, raid looted");
   console.log("     A units:", JSON.stringify(snapA?.cities[0].units), "A wood:", Math.floor(snapA!.cities[0].res.wood));
 
+  // Néctar caps: merchant 3x per city per day, instant finish 300 per day.
+  await db.update(players).set({ ambrosia: 1000 }).where(eq(players.id, a.id));
+  await db.update(cities).set({ crystal: 0 }).where(eq(cities.id, cityA.id)); // room for 3 deliveries
+  for (let i = 0; i < 3; i++) await cmd.tradeAmbrosia(a.id, cityA.id, "crystal");
+  const fourth = await cmd.tradeAmbrosia(a.id, cityA.id, "crystal").catch((e: Error) => e.message);
+  check(typeof fourth === "string" && fourth.includes("3 veces"), "merchant capped at 3 per city per day");
+  const { ambrosiaLedger } = await import("../src/db/schema");
+  await db.insert(ambrosiaLedger).values({ playerId: a.id, delta: -299, reason: "finish:construction" });
+  const capped = await cmd.finishNow(a.id, cityA.id, "construction").catch((e: Error) => e.message);
+  check(typeof capped === "string" && capped.includes("tope diario"), "instant finish capped at 300 per day");
+
   const island = await getIsland(cityA.islandId, a.id);
   check(island && island.barbarians.level >= 1, "island view loads");
   const ranking = await getRanking();
@@ -109,6 +120,9 @@ try {
   await processDueMissions();
   const colonies = await db.select().from(cities).where(eq(cities.playerId, a.id));
   check(colonies.length === 2, "colony founded");
+} catch (err) {
+  console.error("FAIL unexpected error:", err);
+  process.exitCode = 1;
 } finally {
   // Clean up the throwaway players (cascades to cities, missions, reports).
   await db.delete(missions).where(inArray(missions.playerId, ids));

@@ -19,7 +19,7 @@ Versión 1 · 10 de octubre de 2026. Todo lo de este plan cuesta tiempo, no plat
 | # | Canal | Costo | Impacto esperado | Qué hacemos |
 | --- | --- | --- | --- | --- |
 | 1 | Red propia y ex jugadores conocidos | 0 | Alto al principio | 30 mensajes personales con el link de invitación. Primeros testers y primeras islas pobladas. |
-| 2 | Invitaciones dentro del juego | 0 (50 de ambrosía por lado) | Alto y acumulativo | Ya funciona: `/invitar`, premio en Intendencia 3. Meta: 0,2 a 0,3 invitados por cuenta nueva. |
+| 2 | Invitaciones dentro del juego | 0 (50 de néctar por lado) | Alto y acumulativo | Ya funciona: `/invitar`, premio en Intendencia 3. Meta: 0,2 a 0,3 invitados por cuenta nueva. |
 | 3 | Comunidades de nostalgia | 0 | Alto | Un posteo honesto por comunidad, con permiso de los moderadores: "Hice un juego como los de antes, en español, se juega en el navegador". Responder todo. |
 | 4 | Páginas públicas de polis | 0 | Medio, crece con la base | Ya funciona: `/polis/<id>` con tarjeta para compartir. El botón "Fundá tu polis" acredita la invitación al dueño. |
 | 5 | Video corto | 0 | Medio a alto | 3 por semana: crecimiento de una polis en 30 s, "volví a jugar como en 2009", el saqueo de la semana. El arte pintado es el gancho. |
@@ -33,7 +33,7 @@ Versión 1 · 10 de octubre de 2026. Todo lo de este plan cuesta tiempo, no plat
 
 ## 3. Bucles de crecimiento
 
-1. **Invitá a tu vecino** (listo). Link `/r/<código>`, 30 días de memoria, 50 de ambrosía para los dos cuando el invitado llega a Intendencia 3, tope de 5 premios por día, sin autoinvitación. Cada invitado que juega trae a otro.
+1. **Invitá a tu vecino** (listo). Link `/r/<código>`, 30 días de memoria, 50 de néctar para los dos cuando el invitado llega a Intendencia 3, tope de 5 premios por día, sin autoinvitación. Cada invitado que juega trae a otro.
 2. **Mostrá tu polis** (listo). Página pública con nombre, dueño, isla, edificios y puntos, con tarjeta pintada para WhatsApp y redes (190 KB, entra en la vista previa). El botón lleva a fundar con la invitación del dueño.
 3. **Informe de batalla para compartir** (siguiente). Página pública del informe con su tarjeta: "Arrasé el campamento de Symi". El que perdió vuelve por la revancha y el que ganó lo muestra.
 4. **Isla de amigos** (propuesta). Si quien invita tiene lugar en su isla, el invitado funda ahí. Juegan juntos desde el minuto uno; es la mejor retención que existe en este género.
@@ -56,7 +56,7 @@ Versión 1 · 10 de octubre de 2026. Todo lo de este plan cuesta tiempo, no plat
 - Obras e investigaciones que terminan (ya existe).
 - Depósito que se llena: si no volvés, se pierde producción (ya existe).
 - Campamento bárbaro que se rearma (ya existe).
-- Encargo del día: una tarea chica con premio chico de ambrosía (propuesta, también es el camino gratis a la moneda).
+- Encargo del día: una tarea chica con premio chico de néctar (propuesta, también es el camino gratis a la moneda).
 - La crónica semanal y el ranking semanal.
 
 ### Avisos
@@ -81,7 +81,7 @@ Eventos propios, sin terceros, en `analytics_events`. Se mira con `pnpm metrics 
 | Primer ataque | `first_attack_sent` | 35 % de los que vuelven |
 | Vuelve a la semana | `active_day` día 7 | 10 % |
 | Pide SOL de prueba | `faucet_claimed` | 15 % de los activos a 7 días |
-| Compra ambrosía | `ambrosia_purchased` | 5 % de los activos a 7 días |
+| Compra néctar | `ambrosia_purchased` | 5 % de los activos a 7 días |
 | Invitaciones | `invite_open`, `referral_linked`, `referral_rewarded`, `invite_copy`, `invite_share` | 0,2 invitados por cuenta nueva |
 | Polis pública | `polis_view`, `polis_cta_click` | 10 % de clics en Fundá tu polis |
 
@@ -94,7 +94,7 @@ Arranca el lunes 12 de octubre. Cada semana termina con `pnpm metrics 7` y una d
 **Semana 1 (12 al 18 de octubre) · Base**
 
 - Portada nueva con el texto de `landing-copy.md`, preguntas frecuentes y pie legal.
-- Decidir el nombre de la moneda premium.
+- Terminar de pasar el nombre néctar a todo el juego y la tienda.
 - 30 mensajes personales a ex jugadores con el link de invitación. Abrir el grupo de la comunidad con ellos.
 - Grabar 3 videos cortos con el arte. Publicar uno.
 - Revisar dónde se cae el embudo con los primeros 30.

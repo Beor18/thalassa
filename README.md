@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/Beor18/thalassa/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Beor18/thalassa/actions/workflows/ci.yml)
 
-Estrategia por navegador en el Egeo, inspirada en los clásicos tipo Ikariam. Fundás una polis en una isla, ponés a tu gente a talar y a trabajar la mina, investigás, armás una flota, comerciás entre islas, saqueás bárbaros y vecinos y fundás colonias. La ambrosía (la moneda premium) se compra on-chain con SOL de **Solana devnet**.
+Estrategia por navegador en el Egeo, inspirada en los clásicos tipo Ikariam. Fundás una polis en una isla, ponés a tu gente a talar y a trabajar la mina, investigás, armás una flota, comerciás entre islas, saqueás bárbaros y vecinos y fundás colonias. El néctar (la moneda premium) se compra on-chain con SOL de **Solana devnet**.
 
 - **Next.js 16.4** (App Router, Cache Components, Server Actions, `proxy.ts`), React 19.3, Tailwind 4.
 - **PostgreSQL 17** local en Docker con **Drizzle ORM** (compatible con Supabase: cambiás `DATABASE_URL` y listo).
-- **Solana devnet**: login firmando un mensaje (Sign in with Solana), programa Anchor `thalassa` para comprar ambrosía, `@solana/kit` + Wallet Standard en el cliente.
+- **Solana devnet**: login firmando un mensaje (Sign in with Solana), programa Anchor `thalassa` para comprar néctar, `@solana/kit` + Wallet Standard en el cliente.
 - Arte: 43 assets generados con **ChatGPT (modo Work)**, convertidos a WebP (`scripts/import-art.mjs`).
 
 ## Arrancar
@@ -27,16 +27,16 @@ Tocá **Jugar ahora**: el juego crea una llave de prueba en tu navegador (sin in
 | --- | --- | --- |
 | Datos del juego | `src/game/data.ts` | Edificios, unidades, investigaciones, balance. |
 | Motor | `src/game/engine.ts` | Simulación determinística y pura: producción, población, obras, entrenamiento, combate, botín. |
-| Persistencia | `src/db/schema.ts` | Jugadores, islas, ciudades (estado de ciudad en JSONB), misiones, informes, nonces, ledger de ambrosía. |
+| Persistencia | `src/db/schema.ts` | Jugadores, islas, ciudades (estado de ciudad en JSONB), misiones, informes, nonces, ledger de néctar. |
 | Servidor | `src/server/*` | `withPlayer` bloquea la fila del jugador, avanza el tiempo hasta "ahora", aplica el comando y guarda. Las misiones se resuelven en orden temporal con un advisory lock. |
 | Acciones | `src/server/actions.ts` | Server Actions validadas con zod que devuelven `ActionResult` y refrescan la vista. |
 | Lectura | `src/server/queries.ts` | Snapshots sin efectos secundarios (avanzan en memoria, no escriben). |
-| UI | `src/app/(game)/*`, `src/components/*` | Ciudad, isla, mundo, investigación, flota y tropas, informes, ranking, ambrosía. |
+| UI | `src/app/(game)/*`, `src/components/*` | Ciudad, isla, mundo, investigación, flota y tropas, informes, ranking, néctar. |
 | On-chain | `onchain/` | Programa Anchor (devnet) y su IDL en `src/lib/solana/idl/thalassa.json`. |
 
 No hay ticks ni cron: cada request avanza la cuenta desde `last_tick` hasta ahora (evaluación perezosa), así el juego corre igual con un jugador o con mil. `GAME_SPEED` (por defecto ×10) acelera todo para probar.
 
-### Ambrosía on-chain
+### Néctar on-chain
 
 1. El jugador llama `buy_ambrosia(packs)` del programa `thalassa`: paga `packs × precio` en SOL de devnet a la tesorería (PDA `["treasury"]`) y su cuenta `Citizen` (PDA `["citizen", wallet]`) suma `ambrosia_total`.
 2. El servidor lee esa cuenta (`src/server/solana.ts`) y acredita solo la diferencia con lo ya sincronizado. Es idempotente: no hay que confiar en el cliente ni parsear transacciones.
@@ -44,7 +44,7 @@ No hay ticks ni cron: cada request avanza la cuenta desde `last_tick` hasta ahor
 | | Devnet |
 | --- | --- |
 | Programa | [`6ai9t1gagRGj8gYjGc2PHfQUAeQjzQgssWoAEGa2k1V2`](https://explorer.solana.com/address/6ai9t1gagRGj8gYjGc2PHfQUAeQjzQgssWoAEGa2k1V2?cluster=devnet) |
-| Config (precio: 0,05 SOL = 100 ambrosía) | `DN2vKLioGdSJYUj87SFNMWAPkK9reuFc6adFrjyzwTLR` |
+| Config (precio: 0,05 SOL = 100 de néctar) | `DN2vKLioGdSJYUj87SFNMWAPkK9reuFc6adFrjyzwTLR` |
 | Tesorería | `8jEx15dWxEjZDLy6KDSzqFb4WNTSKUXNRx2zv3yvP9e7` |
 | Autoridad / deployer | `6cAmnqgqsU2VRXt5wRoirb7naLTH26HLEn4iixms8BW8` (`onchain/keys/deployer.json`, no se commitea) |
 

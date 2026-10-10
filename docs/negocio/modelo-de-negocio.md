@@ -7,15 +7,15 @@ Versión 1 · 10 de octubre de 2026. Producto independiente que se paga solo. Si
 | Tema | Decisión |
 | --- | --- |
 | Qué vendemos | Tiempo y estilo. Nunca poder directo. |
-| Moneda | Una sola moneda premium, la que hoy se llama ambrosía. No se transfiere, no se vende, no se cambia por plata. |
-| Precio base | 100 de ambrosía = US$ 0,99. Escalera de 4 packs con bonus moderado, más un pack de bienvenida. |
+| Moneda | Una sola moneda premium: el néctar. No se transfiere, no se vende, no se cambia por plata. |
+| Precio base | 100 de néctar = US$ 0,99. Escalera de 4 packs con bonus moderado, más un pack de bienvenida. |
 | Tope de gasto | US$ 50 por cuenta por mes. Sin packs de más de US$ 19,99. |
 | Otros ingresos | Pase de temporada (US$ 4,99) y cosméticos (escudos, estandartes, velas, estilos de polis). |
 | Cobro | En la red principal, en dólares digitales (USDC) para que el precio no se mueva. SOL como alternativa, con el precio en dólares a la vista. |
 | Meta para vivir de esto | ~7.000 jugadores por mes (~2.000 por día), 2 % pagando US$ 8 por mes: ~US$ 1.100 brutos, ~US$ 1.000 netos de servidores. |
-| Cuándo red principal | Cuando la red de prueba muestre D7 ≥ 10 % sobre 200 cuentas y el 5 % de los activos a 7 días compre ambrosía de prueba. |
+| Cuándo red principal | Cuando la red de prueba muestre D7 ≥ 10 % sobre 200 cuentas y el 5 % de los activos a 7 días compre néctar con SOL de prueba. |
 
-**Decisión pendiente del fundador:** renombrar la ambrosía. Ikariam llama "Ambrosia" a su moneda premium; quien lo jugó va a leer Thalassa como copia y hay riesgo de marca. Propuesta: **néctar** (mismo universo, nombre propio). Alternativas: laureles, óbolos. También conviene verificar que "Thalassa" no choque con otro juego registrado antes de invertir en marca.
+**Decidido el 10/10/2026:** la moneda premium se llama **néctar** (masculino: el néctar, 100 de néctar). Antes se llamaba ambrosía, igual que la de Ikariam, y se iba a leer como copia. En el código, la base de datos y el programa en la red sigue llamándose `ambrosia`. **Pendiente:** verificar que "Thalassa" no choque con otro juego registrado antes de invertir en marca.
 
 ## 1. Para quién
 
@@ -41,11 +41,11 @@ Versión 1 · 10 de octubre de 2026. Producto independiente que se paga solo. Si
 
 ### 3.1 Moneda premium (núcleo, ~75 % del ingreso esperado)
 
-Hoy la ambrosía termina obras y entrenamientos al instante (1 por minuto que falta) y llama al mercader (20 por 1.000 de un recurso). Referencia de valor: una obra de mitad de partida tarda ~1,5 h a velocidad normal, terminarla cuesta ~90, o sea US$ 0,90.
+Hoy el néctar termina obras y entrenamientos al instante (1 por minuto que falta) y llama al mercader (20 por 1.000 de un recurso). Referencia de valor: una obra de mitad de partida tarda ~1,5 h a velocidad normal, terminarla cuesta ~90, o sea US$ 0,90.
 
 **Escalera de precios para la red principal** (SOL calculado a US$ 150 como referencia; se recalcula al momento de cobrar):
 
-| Pack | Ambrosía | Bonus | Precio | En SOL (ref.) | US$ por 100 |
+| Pack | Néctar | Bonus | Precio | En SOL (ref.) | US$ por 100 |
 | --- | --- | --- | --- | --- | --- |
 | Bienvenida (una vez por cuenta) | 300 | +200 % | US$ 0,99 | 0,0066 | 0,33 |
 | Puñado | 100 | 0 % | US$ 0,99 | 0,0066 | 0,99 |
@@ -60,8 +60,8 @@ Por qué así: el bonus máximo es +30 % (los clásicos llegan a 2,6 veces más 
 ### 3.2 Pase de temporada (~20 %)
 
 - Temporadas de 8 semanas con mundo nuevo opcional y ranking semanal.
-- **Camino gratis** para todos: ambrosía chica, escudo de temporada, título.
-- **Camino de pago, US$ 4,99** (o 500 de ambrosía): estandarte y estilo de polis exclusivos, velas de barco, marco en el informe de batalla, 300 de ambrosía repartida en la temporada.
+- **Camino gratis** para todos: un poco de néctar, escudo de temporada, título.
+- **Camino de pago, US$ 4,99** (o 500 de néctar): estandarte y estilo de polis exclusivos, velas de barco, marco en el informe de batalla, 300 de néctar repartido en la temporada.
 - Nada del pase da recursos, tropas, investigación ni puntos.
 
 ### 3.3 Cosméticos (~5 % al principio, crece con la base)
@@ -96,15 +96,15 @@ Reglas de diseño. Hay que implementarlas en el motor y la tienda antes de cobra
 
 | Regla | Valor | Estado |
 | --- | --- | --- |
-| Terminar al instante, por día y por cuenta | 300 de ambrosía (5 h) | A implementar |
-| Terminar entrenamiento de tropas al instante | Solo si falta ≤ 60 min, y nunca con un ataque propio en viaje | A implementar |
-| Mercader | 3 veces por día por ciudad | A implementar (hoy no tiene tope) |
+| Terminar al instante, por día y por cuenta | 300 de néctar (5 h) | Implementado |
+| Terminar entrenamiento de tropas al instante | Solo si falta ≤ 60 min, y nunca con un ataque propio en viaje | Implementado |
+| Mercader | 3 veces por día por ciudad | Implementado |
 | Gasto con plata real | US$ 50 por mes por cuenta | A implementar en red principal |
 | Pack más grande | US$ 19,99 | Decidido |
 
 **Camino gratis a lo mismo:** invitar (50 por invitado que llega a Intendencia 3, ya funciona), camino gratis del pase, encargos diarios chicos. Quien no paga accede a la misma comodidad, más lento.
 
-**Transparencia:** precio en dólares al lado de cada cantidad; en el informe de batalla se ve si alguno de los dos usó ambrosía para entrenar las tropas de ese combate.
+**Transparencia:** precio en dólares al lado de cada cantidad; en el informe de batalla se ve si alguno de los dos usó néctar para entrenar las tropas de ese combate.
 
 ## 5. Números por jugador
 
@@ -151,8 +151,8 @@ Margen: cada jugador diario deja ~US$ 0,57 por mes y cuesta US$ 0,03 a 0,08. Cob
 | D1 | 30 % | 30 % | `active_day` al día 1 |
 | D7 | 10 % | 12 % | `active_day` al día 7 |
 | D30 | 4 % | 5 % | `active_day` al día 30 |
-| Pagan en el mes | 5 % de activos a 7 días (con SOL de prueba) | 2 % de activos del mes | libro de ambrosía |
-| ARPPU | n/a | US$ 8 | libro de ambrosía |
+| Pagan en el mes | 5 % de activos a 7 días (con SOL de prueba) | 2 % de activos del mes | libro de néctar (`ambrosia_ledger`) |
+| ARPPU | n/a | US$ 8 | libro de néctar (`ambrosia_ledger`) |
 | Invitados por cuenta nueva | 0,2 | 0,3 | `referral_linked` / cuentas nuevas |
 
 Referencias: en celular, el D1 del mejor cuarto ronda 27 %, el D7 mediano 3,4 a 3,9 % y el del mejor cuarto 7 a 8 %; los mejores juegos de estrategia llegan a D1 42 %, D7 17 % y D30 8 %. Pedimos más que la mediana porque el jugador nostálgico vuelve por hábito, y menos que los líderes porque no pagamos publicidad.
@@ -179,7 +179,7 @@ Todo sale de `pnpm metrics [días]`.
 
 | Riesgo | Mitigación |
 | --- | --- |
-| Se lee como copia de Ikariam | Renombrar la moneda, identidad visual propia (ya pintada), mecánicas propias (vecinos, temporadas cortas). |
+| Se lee como copia de Ikariam | Moneda con nombre propio (néctar, decidido), identidad visual propia (ya pintada), mecánicas propias (vecinos, temporadas cortas). |
 | El público nostálgico no tiene cripto | Jugar no lo necesita. Para pagar: puente con tarjeta antes de la red principal. |
 | Pocos jugadores en la isla = mundo vacío | Temporadas con mundos chicos; propuesta: que el invitado funde en la isla de quien lo invitó si hay lugar. |
 | Abuso de invitaciones con cuentas falsas | Premio recién en Intendencia 3, tope diario de 5, sin autoinvitación (ya implementado). |

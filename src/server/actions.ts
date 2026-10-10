@@ -52,7 +52,7 @@ export async function finishNowAction(input: { cityId: string; what: "constructi
       const v = z.object({ cityId: id, what: z.enum(["construction", "training"]) }).parse(input);
       return cmd.finishNow(pid, v.cityId, v.what);
     },
-    (price) => `Listo. Usaste ${price} de ambrosía.`,
+    (price) => `Listo. Usaste ${price} de néctar.`,
   );
 }
 
@@ -164,7 +164,7 @@ export async function syncAmbrosiaAction() {
       if (synced.credited > 0) await track("ambrosia_purchased", { amount: synced.credited }, pid); // growth hook
       return synced;
     },
-    (r) => (r.credited > 0 ? `Sumaste ${r.credited} de ambrosía.` : "No hay compras nuevas en la red."),
+    (r) => (r.credited > 0 ? `Sumaste ${r.credited} de néctar.` : "No hay compras nuevas en la red."),
   );
 }
 

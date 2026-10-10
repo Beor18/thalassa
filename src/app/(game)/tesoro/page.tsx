@@ -9,7 +9,7 @@ import { stagger } from "@/components/motion/reveal";
 import { findCitizenPda, programAddress } from "@/lib/solana/program";
 import { getGame } from "@/server/game-context";
 
-export const metadata: Metadata = { title: "Ambrosía" };
+export const metadata: Metadata = { title: "Néctar" };
 
 export default function TesoroPage() {
   return (
@@ -31,12 +31,12 @@ async function Content() {
         <span aria-hidden className="pointer-events-none absolute -top-16 -left-10 size-56 rounded-full bg-ambrosia/25 blur-3xl" />
         <AmbrosiaVessel />
         <div className="relative min-w-0 flex-1">
-          <h1 className="font-display text-sm font-bold tracking-[0.25em] text-sea-300">Tu ambrosía</h1>
+          <h1 className="font-display text-sm font-bold tracking-[0.25em] text-sea-300">Tu néctar</h1>
           <p className="font-display text-4xl font-black">
             <AnimatedNumber value={player.ambrosia} float className="text-shimmer-ambrosia" />
           </p>
           <p className="mt-1 max-w-2xl text-[15px] text-foam/90">
-            La ambrosía se compra con SOL de prueba en la red de prueba de Solana. Sirve para terminar obras al
+            El néctar se compra con SOL de prueba en la red de prueba de Solana. Sirve para terminar obras al
             instante y para llamar al mercader.
           </p>
         </div>
@@ -48,7 +48,7 @@ async function Content() {
         ) : (
           <section aria-labelledby="shop-closed-title" className="panel flex flex-col gap-2 p-4 sm:p-5">
             <h2 id="shop-closed-title" className="font-display text-xl font-bold">
-              Comprar ambrosía
+              Comprar néctar
             </h2>
             <p className="rounded-xl border border-bronze/40 bg-parchment-2 px-3 py-2 text-[15px]">
               La tienda abre en cuanto el programa esté desplegado en la red de prueba. Mientras tanto, el mercader sigue

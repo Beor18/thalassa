@@ -1,10 +1,10 @@
 # Thalassa on-chain
 
-Programa Anchor para comprar **ambrosía** pagando SOL en devnet. El servidor del juego lee la cuenta `Citizen` de cada jugador y acredita en su base la diferencia de `ambrosia_total`.
+Programa Anchor para comprar **néctar** (la moneda premium del juego; en el programa se llama `ambrosia`) pagando SOL en devnet. El servidor del juego lee la cuenta `Citizen` de cada jugador y acredita en su base la diferencia de `ambrosia_total`.
 
 - **Program ID (devnet):** `6ai9t1gagRGj8gYjGc2PHfQUAeQjzQgssWoAEGa2k1V2`
 - **Autoridad / upgrade authority:** `6cAmnqgqsU2VRXt5wRoirb7naLTH26HLEn4iixms8BW8` (`keys/deployer.json`, no se commitea)
-- **Precio inicial:** 0,05 SOL (`50_000_000` lamports) por pack de 100 ambrosía
+- **Precio inicial:** 0,05 SOL (`50_000_000` lamports) por pack de 100 de néctar
 - **IDL para la app:** `../src/lib/solana/idl/thalassa.json`
 
 ## Deploy actual (devnet, 2026-10-10)
@@ -12,7 +12,7 @@ Programa Anchor para comprar **ambrosía** pagando SOL en devnet. El servidor de
 - ProgramData: `EPaiWT5A44R6UrGX6MUoDNfydTfPnfEdve4vp9swfE88` (182.248 bytes, `--max-len` igual al `.so`)
 - Deploy: `4sh1ybpP8KGcCkqkETcVaodCCqEnLvFV3V3V2QYTn54gQpnY3nwQ7SSW4AoVb8Khu2yYhvgR1NfpzsviPtagDRzJ`
 - Initialize: `4FeZ9VP5xGAvweixrrPi3B16S6kDs36fgyWLBW9C714x7gC8pS8GBRHKEPoDSnQxX7K2LD2HRkrU3NE15o3XnvDt`
-- Compra de prueba `buy_ambrosia(1)` desde el deployer: `iV81a8eGFEV4LvezyMfsK4pvJM1quGbfFW1X4YdUX8nPR3dz1xwZVF7k1qCMpuqxC7n5YM5ryvZgosh43bqGmUh` (Citizen `9YU2KchHN2LbXoafH9h1bNqgMkUoVeoK2hFMy4vnUsjA`, 100 ambrosía)
+- Compra de prueba `buy_ambrosia(1)` desde el deployer: `iV81a8eGFEV4LvezyMfsK4pvJM1quGbfFW1X4YdUX8nPR3dz1xwZVF7k1qCMpuqxC7n5YM5ryvZgosh43bqGmUh` (Citizen `9YU2KchHN2LbXoafH9h1bNqgMkUoVeoK2hFMy4vnUsjA`, 100 néctar)
 
 ## PDAs
 

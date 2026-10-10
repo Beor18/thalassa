@@ -35,7 +35,7 @@ export function Merchant({
           El mercader
         </h2>
         <p className="text-[15px] text-ink-soft">
-          Por {price} de ambrosía te deja {fmt(amount)} del recurso que elijas en {cityName}.
+          Por {price} de néctar te deja {fmt(amount)} del recurso que elijas en {cityName}.
         </p>
       </div>
 
@@ -91,7 +91,7 @@ export function Merchant({
         <p className="inline-flex flex-wrap items-center gap-1 text-sm text-ink-soft">
           Cuesta <ResIcon kind="ambrosia" size={16} /> <b className="tabular text-ink">{price}</b>. Tenés{" "}
           <b className="tabular text-ink">{fmt(ambrosia)}</b>.
-          {!canPay && <span className="font-bold text-danger"> Te falta ambrosía.</span>}
+          {!canPay && <span className="font-bold text-danger"> Te falta néctar.</span>}
           {canPay && full && <span className="font-bold text-danger"> Ese depósito ya está lleno.</span>}
         </p>
       </div>
