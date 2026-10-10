@@ -24,5 +24,6 @@ export const config = {
     "/informes/:path*",
     "/ranking/:path*",
     "/tesoro/:path*",
+    "/invitar/:path*",
   ],
 };
