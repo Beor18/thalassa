@@ -22,7 +22,7 @@ function CopyIcon() {
   );
 }
 
-/** Short address with a copy button and a separate explorer link (devnet). */
+/** Short address with a copy button and a separate "Ver" link to the public explorer (test network). */
 export function AddressChip({ address, label = "dirección", tone = "light" }: { address: string; label?: string; tone?: "light" | "dark" }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
@@ -60,9 +60,9 @@ export function AddressChip({ address, label = "dirección", tone = "light" }: {
           dark ? "text-sea-300" : "text-sea-700",
         )}
       >
-        Explorador
+        Ver
         <ExternalIcon />
-        <span className="sr-only"> (se abre en otra pestaña)</span>
+        <span className="sr-only"> {label} (se abre en otra pestaña)</span>
       </a>
       <span aria-live="polite" className="sr-only">
         {copied ? "Dirección copiada" : ""}

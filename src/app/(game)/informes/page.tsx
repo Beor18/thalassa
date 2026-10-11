@@ -6,8 +6,9 @@ import { getReports } from "@/server/queries";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { buttonClass } from "@/components/ui/button";
 import { IconScroll } from "@/components/island/icons";
-import { MarkReportsRead, UnreadSummary } from "@/components/reports/client";
+import { MarkReportsRead, ReportList, UnreadSummary } from "@/components/reports/client";
 import { ReportCard, type ReportRow } from "@/components/reports/report-card";
+import { SECTION_NARROW } from "@/components/tesoro/section-ui";
 
 export const metadata: Metadata = { title: "Informes" };
 
@@ -29,33 +30,32 @@ async function ReportsContent() {
   return (
     <GameShell game={game}>
       <MarkReportsRead latestUnreadId={latestUnread} />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
-        <div className="rise-in flex flex-col gap-0.5">
-          <h1 className="font-display text-2xl font-bold text-foam drop-shadow sm:text-3xl">Informes</h1>
+      <div className={SECTION_NARROW}>
+        <header className="panel-dark rise-in flex items-center gap-3 px-3 py-2.5 sm:px-4">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-parchment text-bronze-dark ring-1 ring-gold/50">
+            <IconScroll size={20} />
+          </span>
+          <h1 className="flex-1 font-display text-xl font-bold text-foam sm:text-2xl">Informes</h1>
           <UnreadSummary unread={unread} total={reports.length} />
-        </div>
+        </header>
 
         {reports.length === 0 ? (
-          <div className="panel rise-in flex flex-col items-center gap-3 p-8 text-center">
-            <span className="grid size-14 place-items-center rounded-full bg-parchment-2 text-bronze-dark ring-1 ring-parchment-3 motion-safe:animate-float">
-              <IconScroll size={26} />
+          <div className="panel rise-in flex flex-col items-center gap-3 p-6 text-center sm:flex-row sm:text-left">
+            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-parchment-2 text-bronze-dark ring-1 ring-parchment-3 motion-safe:animate-float">
+              <IconScroll size={24} />
             </span>
-            <div>
-              <p className="font-display text-xl font-bold">Todavía no hay informes</p>
-              <p className="text-ink-soft">Cuando tus barcos lleguen a destino o alguien te ataque, te contamos acá qué pasó.</p>
+            <div className="flex-1">
+              <p className="font-display text-lg font-bold">Sin informes todavía</p>
+              <p className="text-sm text-ink-soft">Batallas, envíos y colonias aparecen acá.</p>
             </div>
             <Link href={`/isla/${city.islandId}?panel=camp`} className={buttonClass("primary", "md")}>
-              Ver el campamento bárbaro
+              Ir al campamento bárbaro
             </Link>
           </div>
         ) : (
-          <ol className="flex flex-col gap-3">
-            {reports.map((r, i) => (
-              <li key={r.id}>
-                <ReportCard report={r} now={snapshot.now} index={i} />
-              </li>
-            ))}
-          </ol>
+          <ReportList
+            items={reports.map((r, i) => ({ id: r.id, unread: !r.read, node: <ReportCard report={r} now={snapshot.now} index={i} /> }))}
+          />
         )}
       </div>
     </GameShell>

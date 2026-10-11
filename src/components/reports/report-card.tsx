@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { RESOURCES, UNITS, UNIT_TYPES, type Resource, type UnitBag } from "@/game/data";
 import { SHIP_IMAGE } from "@/game/layout";
 import { buttonClass } from "@/components/ui/button";
-import { CostList } from "@/components/ui/res";
+import { ResIcon } from "@/components/ui/res";
 import { fmt } from "@/lib/format";
 import { IconScroll, IconSwords, IconTemple } from "@/components/island/icons";
 import { UnitPortrait } from "@/components/military/units";
@@ -83,9 +83,29 @@ const absolute = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeSty
 
 function When({ at, now, className }: { at: Date; now: number; className?: string }) {
   return (
-    <time dateTime={at.toISOString()} title={absolute.format(at)} className={clsx("tabular shrink-0 text-sm", className)}>
+    <time dateTime={at.toISOString()} title={absolute.format(at)} className={clsx("tabular shrink-0 text-xs whitespace-nowrap text-ink-soft", className)}>
       {relTime(at, now)}
     </time>
+  );
+}
+
+/** Resources with a sign: "+420 madera" for loot that came in, "−120 vino" for what was taken. */
+function Haul({ bag, sign, index }: { bag: Partial<Record<Resource, number>>; sign: "+" | "−"; index: number }) {
+  const entries = Object.entries(bag) as [Resource, number][];
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+      {entries.map(([r, n], i) => (
+        <span
+          key={r}
+          className={clsx("pop-in inline-flex items-center gap-1 text-sm font-bold tabular", sign === "+" ? "text-success" : "text-danger")}
+          style={{ "--d": `${Math.min(index, 6) * 70 + 300 + i * 80}ms` } as CSSProperties}
+        >
+          {sign}
+          {fmt(n)}
+          <ResIcon kind={r} size={18} />
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -95,7 +115,89 @@ export function ReportCard({ report, now, index = 0 }: { report: ReportRow; now:
   return <SimpleReport report={report} now={now} index={index} />;
 }
 
-const delayOf = (index: number, extra = 0) => ({ "--d": `${Math.min(index, 6) * 80 + extra}ms` }) as CSSProperties;
+const delayOf = (index: number, extra = 0) => ({ "--d": `${Math.min(index, 6) * 70 + extra}ms` }) as CSSProperties;
+
+type Tone = "win" | "loss" | "calm" | "info";
+const BADGE: Record<Tone, string> = {
+  win: "bg-gradient-to-b from-gold-light to-gold text-bronze-deep ring-bronze/60",
+  loss: "bg-gradient-to-b from-[#c8372d] to-[#7d1a14] text-marble ring-[#5e130e]/60",
+  calm: "bg-gradient-to-b from-sea-500 to-sea-700 text-foam ring-sea-900/50",
+  info: "bg-parchment-2 text-bronze-dark ring-parchment-3",
+};
+const STRIPE: Record<Tone, string> = {
+  win: "before:bg-gradient-to-b before:from-gold before:to-bronze",
+  loss: "before:bg-danger",
+  calm: "before:bg-sea-500",
+  info: "before:bg-parchment-3",
+};
+
+/** Row layout shared by every report: badge, title with a one-line outcome, extras and time. */
+function Row({
+  tone,
+  badge,
+  title,
+  unread,
+  line,
+  extra,
+  at,
+  now,
+  chevron,
+  index,
+}: {
+  tone: Tone;
+  badge: ReactNode;
+  title: string;
+  unread: boolean;
+  line: ReactNode;
+  extra?: ReactNode;
+  at: Date;
+  now: number;
+  chevron?: boolean;
+  index: number;
+}) {
+  return (
+    <div
+      className={clsx(
+        "relative flex items-center gap-3 py-2.5 pr-3 pl-4 before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-r-full sm:pr-4",
+        STRIPE[tone],
+      )}
+    >
+      <span
+        className={clsx("pop-in grid size-10 shrink-0 place-items-center rounded-full shadow-[0_2px_6px_-2px_rgb(0_0_0/0.4)] ring-1", BADGE[tone], tone === "win" && unread && "shine")}
+        style={delayOf(index, 120)}
+      >
+        {badge}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex items-baseline gap-2">
+          <h3 className="min-w-0 flex-1 leading-tight font-bold sm:truncate">{title}</h3>
+          <When at={at} now={now} className="sm:hidden" />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
+          <NewTag unread={unread} />
+          {line}
+        </div>
+        {extra && <div className="sm:hidden">{extra}</div>}
+      </div>
+      {extra && <div className="hidden shrink-0 sm:block">{extra}</div>}
+      <When at={at} now={now} className="hidden sm:block" />
+      {chevron && (
+        <svg
+          viewBox="0 0 16 16"
+          aria-hidden
+          className="size-4 shrink-0 text-ink-soft transition-transform duration-200 group-open:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Battle
@@ -105,23 +207,31 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
   const b = report.body as BattleBody;
   const role = b.role ?? "attacker";
   const target = b.target;
+  const unread = !report.read;
+  const where =
+    target?.kind === "barbarians"
+      ? `Bárbaros de ${target.islandName}${target.level ? ` (nivel ${target.level})` : ""}`
+      : target
+        ? `${target.name}, ${target.islandName}`
+        : "";
 
   if (b.empty || !b.attacker || !b.defender) {
     return (
       <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
-        <div className="flex items-center justify-between gap-3 bg-sea-700 px-4 py-2 text-foam">
-          <span className="font-display text-lg font-bold">Sin combate</span>
-          <When at={report.createdAt} now={now} />
-        </div>
-        <div className="flex flex-col gap-1 p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold">{report.title}</h3>
-            <NewTag unread={!report.read} />
-          </div>
-          <p className="text-sm text-ink-soft">
-            Los bárbaros se estaban rearmando y no había nadie. Tus tropas volvieron sin pelear.
-          </p>
-        </div>
+        <Row
+          tone="calm"
+          badge={<IconSwords size={18} />}
+          title={report.title}
+          unread={unread}
+          index={index}
+          at={report.createdAt} now={now}
+          line={
+            <>
+              <strong className="text-sea-700">Sin combate</strong>
+              <span>No había nadie. Volvieron sin pelear.</span>
+            </>
+          }
+        />
       </article>
     );
   }
@@ -131,43 +241,39 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
   const won = role === "attacker" ? Boolean(b.attackerWins) : !b.attackerWins;
   const loot = cleanBag(b.loot);
   const hasLoot = Object.keys(loot).length > 0;
+  const mine = role === "attacker" ? attacker : defender;
+  const myLosses = sum(mine.losses);
   const types = UNIT_TYPES.filter((t) => (attacker.units[t] ?? 0) > 0 || (defender.units[t] ?? 0) > 0);
   const wall = defender.wall ?? 0;
   const effective = defender.effectiveWall ?? wall;
-  const where =
-    target?.kind === "barbarians"
-      ? `Campamento bárbaro de ${target.islandName}${target.level ? `, nivel ${target.level}` : ""}`
-      : target
-        ? `${target.name}, en ${target.islandName}`
-        : "";
 
   return (
-    <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
-      {/* Banner unfurls: gold laurel for a victory, deep red for a defeat */}
-      <div
-        className={clsx(
-          "wipe-in relative flex items-center justify-between gap-3 overflow-hidden px-4 py-2.5",
-          won
-            ? "shine bg-gradient-to-r from-bronze via-gold to-gold-light text-ink [--sheen-delay:0.7s]"
-            : "bg-gradient-to-r from-[#5e130e] via-danger to-[#8f1f18] text-marble",
-        )}
-        style={delayOf(index, 120)}
-      >
-        <span className="relative inline-flex items-center gap-2 font-display text-xl font-bold tracking-wide">
-          {won ? <LaurelIcon className="w-9 text-bronze-deep" /> : <IconSwords size={20} />}
-          {won ? "Victoria" : "Derrota"}
-        </span>
-        <When at={report.createdAt} now={now} className={clsx("relative", won ? "font-bold text-ink/80" : "text-marble/90")} />
-      </div>
-      <div className="flex flex-col gap-3 p-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold">{report.title}</h3>
-            <NewTag unread={!report.read} />
-          </div>
-          {where && <p className="text-sm text-ink-soft">{where}</p>}
-        </div>
+    <details className="group panel rise-in overflow-hidden" style={delayOf(index)}>
+      <summary className="cursor-pointer list-none rounded-[14px] transition-colors hover:bg-marble/50 [&::-webkit-details-marker]:hidden">
+        <Row
+          tone={won ? "win" : "loss"}
+          badge={won ? <LaurelIcon className="w-7" /> : <IconSwords size={18} />}
+          title={report.title}
+          unread={unread}
+          index={index}
+          at={report.createdAt} now={now}
+          chevron
+          line={
+            <>
+              <strong className={won ? "text-bronze-dark" : "text-danger"}>
+                {won ? (role === "attacker" ? "Victoria" : "Resististe") : role === "attacker" ? "Derrota" : "Te saquearon"}
+              </strong>
+              {where && <span className="truncate">{where}</span>}
+              <span className={clsx("tabular", myLosses > 0 && "font-bold text-danger")}>
+                {myLosses > 0 ? `−${fmt(myLosses)} ${myLosses === 1 ? "baja" : "bajas"}` : "Sin bajas"}
+              </span>
+            </>
+          }
+          extra={hasLoot ? <Haul bag={loot} sign={role === "attacker" ? "+" : "−"} index={index} /> : undefined}
+        />
+      </summary>
 
+      <div className="rise-in flex flex-col gap-3 border-t border-parchment-3 px-4 pt-3 pb-4">
         <div className="-mx-1 overflow-x-auto px-1">
           <table className="w-full min-w-[18rem] border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
@@ -198,9 +304,9 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
               )}
               {types.map((t) => (
                 <tr key={t}>
-                  <th scope="row" className="border-b border-parchment-3/70 py-1.5 pr-2 text-left font-normal">
+                  <th scope="row" className="border-b border-parchment-3/70 py-1 pr-2 text-left font-normal">
                     <span className="flex items-center gap-2">
-                      <UnitPortrait unit={t} size={28} className="bg-transparent" />
+                      <UnitPortrait unit={t} size={26} className="bg-transparent" />
                       <span className="font-bold">{UNITS[t].name}</span>
                     </span>
                   </th>
@@ -212,17 +318,6 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
             <tfoot>
               <tr>
                 <th scope="row" className="border-b border-parchment-3/70 py-1.5 pr-2 text-left font-bold">
-                  Bajas
-                </th>
-                <td className="tabular border-b border-parchment-3/70 px-2 py-1.5 text-right font-bold text-danger">
-                  {sum(attacker.losses) ? `−${fmt(sum(attacker.losses))}` : "0"}
-                </td>
-                <td className="tabular border-b border-parchment-3/70 py-1.5 pl-2 text-right font-bold text-danger">
-                  {sum(defender.losses) ? `−${fmt(sum(defender.losses))}` : "0"}
-                </td>
-              </tr>
-              <tr>
-                <th scope="row" className="border-b border-parchment-3/70 py-1.5 pr-2 text-left font-bold">
                   Muralla
                 </th>
                 <td className="border-b border-parchment-3/70 px-2 py-1.5 text-right text-ink-soft">
@@ -230,7 +325,7 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
                   <span className="sr-only">No aplica</span>
                 </td>
                 <td className="tabular border-b border-parchment-3/70 py-1.5 pl-2 text-right">
-                  {wall === 0 ? "Sin muralla" : effective < wall ? `Nivel ${wall}, quedó en ${effective}` : `Nivel ${wall}`}
+                  {wall === 0 ? "Sin muralla" : effective < wall ? `Nivel ${wall} → ${effective}` : `Nivel ${wall}`}
                 </td>
               </tr>
               <tr>
@@ -247,33 +342,25 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
             </tfoot>
           </table>
         </div>
-
-        <div className="flex flex-col gap-1.5 rounded-xl bg-parchment-2/60 p-3 ring-1 ring-parchment-3">
-          <p className="text-sm font-bold">{role === "attacker" ? "Botín" : "Lo que se llevaron"}</p>
-          {hasLoot ? (
-            <CostList cost={loot} pop popDelay={Math.min(index, 6) * 80 + 500} />
-          ) : (
-            <p className="text-sm text-ink-soft">
-              {role === "attacker" ? "No trajiste nada esta vez." : "No se llevaron nada."}
-            </p>
-          )}
-        </div>
+        {!hasLoot && (
+          <p className="text-sm text-ink-soft">{role === "attacker" ? "Esta vez no hubo botín." : "No se llevaron nada."}</p>
+        )}
       </div>
-    </article>
+    </details>
   );
 }
 
 function Cell({ sent, lost }: { sent?: number; lost?: number }) {
   if (!sent) {
     return (
-      <td className="border-b border-parchment-3/70 px-2 py-1.5 text-right text-ink-soft">
+      <td className="border-b border-parchment-3/70 px-2 py-1 text-right text-ink-soft">
         <span aria-hidden>·</span>
         <span className="sr-only">Ninguna</span>
       </td>
     );
   }
   return (
-    <td className="tabular border-b border-parchment-3/70 px-2 py-1.5 text-right whitespace-nowrap">
+    <td className="tabular border-b border-parchment-3/70 px-2 py-1 text-right whitespace-nowrap">
       <span className="font-bold">{fmt(sent)}</span>
       {lost ? <span className="ml-1.5 text-danger">−{fmt(lost)}</span> : null}
     </td>
@@ -285,59 +372,42 @@ function Cell({ sent, lost }: { sent?: number; lost?: number }) {
 // ---------------------------------------------------------------------------
 
 function SimpleReport({ report, now, index }: { report: ReportRow; now: number; index: number }) {
-  let icon: ReactNode;
-  let body: ReactNode;
+  const unread = !report.read;
+  let tone: Tone = "info";
+  let badge: ReactNode;
+  let line: ReactNode = null;
+  let extra: ReactNode;
 
   if (report.kind === "transport") {
     const t = report.body as TransportBody;
     const cargo = cleanBag(t.cargo);
-    icon = <Image src={SHIP_IMAGE} alt="" width={40} height={40} className="sprite" />;
-    body = (
-      <>
-        {t.from && t.to && (
-          <p className="text-sm text-ink-soft">
-            De {t.from.name} ({t.from.playerName}) a {t.to.name} ({t.to.playerName}), en {t.to.islandName}.
-          </p>
-        )}
-        {Object.keys(cargo).length > 0 && <CostList cost={cargo} className="mt-1" pop popDelay={Math.min(index, 6) * 80 + 300} />}
-      </>
-    );
+    badge = <Image src={SHIP_IMAGE} alt="" width={34} height={34} className="sprite size-8" />;
+    line = t.from && t.to ? <span className="truncate">{`${t.from.name} → ${t.to.name} (${t.to.playerName})`}</span> : null;
+    extra = Object.keys(cargo).length > 0 ? <Haul bag={cargo} sign="+" index={index} /> : undefined;
   } else if (report.kind === "colony") {
     const c = report.body as ColonyBody;
-    icon = <IconTemple size={22} />;
-    body = c.ok ? (
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-ink-soft">
-          {c.cityName} ya es tuya, en {c.islandName}. Poné gente a talar para que crezca.
-        </p>
-        {c.cityId && (
-          <Link href={`/ciudad/${c.cityId}`} className={buttonClass("primary", "sm")}>
-            Ir a {c.cityName}
-          </Link>
-        )}
-      </div>
+    tone = c.ok ? "win" : "info";
+    badge = <IconTemple size={20} />;
+    line = c.ok ? (
+      <span>Nueva ciudad en {c.islandName}.</span>
     ) : (
-      <p className="text-sm text-ink-soft">
-        Alguien llegó antes a {c.islandName}. Te devolvimos el oro, la madera y los colonos.
-      </p>
+      <span>Alguien llegó antes a {c.islandName}. Te devolvimos todo.</span>
     );
+    extra =
+      c.ok && c.cityId ? (
+        <Link href={`/ciudad/${c.cityId}`} className={buttonClass("secondary", "sm", "h-10")}>
+          Ir a {c.cityName}
+        </Link>
+      ) : undefined;
   } else {
     const text = typeof report.body.text === "string" ? report.body.text : "";
-    icon = <IconScroll size={22} />;
-    body = text ? <p className="text-sm text-ink-soft">{text}</p> : null;
+    badge = <IconScroll size={20} />;
+    line = text ? <span className="line-clamp-2">{text}</span> : null;
   }
 
   return (
-    <article className="panel rise-in flex gap-3 p-4" style={delayOf(index)}>
-      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-parchment-2 text-bronze-dark ring-1 ring-parchment-3">{icon}</span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h3 className="min-w-0 font-bold">{report.title}</h3>
-          <NewTag unread={!report.read} />
-          <When at={report.createdAt} now={now} className="ml-auto text-ink-soft" />
-        </div>
-        {body}
-      </div>
+    <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
+      <Row tone={tone} badge={badge} title={report.title} unread={unread} index={index} at={report.createdAt} now={now} line={line} extra={extra} />
     </article>
   );
 }

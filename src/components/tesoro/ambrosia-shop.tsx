@@ -19,6 +19,7 @@ import { buyAmbrosiaInstruction, fetchCitizen, fetchConfig, type CitizenAccount,
 import { canSignDevnetTransactions, connectWallet, useSolanaWallets } from "@/lib/solana/wallet-standard";
 import { claimFaucetAction, syncAmbrosiaAction } from "@/server/actions";
 import { AddressChip, ExternalIcon } from "./address-chip";
+import { HowItWorks } from "./section-ui";
 
 const PACK_OPTIONS = [1, 5, 10] as const;
 /** Rent for the 69-byte Citizen account, paid once on the first purchase: (128 + 69) * 3480 * 2 */
@@ -109,14 +110,11 @@ export function AmbrosiaShop({ sessionWallet, citizenPda }: { sessionWallet: str
   );
 
   return (
-    <section aria-labelledby="shop-title" className="panel flex flex-col gap-4 p-4 sm:p-5">
-      <div>
-        <h2 id="shop-title" className="font-display text-xl font-bold">
-          Comprar néctar
-        </h2>
-        <p className="text-[15px] text-ink-soft">Pagás con SOL de prueba desde la misma cuenta con la que entraste.</p>
-      </div>
-      {mode.kind === "loading" && body(null, "Buscando tu billetera…", <p className="text-sm text-ink-soft">Buscando tu billetera…</p>)}
+    <section aria-labelledby="shop-title" className="panel flex flex-col gap-3 p-3 sm:p-4">
+      <h2 id="shop-title" className="font-display text-xl font-bold">
+        Comprar néctar
+      </h2>
+      {mode.kind === "loading" && body(null, "Llave de juego", <p className="text-sm text-ink-soft">Buscando tu cuenta…</p>)}
       {mode.kind === "local" && body(mode.signer, "Llave de juego")}
       {mode.kind === "extension" && (
         <ExtensionGate mode={mode} sessionWallet={sessionWallet}>
@@ -171,26 +169,21 @@ function ExtensionGate({
       return children(
         null,
         match.wallet.name,
-        <Notice tone="warn">{match.wallet.name} no permite firmar en la red de prueba de Solana. Probá con Phantom o Solflare.</Notice>,
+        <Notice tone="warn">{match.wallet.name} no acepta pagos con SOL de prueba. Probá con Phantom o Solflare.</Notice>,
       );
     }
     return <ExtensionSigner account={match.account} label={match.wallet.name} render={children} />;
   }
 
-  const label = mode.walletName ?? "Tu billetera";
+  const label = mode.walletName ?? "Tu cuenta";
   const blocker = (
     <div className="flex flex-col gap-2">
       {mode.lostLocalKey ? (
-        <Notice tone="warn">
-          Entraste con una llave de juego que no está en este navegador. Para comprar, abrí Thalassa en el navegador donde
-          empezaste a jugar.
-        </Notice>
+        <Notice tone="warn">Tu llave de juego está en otro navegador. Para comprar, abrí Thalassa donde empezaste a jugar.</Notice>
       ) : null}
       {candidates.length > 0 ? (
         <>
-          <p className="text-[15px] text-ink-soft">
-            Conectá la billetera con la que entraste ({shortAddress(sessionWallet)}) para poder comprar.
-          </p>
+          <p className="text-sm text-ink-soft">Para comprar, conectá la cuenta con la que entraste ({shortAddress(sessionWallet)}).</p>
           <div className="flex flex-wrap gap-2">
             {candidates.map((w) => (
               <ConnectWalletButton
@@ -206,21 +199,20 @@ function ExtensionGate({
           </div>
         </>
       ) : !settled ? (
-        <p className="text-sm text-ink-soft">Buscando tu billetera…</p>
+        <p className="text-sm text-ink-soft">Buscando tu cuenta…</p>
       ) : mode.walletName ? (
         <Notice tone="warn">
           No encontramos {mode.walletName} en este navegador. Abrí Thalassa donde la tengas instalada.
         </Notice>
       ) : !mode.lostLocalKey ? (
         <Notice tone="warn">
-          No encontramos la billetera de tu cuenta ({shortAddress(sessionWallet)}) en este navegador. Abrí Thalassa donde
-          empezaste a jugar.
+          No encontramos tu cuenta ({shortAddress(sessionWallet)}) en este navegador. Abrí Thalassa donde empezaste a jugar.
         </Notice>
       ) : null}
       {mismatch && (
         <Notice tone="warn">
-          {mismatch.wallet} está conectada con {mismatch.address ? shortAddress(mismatch.address) : "otra cuenta"}. Cambiá a{" "}
-          {shortAddress(sessionWallet)} en la billetera y volvé a conectar.
+          {mismatch.wallet} está conectada con otra cuenta{mismatch.address ? ` (${shortAddress(mismatch.address)})` : ""}. Cambiá a{" "}
+          {shortAddress(sessionWallet)} en {mismatch.wallet} y volvé a conectar.
         </Notice>
       )}
     </div>
@@ -266,17 +258,19 @@ function ConnectWalletButton({ wallet, onConnected }: { wallet: UiWallet; onConn
   );
 }
 
+
 // ---------------------------------------------------------------------------
-// Wallet card + packs + purchase
+// Balance strip + packs + purchase
 // ---------------------------------------------------------------------------
 
 type Stage = "idle" | "preparing" | "signing" | "confirming" | "crediting";
-const STAGE_LABEL: Record<Exclude<Stage, "idle">, string> = {
-  preparing: "Preparando la compra…",
-  signing: "Firmá en tu billetera…",
-  confirming: "Confirmando en la red…",
-  crediting: "Sumando tu néctar…",
-};
+const stageLabel = (stage: Exclude<Stage, "idle">, walletLabel: string) =>
+  ({
+    preparing: "Preparando la compra…",
+    signing: `Confirmá en ${walletLabel}…`,
+    confirming: "Confirmando la compra…",
+    crediting: "Sumando tu néctar…",
+  })[stage];
 
 function ShopBody({
   sessionWallet,
@@ -320,11 +314,7 @@ function ShopBody({
       const credited = await creditWithRetry();
       setReceipt({ signature, packs, credited });
       celebrate(buyRef.current, { tone: "ambrosia", count: 24, spread: 140 });
-      toast(
-        credited && credited > 0
-          ? `Sumaste ${fmt(credited)} de néctar.`
-          : "La compra se confirmó. Si no ves el néctar, tocá Sincronizar compras.",
-      );
+      toast(credited && credited > 0 ? `Sumaste ${fmt(credited)} de néctar.` : "La compra se confirmó. Si no ves el néctar, tocá Sincronizar.");
       reload();
     } catch (err) {
       if (isUserRejection(err)) {
@@ -339,27 +329,15 @@ function ShopBody({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <WalletCard
-        walletLabel={walletLabel}
-        sessionWallet={sessionWallet}
-        chain={chain}
-        lowBalance={!!short}
-      />
+    <div className="flex flex-col gap-3">
+      <BalanceStrip sessionWallet={sessionWallet} chain={chain} lowBalance={!!short} />
 
-      <fieldset disabled={busy} className="flex flex-col gap-2">
-        <legend className="mb-2 font-display text-base font-bold">Elegí cuántos packs</legend>
+      <fieldset disabled={busy} className="flex flex-col">
+        <legend className="sr-only">Elegí cuántos packs</legend>
         <div className="grid grid-cols-3 gap-2">
           {PACK_OPTIONS.map((n) => (
             <label key={n} className="group relative cursor-pointer">
-              <input
-                type="radio"
-                name="packs"
-                value={n}
-                checked={packs === n}
-                onChange={() => setPacks(n)}
-                className="peer sr-only"
-              />
+              <input type="radio" name="packs" value={n} checked={packs === n} onChange={() => setPacks(n)} className="peer sr-only" />
               <Tilt
                 className={clsx(
                   "rounded-xl border-2 transition-[border-color,background-color,box-shadow] duration-200",
@@ -368,25 +346,27 @@ function ShopBody({
                   "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold",
                 )}
               >
-              <span className="flex h-full flex-col items-center gap-0.5 px-2 py-3 text-center">
-                <span className="font-display text-base font-bold sm:text-lg">
-                  {n} {n === 1 ? "pack" : "packs"}
+                <span className="flex h-full flex-col items-center gap-0.5 px-1 py-2.5 text-center">
+                  <span className="text-xs font-extrabold tracking-wide whitespace-nowrap text-ink-soft uppercase">
+                    {n} {n === 1 ? "pack" : "packs"}
+                  </span>
+                  {config ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 font-display text-lg font-black whitespace-nowrap text-ambrosia-dark tabular sm:text-xl">
+                        <ResIcon kind="ambrosia" size={20} />
+                        {fmt(Number(config.ambrosiaPerPack) * n)}
+                      </span>
+                      <span className="text-xs whitespace-nowrap text-ink-soft tabular-nums lining-nums">
+                        {fmtSol(config.priceLamportsPerPack * BigInt(n))} SOL
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="mt-1 h-5 w-14 animate-pulse rounded bg-ink/10" />
+                      <span className="mt-1 h-3 w-10 animate-pulse rounded bg-ink/10" />
+                    </>
+                  )}
                 </span>
-                {config ? (
-                  <>
-                    <span className="inline-flex items-center gap-1 font-bold text-ambrosia-dark tabular">
-                      <ResIcon kind="ambrosia" size={18} />
-                      {fmt(Number(config.ambrosiaPerPack) * n)}
-                    </span>
-                    <span className="text-sm text-ink-soft tabular-nums lining-nums">{fmtSol(config.priceLamportsPerPack * BigInt(n))} SOL</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="mt-1 h-4 w-14 animate-pulse rounded bg-ink/10" />
-                    <span className="mt-1 h-3.5 w-12 animate-pulse rounded bg-ink/10" />
-                  </>
-                )}
-              </span>
               </Tilt>
             </label>
           ))}
@@ -396,17 +376,15 @@ function ShopBody({
       {state.status === "error" && (
         <Notice tone="error">
           {state.message}{" "}
-          <button type="button" onClick={reload} className="font-bold underline underline-offset-4">
+          <button type="button" onClick={reload} className="min-h-10 font-bold underline underline-offset-4">
             Reintentar
           </button>
         </Notice>
       )}
-      {ready && !config && (
-        <Notice tone="warn">La tienda todavía no abrió en la red. Volvé en un rato.</Notice>
-      )}
+      {ready && !config && <Notice tone="warn">La tienda todavía no abrió. Volvé en un rato.</Notice>}
 
       {blocker ?? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
           <Button
             ref={buyRef}
             variant="ambrosia"
@@ -414,20 +392,13 @@ function ShopBody({
             onClick={buy}
             loading={busy}
             disabled={!signer || !config || !!short || refreshing}
-            className="w-full sm:w-auto sm:self-start"
+            className="w-full sm:w-auto"
           >
-            {busy ? STAGE_LABEL[stage as Exclude<Stage, "idle">] : `Comprar ${packs} ${packs === 1 ? "pack" : "packs"}`}
+            {busy ? stageLabel(stage as Exclude<Stage, "idle">, walletLabel) : `Comprar ${packs} ${packs === 1 ? "pack" : "packs"}`}
           </Button>
-          {config && cost !== null && (
-            <p className="text-sm text-ink-soft">
-              Pagás {fmtSol(cost)} SOL de prueba más el costo de red
-              {ready?.citizen ? "" : " y un depósito único de 0,0014 SOL para tu registro en la red"}.
-            </p>
-          )}
-          {short && (
-            <p className="text-sm font-bold text-danger">
-              Te falta SOL de prueba para esta compra.{" "}
-              Pedí SOL de prueba arriba.
+          {needed !== null && (
+            <p className={clsx("text-sm tabular-nums lining-nums", short ? "font-bold text-danger" : "text-ink-soft")}>
+              {short ? "Te falta SOL de prueba. Pedilo arriba." : `Total ≈ ${fmtSol(needed)} SOL de prueba`}
             </p>
           )}
         </div>
@@ -436,41 +407,71 @@ function ShopBody({
       {error && <Notice tone="error">{error}</Notice>}
 
       {receipt && (
-        <div role="status" className="pop-in flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-olive/15 px-3 py-2 text-[15px] ring-1 ring-olive/30">
+        <div role="status" className="pop-in flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-olive/15 px-3 py-1.5 text-[15px] ring-1 ring-olive/30">
           <span className="font-bold text-success">
             Compra confirmada: {receipt.packs} {receipt.packs === 1 ? "pack" : "packs"}
             {receipt.credited ? ` · +${fmt(receipt.credited)} de néctar` : ""}
           </span>
+          {!receipt.credited && (
+            <ActionButton action={syncAmbrosiaAction} variant="secondary" size="sm" pendingLabel="Sincronizando…" className="h-10">
+              Sincronizar
+            </ActionButton>
+          )}
           <a
             href={explorerTx(receipt.signature)}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-10 items-center gap-1 font-bold text-sea-700 underline-offset-4 hover:underline"
+            className="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-sea-700 underline-offset-4 hover:underline"
           >
-            Ver en el explorador <ExternalIcon />
+            Ver comprobante <ExternalIcon />
             <span className="sr-only"> (se abre en otra pestaña)</span>
           </a>
         </div>
       )}
 
-      <div className="flex flex-col gap-2 border-t border-parchment-3 pt-3 text-sm text-ink-soft">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p>Si compraste y el néctar no aparece, sincronizá.</p>
+      <HowItWorks>
+        <p>El néctar termina obras al instante y paga al mercader.</p>
+        <p>
+          Se compra con SOL de prueba, que no vale plata real. Si te falta, pedilo arriba: una vez cada 12 horas, alcanza para un
+          pack.
+        </p>
+        {config && (
+          <p className="tabular-nums lining-nums">
+            Cada pack son {fmt(Number(config.ambrosiaPerPack))} de néctar por {fmtSol(config.priceLamportsPerPack)} SOL de prueba. Se
+            suma el costo de red y, en tu primera compra, un depósito único de {fmtSol(CITIZEN_RENT_LAMPORTS)} para tu registro de
+            compras.
+          </p>
+        )}
+        <dl className="flex flex-col gap-1 border-t border-parchment-3 pt-2">
+          <div className="flex flex-wrap items-center gap-x-2">
+            <dt>{walletLabel}:</dt>
+            <dd>
+              <AddressChip address={sessionWallet} label="tu cuenta" />
+            </dd>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2">
+            <dt>Registro de compras:</dt>
+            <dd>
+              <AddressChip address={citizenPda} label="el registro de compras" />
+            </dd>
+          </div>
+          {ready?.citizen && (
+            <div className="tabular-nums lining-nums">
+              <dt className="inline">Registradas: </dt>
+              <dd className="inline">
+                {fmt(Number(ready.citizen.ambrosiaTotal))} de néctar en {ready.citizen.purchases}{" "}
+                {ready.citizen.purchases === 1 ? "compra" : "compras"}
+              </dd>
+            </div>
+          )}
+        </dl>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-parchment-3 pt-2">
+          <p>¿Compraste y no ves el néctar?</p>
           <ActionButton action={syncAmbrosiaAction} variant="secondary" size="sm" pendingLabel="Sincronizando…" className="h-10">
             Sincronizar compras
           </ActionButton>
         </div>
-        <p className="flex flex-wrap items-center gap-x-2">
-          <span>Tu registro de compras en la red:</span>
-          <AddressChip address={citizenPda} label="dirección del registro" />
-        </p>
-        {ready?.citizen && (
-          <p className="tabular-nums lining-nums">
-            En la red figuran {fmt(Number(ready.citizen.ambrosiaTotal))} de néctar en {ready.citizen.purchases}{" "}
-            {ready.citizen.purchases === 1 ? "compra" : "compras"}.
-          </p>
-        )}
-      </div>
+      </HowItWorks>
     </div>
   );
 }
@@ -490,13 +491,29 @@ async function creditWithRetry(): Promise<number | null> {
   return 0;
 }
 
-function WalletCard({
-  walletLabel,
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden
+      className={clsx("size-4", spinning && "animate-spin")}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" />
+    </svg>
+  );
+}
+
+/** SOL de prueba balance and the faucet. When the balance is short, the faucet is the action. */
+function BalanceStrip({
   sessionWallet,
   chain,
   lowBalance,
 }: {
-  walletLabel: string;
   sessionWallet: string;
   chain: ReturnType<typeof useChainData>;
   lowBalance: boolean;
@@ -506,7 +523,7 @@ function WalletCard({
   const [faucetError, setFaucetError] = useState<string | null>(null);
   const [lastSignature, setLastSignature] = useState<string | null>(null);
 
-  /** The game faucet pays the logged-in wallet, so it works for the game key and for extensions. */
+  /** The game faucet pays the logged-in account, so it works for the game key and for extensions. */
   async function claim() {
     setPending("faucet");
     setFaucetError(null);
@@ -524,7 +541,7 @@ function WalletCard({
     }
   }
 
-  /** Fallback: the public devnet airdrop (often rate limited). */
+  /** Fallback: the public test faucet (often rate limited). */
   async function publicAirdrop() {
     setPending("airdrop");
     try {
@@ -541,72 +558,74 @@ function WalletCard({
   }
 
   return (
-    <div className="panel-dark flex flex-col gap-3 p-3 sm:p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-bold tracking-widest text-sea-300 uppercase">Billetera en uso</p>
-          <p className="font-display text-lg font-bold text-foam">{walletLabel}</p>
-          <AddressChip address={sessionWallet} label="tu dirección" tone="dark" />
-        </div>
-        <div className="sm:text-right">
-          <p className="text-xs font-bold tracking-widest text-sea-300 uppercase">Saldo</p>
-          {state.status === "ready" ? (
-            <p className={clsx("font-display text-2xl font-bold tabular-nums lining-nums", lowBalance ? "text-[#ffb4a6]" : "text-foam")}>
-              {fmtSol(state.balance)} <span className="font-body text-sm font-normal text-foam/70">SOL de prueba</span>
-            </p>
-          ) : state.status === "loading" ? (
-            <span className="mt-1 inline-block h-6 w-28 animate-pulse rounded bg-foam/15" />
-          ) : (
-            <p className="text-sm text-foam/70">Sin datos</p>
-          )}
+    <div className="flex flex-col gap-2 rounded-xl bg-gradient-to-b from-sea-800 to-sea-900 px-3 py-2 text-foam ring-1 ring-sea-300/25">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-1 items-center gap-1">
+          <div className="leading-none whitespace-nowrap">
+            <p className="text-[11px] font-bold tracking-wider text-sea-300 uppercase">Tu saldo</p>
+            {state.status === "ready" ? (
+              <p className={clsx("mt-1 font-display text-xl font-bold tabular-nums lining-nums", lowBalance ? "text-danger-soft" : "text-foam")}>
+                {fmtSol(state.balance)} <span className="font-body text-sm font-normal text-foam/70">SOL de prueba</span>
+              </p>
+            ) : state.status === "loading" ? (
+              <span className="mt-1 inline-block h-6 w-28 animate-pulse rounded bg-foam/15" />
+            ) : (
+              <p className="mt-1 text-sm text-foam/70">Sin datos</p>
+            )}
+          </div>
           <button
             type="button"
             onClick={reload}
             disabled={refreshing || state.status === "loading"}
-            className="-mx-1 min-h-10 rounded-lg px-1 text-sm font-bold text-sea-300 underline-offset-4 hover:underline disabled:opacity-50"
+            aria-label="Actualizar saldo"
+            title="Actualizar saldo"
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-sea-300 transition hover:bg-foam/10 hover:text-foam disabled:opacity-50"
           >
-            {refreshing ? "Actualizando…" : "Actualizar"}
+            <RefreshIcon spinning={refreshing} />
           </button>
         </div>
+        <Button
+          variant={lowBalance ? "sea" : "ghost"}
+          size={lowBalance ? "md" : "sm"}
+          onClick={claim}
+          disabled={!!pending}
+          loading={pending === "faucet"}
+          className={clsx(!lowBalance && "h-10 text-sea-300 hover:bg-foam/10 hover:text-foam")}
+          title="Una vez cada 12 horas. Alcanza para un pack."
+        >
+          {pending === "faucet" ? "Pidiendo SOL…" : "Pedir SOL de prueba"}
+        </Button>
       </div>
-      <div className="flex flex-col gap-2 border-t border-foam/15 pt-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Button variant="sea" onClick={claim} disabled={!!pending} loading={pending === "faucet"}>
-            {pending === "faucet" ? "Pidiendo SOL…" : "Pedir SOL de prueba"}
-          </Button>
-          <p className="text-sm text-foam/80">Te alcanza para un pack. Es gratis, no vale plata real y podés pedir cada 12 horas.</p>
+      {lastSignature && !faucetError && (
+        <a
+          href={explorerTx(lastSignature)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-10 items-center gap-1 self-start text-sm font-bold text-sea-300 underline-offset-4 hover:underline"
+        >
+          Ver comprobante del envío <ExternalIcon />
+          <span className="sr-only"> (se abre en otra pestaña)</span>
+        </a>
+      )}
+      {faucetError && (
+        <div role="alert" className="flex flex-col gap-1 border-t border-foam/15 pt-2 text-sm text-[#ffcfc4]">
+          <p>{faucetError}</p>
+          <p className="flex flex-wrap items-center gap-x-3">
+            <button
+              type="button"
+              onClick={publicAirdrop}
+              disabled={!!pending}
+              className="min-h-10 font-bold text-foam underline underline-offset-4 disabled:opacity-50"
+            >
+              {pending === "airdrop" ? "Probando la canilla pública…" : "Probar la canilla pública"}
+            </button>
+            <a href={FAUCET_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1 font-bold text-foam underline underline-offset-4">
+              Otra canilla <ExternalIcon />
+              <span className="sr-only"> (se abre en otra pestaña)</span>
+            </a>
+          </p>
         </div>
-        {lastSignature && !faucetError && (
-          <a
-            href={explorerTx(lastSignature)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-10 items-center gap-1 self-start text-sm font-bold text-sea-300 underline-offset-4 hover:underline"
-          >
-            Ver el envío en el explorador <ExternalIcon />
-            <span className="sr-only"> (se abre en otra pestaña)</span>
-          </a>
-        )}
-        {faucetError && (
-          <div role="alert" className="flex flex-col gap-1.5 text-sm text-[#ffcfc4]">
-            <p>{faucetError}</p>
-            <p className="flex flex-wrap items-center gap-x-3">
-              <button
-                type="button"
-                onClick={publicAirdrop}
-                disabled={!!pending}
-                className="min-h-10 font-bold text-foam underline underline-offset-4 disabled:opacity-50"
-              >
-                {pending === "airdrop" ? "Probando la canilla pública…" : "Probar la canilla pública"}
-              </button>
-              <a href={FAUCET_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1 font-bold text-foam underline underline-offset-4">
-                faucet.solana.com <ExternalIcon />
-                <span className="sr-only"> (se abre en otra pestaña)</span>
-              </a>
-            </p>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

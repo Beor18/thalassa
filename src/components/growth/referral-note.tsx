@@ -26,8 +26,8 @@ export async function ReferralNote({ className }: { className?: string }) {
         className,
       )}
     >
-      Te invitó <b className="text-gold">{name}</b>. Cuando llegues a Intendencia {REFERRAL_TOWN_HALL}, suman{" "}
-      {REFERRAL_REWARD} de néctar cada uno.
+      Te invitó <b className="text-gold">{name}</b>. Llegá a Intendencia {REFERRAL_TOWN_HALL} y ganan{" "}
+      <b className="text-ambrosia-soft">{REFERRAL_REWARD} de néctar</b> cada uno.
     </p>
   );
 }

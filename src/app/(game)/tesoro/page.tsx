@@ -4,6 +4,7 @@ import Image from "next/image";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { AmbrosiaShop } from "@/components/tesoro/ambrosia-shop";
 import { Merchant } from "@/components/tesoro/merchant";
+import { SECTION_NARROW } from "@/components/tesoro/section-ui";
 import { AnimatedNumber } from "@/components/motion/animated-number";
 import { stagger } from "@/components/motion/reveal";
 import { findCitizenPda, programAddress } from "@/lib/solana/program";
@@ -27,61 +28,59 @@ async function Content() {
 
   return (
     <GameShell game={game}>
-      <section className="panel-dark rise-in relative flex flex-col gap-3 overflow-hidden p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5">
-        <span aria-hidden className="pointer-events-none absolute -top-16 -left-10 size-56 rounded-full bg-ambrosia/25 blur-3xl" />
-        <AmbrosiaVessel />
-        <div className="relative min-w-0 flex-1">
-          <h1 className="font-display text-sm font-bold tracking-[0.25em] text-sea-300">Tu néctar</h1>
-          <p className="font-display text-4xl font-black">
-            <AnimatedNumber value={player.ambrosia} float className="text-shimmer-ambrosia" />
-          </p>
-          <p className="mt-1 max-w-2xl text-[15px] text-foam/90">
-            El néctar se compra con SOL de prueba en la red de prueba de Solana. Sirve para terminar obras al
-            instante y para llamar al mercader.
-          </p>
-        </div>
-      </section>
-
-      <div className="rise-in grid items-start gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" style={stagger(1, 90, 3, 60)}>
-        {citizenPda ? (
-          <AmbrosiaShop sessionWallet={player.wallet} citizenPda={citizenPda} />
-        ) : (
-          <section aria-labelledby="shop-closed-title" className="panel flex flex-col gap-2 p-4 sm:p-5">
-            <h2 id="shop-closed-title" className="font-display text-xl font-bold">
-              Comprar néctar
-            </h2>
-            <p className="rounded-xl border border-bronze/40 bg-parchment-2 px-3 py-2 text-[15px]">
-              La tienda abre en cuanto el programa esté desplegado en la red de prueba. Mientras tanto, el mercader sigue
-              atendiendo.
+      <div className={SECTION_NARROW}>
+        <section
+          aria-labelledby="nectar-title"
+          className="panel-dark rise-in relative flex items-center gap-3 overflow-hidden px-3 py-2.5 sm:gap-4 sm:px-4"
+        >
+          <span aria-hidden className="pointer-events-none absolute -top-16 -left-10 size-56 rounded-full bg-ambrosia/25 blur-3xl" />
+          <AmbrosiaVessel />
+          <div className="relative min-w-0 flex-1 leading-none">
+            <h1 id="nectar-title" className="font-display text-xs font-bold tracking-[0.25em] text-sea-300 uppercase">
+              Tu néctar
+            </h1>
+            <p className="mt-1 font-display text-4xl font-black">
+              <AnimatedNumber value={player.ambrosia} float className="text-shimmer-ambrosia" />
             </p>
-          </section>
-        )}
-        <Merchant cityId={city.id} cityName={city.name} ambrosia={player.ambrosia} res={city.res} storage={city.rates.storage} />
+          </div>
+          <p className="relative hidden max-w-xs text-right text-sm leading-snug text-foam/80 sm:block">
+            Terminá obras al instante o llamá al mercader.
+          </p>
+        </section>
+
+        <div className="rise-in grid items-start gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]" style={stagger(1, 90, 3, 60)}>
+          {citizenPda ? (
+            <AmbrosiaShop sessionWallet={player.wallet} citizenPda={citizenPda} />
+          ) : (
+            <section aria-labelledby="shop-closed-title" className="panel flex flex-col gap-2 p-4">
+              <h2 id="shop-closed-title" className="font-display text-xl font-bold">
+                Comprar néctar
+              </h2>
+              <p className="rounded-xl border border-bronze/40 bg-parchment-2 px-3 py-2 text-[15px]">
+                La tienda todavía no abrió. El mercader sigue atendiendo.
+              </p>
+            </section>
+          )}
+          <Merchant cityId={city.id} cityName={city.name} ambrosia={player.ambrosia} res={city.res} storage={city.rates.storage} />
+        </div>
       </div>
     </GameShell>
   );
 }
 
 const MOTES = [
-  { left: "22%", delay: "0s", size: 12 },
-  { left: "62%", delay: "-1.1s", size: 9 },
-  { left: "44%", delay: "-2.3s", size: 14 },
-  { left: "76%", delay: "-3.2s", size: 8 },
+  { left: "22%", delay: "0s", size: 10 },
+  { left: "62%", delay: "-1.1s", size: 8 },
+  { left: "44%", delay: "-2.3s", size: 12 },
+  { left: "76%", delay: "-3.2s", size: 7 },
 ];
 
 /** The nectar vessel: a soft violet glow breathing behind it and sparks rising from the rim. */
 function AmbrosiaVessel() {
   return (
-    <span aria-hidden className="relative grid size-20 shrink-0 place-items-center sm:size-24">
-      <span className="absolute inset-2 rounded-full bg-[radial-gradient(circle,rgb(215_184_255/0.65),rgb(155_93_229/0.25)_55%,transparent_72%)] motion-safe:animate-[vessel-glow_3.6s_var(--ease-in-out-sine)_infinite]" />
-      <Image
-        src="/assets/r-ambrosia.webp"
-        alt=""
-        width={96}
-        height={96}
-        loading="eager"
-        className="sprite relative size-16 animate-float sm:size-[76px]"
-      />
+    <span aria-hidden className="relative grid size-16 shrink-0 place-items-center">
+      <span className="absolute inset-1 rounded-full bg-[radial-gradient(circle,rgb(215_184_255/0.65),rgb(155_93_229/0.25)_55%,transparent_72%)] motion-safe:animate-[vessel-glow_3.6s_var(--ease-in-out-sine)_infinite]" />
+      <Image src="/assets/r-ambrosia.webp" alt="" width={64} height={64} loading="eager" className="sprite relative size-14 animate-float" />
       {MOTES.map((m, i) => (
         <Image
           key={i}
