@@ -1,38 +1,44 @@
-import Image from "next/image";
 import Link from "next/link";
-import { BUILDINGS, type BuildingType } from "@/game/data";
+import clsx from "clsx";
+import { BUILDINGS, type ResourceBag } from "@/game/data";
 import { ambrosiaToFinish, buildingCost, buildingSeconds, type BuildingState } from "@/game/engine";
 import { ActionButton } from "@/components/ui/action-button";
 import { buttonClass } from "@/components/ui/button";
 import { Countdown, TimeProgress } from "@/components/ui/countdown";
 import { CostList, ResIcon } from "@/components/ui/res";
 import { fmt, fmtDuration } from "@/lib/format";
-import { buildAction, cancelBuildAction, finishNowAction } from "@/server/actions";
+import { cancelBuildAction, finishNowAction } from "@/server/actions";
 import type { Game } from "@/server/game-context";
-import { Block, Duration, Note, Reason } from "./bits";
-import { asPlayer, missingText, slotHref } from "./lib";
+import { Duration, Reason } from "./bits";
+import { affordability, levelGain } from "./effects";
+import { BuildButton } from "./build-button";
+import { IconChevron, IconHammer, IconUp } from "./icons";
+import { asPlayer, fmtSoon, slotHref } from "./lib";
 
-/** Construction running on this plot: progress, finish with nectar (the premium currency), cancel. */
+/** Construction running on this plot: time left, finish with nectar (the premium currency), cancel. */
 export function ConstructionBlock({ game }: { game: Game }) {
   const { snapshot, city } = game;
   const work = city.construction;
   if (!work) return null;
-  const def = BUILDINGS[work.type];
   const price = ambrosiaToFinish(snapshot.now, work.endsAt);
   const ambrosia = snapshot.player.ambrosia;
   const isNew = work.targetLevel === 1;
 
   return (
-    <Block tone="inset" title={isNew ? `Construyendo ${def.name}` : `Mejorando a nivel ${work.targetLevel}`}>
-      <div className="flex flex-col gap-1.5">
-        <TimeProgress startedAt={work.startedAt} endsAt={work.endsAt} serverNow={snapshot.now} />
-        <p className="flex items-center justify-between gap-2 text-sm text-ink-soft">
-          <span>Termina en</span>
-          <span className="font-extrabold text-ink">
-            <Countdown endsAt={work.endsAt} serverNow={snapshot.now} doneLabel="Terminando…" />
-          </span>
-        </p>
+    <section
+      aria-label={isNew ? "Obra en curso" : `Mejorando a nivel ${work.targetLevel}`}
+      className="flex flex-col gap-2.5 rounded-xl border border-gold/60 bg-gradient-to-b from-gold/20 to-parchment-2/60 p-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-bronze-dark uppercase">
+          <IconHammer size={14} className="origin-bottom-left motion-safe:animate-[fx-hammer_1.4s_ease-in-out_infinite]" />
+          {isNew ? "Construyendo" : `Mejorando a nivel ${work.targetLevel}`}
+        </span>
+        <span className="text-lg leading-none font-extrabold text-ink">
+          <Countdown endsAt={work.endsAt} serverNow={snapshot.now} doneLabel="Terminando…" />
+        </span>
       </div>
+      <TimeProgress startedAt={work.startedAt} endsAt={work.endsAt} serverNow={snapshot.now} />
       {ambrosia >= price ? (
         <ActionButton
           variant="ambrosia"
@@ -43,117 +49,160 @@ export function ConstructionBlock({ game }: { game: Game }) {
           Terminar ya por {fmt(price)} de néctar
         </ActionButton>
       ) : (
-        <div className="flex flex-col gap-2 rounded-lg bg-marble/50 p-3 ring-1 ring-parchment-3">
-          <p className="flex items-center gap-1.5 text-sm text-ink-soft">
-            <ResIcon kind="ambrosia" size={18} />
-            Terminar ya cuesta {fmt(price)} de néctar y tenés {fmt(ambrosia)}.
-          </p>
-          <Link href="/tesoro" className={buttonClass("ambrosia", "md", "w-full")}>
-            Conseguir néctar
-          </Link>
-        </div>
+        <NectarHint price={price} msLeft={work.endsAt - snapshot.now} />
       )}
-      <ActionButton
-        variant="secondary"
-        className="w-full"
-        pendingLabel="Cancelando…"
-        action={cancelBuildAction.bind(null, { cityId: city.id })}
-      >
-        Cancelar obra
-      </ActionButton>
-      <Note className="-mt-1 text-xs">Si cancelás, te devolvemos todos los materiales.</Note>
-    </Block>
+      <div className="flex items-center justify-between gap-2 border-t border-parchment-3/70 pt-1.5">
+        <span className="text-xs text-ink-soft">Si cancelás, recuperás todo.</span>
+        <ActionButton
+          variant="ghost"
+          className="-mr-2"
+          pendingLabel="Cancelando…"
+          action={cancelBuildAction.bind(null, { cityId: city.id })}
+        >
+          Cancelar obra
+        </ActionButton>
+      </div>
+    </section>
   );
 }
 
-/** Tells the player another plot is busy, with a link to it. */
-export function BusyNotice({ game, after = "Para construir acá, esperá a que termine o terminala ya." }: { game: Game; after?: string }) {
+/** Below this wait, skipping with nectar isn't worth a word. */
+const NECTAR_HINT_MIN_MS = 10 * 60_000;
+
+/**
+ * The player can't pay to finish now: one quiet line with a link, and only on long waits.
+ * It never competes with the panel's own action.
+ */
+export function NectarHint({ price, msLeft }: { price: number; msLeft: number }) {
+  if (msLeft < NECTAR_HINT_MIN_MS) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-ink-soft">
+      <ResIcon kind="ambrosia" size={16} />
+      <span>
+        Terminar ya cuesta <strong className="text-ink tabular">{fmt(price)}</strong> de néctar.
+      </span>
+      <Link href="/tesoro" className="inline-flex min-h-10 items-center gap-0.5 font-bold text-ambrosia-dark underline-offset-4 hover:underline">
+        Conseguir néctar
+        <IconChevron size={14} />
+      </Link>
+    </p>
+  );
+}
+
+/** One line telling the player another plot is busy, with a jump to it. */
+export function BusyNotice({ game }: { game: Game }) {
   const work = game.city.construction;
   if (!work) return null;
   const def = BUILDINGS[work.type];
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-bronze/40 bg-gold/15 p-3 sm:flex-row sm:items-center">
-      <p className="flex-1 text-sm text-ink">
-        <strong>Ya hay una obra en marcha:</strong> {def.name}
-        {work.targetLevel > 1 ? ` a nivel ${work.targetLevel}` : ""}. Termina en{" "}
+    <div className="flex items-center gap-2 rounded-lg border border-bronze/40 bg-gold/15 py-1 pr-1 pl-2.5">
+      <IconHammer size={16} className="shrink-0 text-bronze-dark" />
+      <p className="min-w-0 flex-1 text-sm leading-tight text-ink">
+        <span className="font-bold">Obra en curso:</span> {def.name}
+        {work.targetLevel > 1 ? ` nv ${work.targetLevel}` : ""} ·{" "}
         <strong className="tabular">
           <Countdown endsAt={work.endsAt} serverNow={game.snapshot.now} />
         </strong>
-        . {after}
       </p>
-      <Link href={slotHref(game.city.id, work.slot)} scroll={false} className={buttonClass("secondary", "sm", "shrink-0")}>
+      <Link href={slotHref(game.city.id, work.slot)} scroll={false} className={buttonClass("secondary", "md", "shrink-0 px-3")}>
         Ver obra
       </Link>
     </div>
   );
 }
 
-/** Next level: cost, time and the upgrade button (or why it can't happen). */
-export function UpgradeBlock({
-  game,
-  building,
-  primary,
-}: {
-  game: Game;
-  building: BuildingState;
-  primary: boolean;
-}) {
-  const { snapshot, city } = game;
-  const def = BUILDINGS[building.type];
-  if (building.level >= def.maxLevel) {
+/** What is missing to pay `cost`, and when production covers it. */
+export function MissingLine({ game, cost }: { game: Game; cost: Partial<ResourceBag> }) {
+  const can = affordability(cost, game.city);
+  if (can.tooBig) {
+    const warehouse = game.city.buildings.find((b) => b.type === "warehouse");
     return (
-      <Block tone="inset" title="Nivel máximo">
-        <Note>
-          {def.name} llegó al nivel {def.maxLevel}. No se puede mejorar más.
-        </Note>
-      </Block>
+      <Reason>
+        No entra en tu depósito.{" "}
+        {warehouse ? (
+          <Link href={slotHref(game.city.id, warehouse.slot)} scroll={false} className="underline underline-offset-4">
+            Ampliá el Depósito
+          </Link>
+        ) : (
+          "Construí un Depósito."
+        )}
+      </Reason>
     );
   }
+  if (!can.missing) return null;
+  return (
+    <p className="text-sm">
+      <span className="font-bold text-danger">{can.missing}</span>
+      {can.etaMs != null && <span className="text-ink-soft"> Lo juntás en {fmtSoon(can.etaMs)}.</span>}
+    </p>
+  );
+}
+
+/**
+ * Next level: what it gives, cost, time and the upgrade button (or why it can't start).
+ * `primary` is the panel's main action (bronze, full width); otherwise a compact secondary row.
+ */
+export function UpgradeBlock({ game, building, primary }: { game: Game; building: BuildingState; primary: boolean }) {
+  const { snapshot, city } = game;
+  const def = BUILDINGS[building.type];
+  if (building.level >= def.maxLevel) return null;
   const p = asPlayer(snapshot);
   const next = building.level + 1;
   const cost = buildingCost(p, city, building.type, next);
   const seconds = buildingSeconds(p, building.type, next, snapshot.speed);
   const busy = city.construction != null;
-  const missing = missingText(cost, city.res);
+  const can = affordability(cost, city);
+  const gains = levelGain(p, city, building.slot, building.type, next);
+
+  const button = (
+    <BuildButton
+      cityId={city.id}
+      slot={building.slot}
+      variant={primary ? "primary" : "secondary"}
+      className={primary ? "w-full" : "ml-auto shrink-0"}
+      disabled={can.missing != null}
+    >
+      Mejorar a nivel {next}
+    </BuildButton>
+  );
 
   return (
-    <Block tone="inset" title="Próxima mejora">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <CostList cost={cost} have={city.res} />
-        <Duration>{fmtDuration(seconds * 1000)}</Duration>
+    <section
+      aria-label={`Mejora a nivel ${next}`}
+      className={clsx(
+        "flex flex-col gap-2 rounded-xl border p-3",
+        primary ? "border-bronze/45 bg-gradient-to-b from-gold/15 to-parchment-2/70" : "border-parchment-3 bg-parchment-2/50",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="inline-flex items-center gap-1 text-xs font-extrabold tracking-wider text-bronze-dark uppercase">
+            <IconUp size={13} />
+            Nivel {next}
+          </span>
+          {gains.map((g) => (
+            <span key={g} className="text-sm leading-tight font-bold text-success">
+              {g}
+            </span>
+          ))}
+        </p>
+        <Duration className="shrink-0">{fmtDuration(seconds * 1000)}</Duration>
       </div>
-      {busy ? (
-        <BusyNotice game={game} after="Para mejorar este edificio, esperá a que termine o terminala ya." />
+      {primary ? (
+        <>
+          <CostList cost={cost} have={city.res} />
+          {busy ? <BusyNotice game={game} /> : button}
+        </>
       ) : (
         <>
-          <ActionButton
-            variant={primary ? "primary" : "secondary"}
-            className="w-full"
-            pendingLabel="Arrancando obra…"
-            disabled={missing != null}
-            action={buildAction.bind(null, { cityId: city.id, slot: building.slot })}
-          >
-            Mejorar a nivel {next}
-          </ActionButton>
-          {missing && <Reason tone="missing">{missing}</Reason>}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <CostList cost={cost} have={city.res} />
+            {!busy && button}
+          </div>
+          {busy && <BusyNotice game={game} />}
         </>
       )}
-    </Block>
-  );
-}
-
-/** Small "image + name + level" header used at the top of a building panel. */
-export function BuildingIntro({ type, level, underConstruction }: { type: BuildingType; level: number; underConstruction?: boolean }) {
-  const def = BUILDINGS[type];
-  return (
-    <div className="flex items-start gap-3">
-      <Image src={def.image} alt="" width={176} height={176} sizes="88px" className="sprite size-[88px] shrink-0 object-contain" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-ink-soft">{def.description}</p>
-        <p className="mt-1.5 text-xs font-bold text-ink-soft">
-          {underConstruction && level === 0 ? "Se está levantando" : `Llega hasta el nivel ${def.maxLevel}`}
-        </p>
-      </div>
-    </div>
+      {!busy && <MissingLine game={game} cost={cost} />}
+    </section>
   );
 }

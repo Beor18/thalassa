@@ -7,6 +7,7 @@ import { ResIcon } from "@/components/ui/res";
 import { fmt } from "@/lib/format";
 import { transportAction } from "@/server/actions";
 import { AmountInput } from "./amount-input";
+import { IconShip } from "./icons";
 
 export interface Destination {
   id: string;
@@ -41,7 +42,7 @@ export function TransportForm({
   const targetName = destinations.find((d) => d.id === target)?.name;
   const reason =
     ships === 0
-      ? "No tenés barcos en el puerto. Comprá uno para mandar recursos."
+      ? "No hay barcos en el puerto."
       : needed > ships
         ? `Esa carga necesita ${needed} barcos y tenés ${ships}.`
         : !target
@@ -53,16 +54,16 @@ export function TransportForm({
   }
 
   return (
-    <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="transport-target" className="text-sm font-bold">
+    <form className="flex flex-col gap-2.5" onSubmit={(e) => e.preventDefault()}>
+      <div className="flex items-center gap-2">
+        <label htmlFor="transport-target" className="shrink-0 text-sm font-bold">
           Destino
         </label>
         <select
           id="transport-target"
           value={target}
           onChange={(e) => setTarget(e.target.value)}
-          className="h-10 w-full rounded-lg border border-parchment-3 bg-marble px-2.5 text-[15px] text-ink focus-visible:border-bronze"
+          className="h-10 w-full min-w-0 flex-1 rounded-lg border border-parchment-3 bg-marble px-2.5 text-[15px] text-ink focus-visible:border-bronze"
         >
           {target === "" && (
             <option value="" disabled>
@@ -90,32 +91,28 @@ export function TransportForm({
         </select>
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-bold">Carga</legend>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="sr-only">Carga</legend>
+        <div aria-hidden className="grid grid-cols-[22px_minmax(0,1fr)_minmax(0,10.5rem)] gap-2 text-[11px] font-bold text-ink-soft uppercase">
+          <span />
+          <span>Tenés</span>
+          <span>Cargar</span>
+        </div>
         {RESOURCES.map((r: Resource) => {
           const have = Math.floor(stock[r]);
           const max = Math.max(0, Math.min(have, cargo[r] + room));
           const id = `cargo-${r}`;
           return (
-            <div key={r} className="grid grid-cols-[minmax(0,1fr)_minmax(0,11rem)] items-center gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span aria-hidden className="contents">
-                  <ResIcon kind={r} size={22} />
-                </span>
-                <span className="min-w-0">
-                  <label htmlFor={id} className="block text-sm leading-tight font-bold">
-                    {RESOURCE_INFO[r].label}
-                  </label>
-                  <span id={`${id}-have`} className="block text-xs text-ink-soft tabular">
-                    Tenés {fmt(have)}
-                  </span>
-                </span>
-              </div>
+            <div key={r} className="grid grid-cols-[22px_minmax(0,1fr)_minmax(0,10.5rem)] items-center gap-2">
+              <ResIcon kind={r} size={22} />
+              <label htmlFor={id} className="truncate text-sm font-bold text-ink-soft tabular">
+                <span className="sr-only">{RESOURCE_INFO[r].label}: tenés </span>
+                {fmt(have)}
+              </label>
               <AmountInput
                 id={id}
                 value={cargo[r]}
                 max={max}
-                describedBy={`${id}-have`}
                 blankZero
                 onChange={(n) => setCargo((c) => ({ ...c, [r]: n }))}
                 maxLabel={`Cargar todo lo posible de ${RESOURCE_INFO[r].label.toLowerCase()}`}
@@ -125,12 +122,14 @@ export function TransportForm({
         })}
       </fieldset>
 
-      <p className="flex flex-wrap justify-between gap-x-3 text-sm text-ink-soft tabular" aria-live="polite">
+      <p className="flex flex-wrap items-center justify-between gap-x-3 text-sm text-ink-soft tabular" aria-live="polite">
         <span>
-          Carga: <strong className="text-ink">{fmt(total)}</strong>
+          Carga <strong className="text-ink">{fmt(total)}</strong>
         </span>
-        <span>
-          Barcos: <strong className={needed > ships ? "text-danger" : "text-ink"}>{fmt(needed)}</strong> de {fmt(ships)} · {fmt(shipCapacity)} por barco
+        <span className="inline-flex items-center gap-1">
+          <IconShip size={16} />
+          <strong className={needed > ships ? "text-danger" : "text-ink"}>{fmt(needed)}</strong> de {fmt(ships)} barcos
+          <span className="sr-only">, {fmt(shipCapacity)} de carga por barco</span>
         </span>
       </p>
 
@@ -149,9 +148,7 @@ export function TransportForm({
           if (r.ok) setCargo(emptyBag());
         }}
       >
-        {total > 0 && targetName
-          ? `Enviar ${needed} ${needed === 1 ? "barco" : "barcos"} a ${targetName}`
-          : "Enviar recursos"}
+        {total > 0 && targetName ? `Enviar ${needed} ${needed === 1 ? "barco" : "barcos"} a ${targetName}` : "Enviar recursos"}
       </ActionButton>
       {reason && <p className="-mt-1 text-sm font-bold text-bronze-dark">{reason}</p>}
     </form>

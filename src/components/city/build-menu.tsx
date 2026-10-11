@@ -2,121 +2,96 @@ import Image from "next/image";
 import Link from "next/link";
 import { BUILDINGS, type BuildingType, type SlotKind } from "@/game/data";
 import { buildingCost, buildingSeconds, canBuildType } from "@/game/engine";
-import { ActionButton } from "@/components/ui/action-button";
-import { CostList } from "@/components/ui/res";
-import { fmtDuration } from "@/lib/format";
-import { buildAction } from "@/server/actions";
 import type { Game } from "@/server/game-context";
-import { Duration, Note, Reason } from "./bits";
-import { asPlayer, joinEs, missingText, slotHref, typesForKind } from "./lib";
+import { Disclosure, Note } from "./bits";
+import { BuildPicker, type BuildOption } from "./build-picker";
+import { affordability, levelGain } from "./effects";
+import { IconChevron, IconLock } from "./icons";
+import { asPlayer, joinEs, slotHref, typesForKind } from "./lib";
 import { BusyNotice } from "./work-blocks";
 
-const INTRO: Record<SlotKind, string> = {
-  land: "Elegí qué levantar en este lugar.",
-  coast: "Este muelle da al mar. Acá van los puertos.",
-  wall: "El borde de la polis. Acá se levanta la muralla.",
-  town_hall: "La plaza central espera a su Intendencia.",
+/** Short line under the plot name in the panel header. */
+export const EMPTY_SLOT_HINT: Record<SlotKind, string> = {
+  land: "Elegí qué construir",
+  coast: "Acá van los puertos",
+  wall: "Acá va la muralla",
+  town_hall: "Acá va la Intendencia",
 };
 
-/** Options for an empty plot: what fits here, what it costs and what is still locked. */
+/** Options for an empty plot: what fits here (pick one, one button) and, folded, what is still locked. */
 export function BuildMenu({ game, slot, kind }: { game: Game; slot: number; kind: SlotKind }) {
   const { snapshot, city } = game;
   const p = asPlayer(snapshot);
   const busy = city.construction != null;
 
-  const options = typesForKind(kind).map((type) => {
+  const all = typesForKind(kind).map((type) => {
     const def = BUILDINGS[type];
     const built = def.unique && city.buildings.some((b) => b.type === type);
-    const lock = built ? null : canBuildType(p, city, slot, type);
-    const cost = buildingCost(p, city, type, 1);
-    return {
-      type,
-      def,
-      built,
-      lock,
-      cost,
-      seconds: buildingSeconds(p, type, 1, snapshot.speed),
-      missing: missingText(cost, city.res),
-      unlock: lock ? unlockLink(game, type) : null,
-    };
+    return { type, def, built, lock: built ? null : canBuildType(p, city, slot, type) };
   });
-  const open = options.filter((o) => !o.built && !o.lock);
-  const locked = options.filter((o) => !o.built && o.lock);
-  const built = options.filter((o) => o.built);
+  const open: BuildOption[] = all
+    .filter((o) => !o.built && !o.lock)
+    .map(({ type, def }) => {
+      const cost = buildingCost(p, city, type, 1);
+      const can = affordability(cost, city);
+      return {
+        type,
+        name: def.name,
+        description: def.description,
+        image: def.image,
+        cost,
+        seconds: buildingSeconds(p, type, 1, snapshot.speed),
+        gains: levelGain(p, city, slot, type, 1),
+        missing: can.missing,
+        etaMs: can.etaMs,
+        tooBig: can.tooBig,
+      };
+    });
+  const locked = all.filter((o) => !o.built && o.lock).map((o) => ({ ...o, unlock: unlockLink(game, o.type) }));
+  const built = all.filter((o) => o.built);
+
+  const lockedList = (
+    <ul className="flex flex-col gap-1.5">
+      {locked.map((o) => (
+        <li key={o.type} className="flex items-center gap-2.5 rounded-xl border border-dashed border-parchment-3 py-1.5 pr-1 pl-2">
+          <Image src={o.def.image} alt="" width={96} height={96} sizes="40px" className="size-10 shrink-0 object-contain opacity-55 grayscale-[70%]" />
+          <div className="min-w-0 flex-1">
+            <p className="leading-tight font-bold">{o.def.name}</p>
+            <p className="inline-flex items-center gap-1 text-sm leading-tight text-bronze-dark">
+              <IconLock size={13} className="shrink-0" />
+              {o.lock}
+            </p>
+          </div>
+          {o.unlock && (
+            <Link
+              href={o.unlock.href}
+              scroll={!o.unlock.href.startsWith("/ciudad/")}
+              className="inline-flex min-h-10 shrink-0 items-center gap-0.5 rounded-lg px-2 text-sm font-bold text-bronze-dark underline-offset-4 hover:underline"
+            >
+              {o.unlock.label}
+              <IconChevron size={14} />
+            </Link>
+          )}
+        </li>
+      ))}
+      {built.length > 0 && (
+        <li className="px-1 text-xs text-ink-soft">Ya en tu ciudad: {joinEs(built.map((o) => o.def.name))}.</li>
+      )}
+    </ul>
+  );
 
   return (
     <>
-      <Note>{INTRO[kind]}</Note>
       {busy && <BusyNotice game={game} />}
-
-      {open.length > 0 && (
-        <ul className="flex flex-col gap-3" aria-label="Edificios disponibles">
-          {open.map((o) => (
-            <li key={o.type} className="flex gap-3 rounded-xl border border-parchment-3 bg-parchment-2/60 p-3">
-              <Image src={o.def.image} alt="" width={144} height={144} sizes="72px" className="sprite size-[72px] shrink-0 object-contain" />
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <div>
-                  <h3 className="font-display text-base leading-tight font-bold">{o.def.name}</h3>
-                  <p className="mt-0.5 text-sm text-ink-soft">{o.def.description}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                  <CostList cost={o.cost} have={city.res} />
-                  <Duration>{fmtDuration(o.seconds * 1000)}</Duration>
-                </div>
-                <ActionButton
-                  className="w-full sm:w-auto sm:self-start"
-                  pendingLabel="Arrancando obra…"
-                  disabled={busy || o.missing != null}
-                  action={buildAction.bind(null, { cityId: city.id, slot, type: o.type })}
-                >
-                  Construir {o.def.name}
-                </ActionButton>
-                {!busy && o.missing && <Reason tone="missing">{o.missing}</Reason>}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {locked.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h3 className="font-display text-[15px] font-bold">Todavía bloqueados</h3>
-          <ul className="flex flex-col gap-2">
-            {locked.map((o) => (
-              <li key={o.type} className="flex items-center gap-3 rounded-xl border border-dashed border-parchment-3 p-2.5">
-                <Image
-                  src={o.def.image}
-                  alt=""
-                  width={96}
-                  height={96}
-                  sizes="48px"
-                  className="size-12 shrink-0 object-contain opacity-60 grayscale-[60%]"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold leading-tight">{o.def.name}</p>
-                  <Reason className="font-medium">{o.lock}</Reason>
-                </div>
-                {o.unlock && (
-                  <Link
-                    href={o.unlock.href}
-                    scroll={!o.unlock.href.startsWith("/ciudad/")}
-                    className="shrink-0 rounded-lg px-2 py-2.5 text-sm font-bold text-bronze-dark underline-offset-4 hover:underline"
-                  >
-                    {o.unlock.label}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {built.length > 0 && (
-        <Note className="text-xs">
-          Ya {built.length === 1 ? "está" : "están"} en tu ciudad: {joinEs(built.map((o) => o.def.name))}.
-        </Note>
-      )}
-
+      {open.length > 0 && <BuildPicker cityId={city.id} slot={slot} options={open} res={city.res} busy={busy} />}
+      {locked.length > 0 &&
+        (open.length > 0 ? (
+          <Disclosure summary={`Más adelante (${locked.length})`} icon={<IconLock size={15} />}>
+            {lockedList}
+          </Disclosure>
+        ) : (
+          lockedList
+        ))}
       {open.length === 0 && locked.length === 0 && <Note>No hay nada más para construir en este lugar.</Note>}
     </>
   );

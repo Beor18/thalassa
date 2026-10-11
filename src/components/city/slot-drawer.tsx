@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { fx } from "@/components/fx/classes";
 import { SHEET_QUERY, useHydrated, useMediaQuery, useSheetDialog } from "@/components/fx/hooks";
+import { IconInfo } from "./icons";
 import { plotId } from "./lib";
 
 const SPRING = { type: "spring", stiffness: 420, damping: 40, mass: 0.9 } as const;
@@ -37,13 +39,26 @@ export function SlotDrawer({
   slot,
   closeHref,
   title,
-  eyebrow,
+  image,
+  icon,
+  chip,
+  subtitle,
+  info,
   children,
 }: {
   slot: number;
   closeHref: string;
   title: string;
-  eyebrow?: string;
+  /** sprite shown next to the title */
+  image?: string;
+  /** drawn instead of a sprite (empty plots) */
+  icon?: ReactNode;
+  /** level badge or state next to the title */
+  chip?: ReactNode;
+  /** one short line under the title */
+  subtitle?: ReactNode;
+  /** "how it works" text behind the ⓘ button: details on demand */
+  info?: ReactNode;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -54,6 +69,10 @@ export function SlotDrawer({
   const reduce = useReducedMotion();
   const drag = useDragControls();
   const [closing, setClosing] = useState(false);
+  // The ⓘ panel closes again when the player switches plots.
+  const [infoFor, setInfoFor] = useState<number | null>(null);
+  const infoOpen = infoFor === slot;
+  const infoId = `slot-info-${slot}`;
 
   useSheetDialog(isSheet && !closing, panelRef, headingRef);
 
@@ -161,34 +180,85 @@ export function SlotDrawer({
             }}
           >
             <div aria-hidden className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-ink/25 lg:hidden" />
-            <header className="flex items-start gap-3 border-b border-parchment-3/70 px-4 pt-3 pb-3">
+            <header className="flex items-center gap-3 border-b border-parchment-3/70 py-2 pr-2 pl-3 lg:pt-2.5">
+              {image ? (
+                <Image
+                  key={image}
+                  src={image}
+                  alt=""
+                  width={128}
+                  height={128}
+                  sizes="56px"
+                  className={clsx("sprite -my-1 size-14 shrink-0 object-contain", animateIn && "motion-safe:animate-pop")}
+                />
+              ) : (
+                icon && <span className="grid size-14 shrink-0 place-items-center">{icon}</span>
+              )}
               <div className="min-w-0 flex-1">
-                {eyebrow && <p className="text-xs font-bold tracking-wider text-bronze-dark uppercase">{eyebrow}</p>}
                 <h2
                   id={headingId}
                   ref={headingRef}
                   tabIndex={-1}
                   // Focus lands here by script when the panel opens; an underline is enough of a cue.
                   style={{ outline: "none" }}
-                  className="font-display text-xl leading-tight font-bold text-ink decoration-bronze underline-offset-4 focus-visible:underline"
+                  className="font-display truncate text-xl leading-tight font-bold text-ink decoration-bronze underline-offset-4 focus-visible:underline"
                 >
                   {title}
                 </h2>
+                {(chip || subtitle) && (
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                    {chip}
+                    {subtitle && <p className="min-w-0 text-sm leading-tight text-ink-soft">{subtitle}</p>}
+                  </div>
+                )}
               </div>
+              {info && (
+                <button
+                  type="button"
+                  aria-expanded={infoOpen}
+                  aria-controls={infoId}
+                  aria-label="Cómo funciona"
+                  title="Cómo funciona"
+                  onClick={() => setInfoFor(infoOpen ? null : slot)}
+                  className={clsx(
+                    "grid size-11 shrink-0 place-items-center rounded-full transition-colors duration-100",
+                    infoOpen ? "bg-bronze-dark text-marble" : "text-bronze-dark hover:bg-ink/10 hover:text-ink",
+                  )}
+                >
+                  <IconInfo size={22} />
+                </button>
+              )}
               <Link
                 href={closeHref}
                 replace
                 scroll={false}
                 aria-label="Cerrar panel"
                 onClick={() => setClosing(true)}
-                className="-mt-1 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
+                className="grid size-11 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
               >
                 <span aria-hidden>×</span>
               </Link>
             </header>
           </div>
+          <AnimatePresence initial={false}>
+            {info && infoOpen && (
+              <motion.div
+                key={`info-${slot}`}
+                id={infoId}
+                initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="mx-4 mt-3 rounded-xl border border-parchment-3 bg-parchment-2/70 px-3 py-2.5 text-sm leading-snug text-ink-soft">
+                  {info}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* Keyed by plot: switching plots replays the short cascade. */}
-          <div key={slot} className={clsx("flex flex-col gap-4 px-4 pt-4", animateIn && fx.stagger)}>
+          <div key={slot} className={clsx("flex flex-col gap-3 px-4 pt-3", animateIn && fx.stagger)}>
             {children}
           </div>
         </motion.section>

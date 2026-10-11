@@ -6,7 +6,8 @@ import { CITY_GRID, SceneFit } from "@/components/game/scene-layout";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { CityScene } from "@/components/city/city-scene";
 import { CityStatus } from "@/components/city/city-status";
-import { cityHref, parseSlot } from "@/components/city/lib";
+import { readyUpgrades } from "@/components/city/effects";
+import { asPlayer, cityHref, parseSlot } from "@/components/city/lib";
 import { SlotPanel } from "@/components/city/slot-panel";
 import { SlotPresence } from "@/components/city/slot-drawer";
 import { getGame } from "@/server/game-context";
@@ -27,12 +28,15 @@ async function CityContent({ params, searchParams }: Pick<PageProps<"/ciudad/[id
   // Unknown or foreign city id: getGame fell back to one of the player's cities.
   if (game.city.id !== id) redirect(cityHref(game.city.id));
   const slot = parseSlot(query.slot);
+  const ready = readyUpgrades(asPlayer(game.snapshot), game.city, game.snapshot.speed).map((o) => o.slot);
+  // New capitals are called "Polis" + the first letters of the account: invite the player to name it.
+  const nameIt = game.city.isCapital && game.city.name === `Polis ${game.snapshot.player.wallet.slice(0, 4)}`;
 
   return (
     <GameShell game={game}>
       <SceneFit>
         <div className={CITY_GRID}>
-          <CityScene city={game.city} serverNow={game.snapshot.now} selected={slot} />
+          <CityScene city={game.city} serverNow={game.snapshot.now} selected={slot} ready={ready} nameIt={nameIt} />
           {/* Desktop: the column is exactly as tall as the scene; an open panel fills it and scrolls inside. */}
           <aside aria-label="Detalle de la ciudad" className="flex min-w-0 flex-col gap-3 lg:relative lg:self-stretch">
             <div className={clsx("lg:sticky lg:top-3", slot != null && "lg:hidden")}>

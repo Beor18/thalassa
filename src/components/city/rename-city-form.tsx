@@ -30,7 +30,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
         });
       }}
     >
-      <label htmlFor="city-name" className="text-sm font-bold text-ink">
+      <label htmlFor="city-name" className="sr-only">
         Nombre de la ciudad
       </label>
       <div className="flex gap-2">
@@ -48,7 +48,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
           className="h-10 min-w-0 flex-1 rounded-lg border border-parchment-3 bg-marble px-3 text-[15px] text-ink shadow-inner focus-visible:border-bronze"
         />
         <Button type="submit" variant="secondary" disabled={pending || unchanged} aria-busy={pending}>
-          {pending ? "Guardando…" : "Cambiar nombre"}
+          {pending ? "Guardando…" : "Guardar nombre"}
         </Button>
       </div>
       {error ? (
@@ -57,7 +57,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
         </p>
       ) : (
         <p id="city-name-hint" className="text-xs text-ink-soft">
-          Entre 3 y 24 letras. Lo ven todos en la isla.
+          De 3 a 24 letras. Lo ven todos en la isla.
         </p>
       )}
     </form>

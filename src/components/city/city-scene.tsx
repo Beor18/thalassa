@@ -10,6 +10,8 @@ import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { fx as scene } from "@/components/fx/classes";
 import type { GameCity } from "@/server/game-context";
+import { IconUp } from "./icons";
+import { NameCityPrompt } from "./name-city-prompt";
 import { emptySlotLabel, plotId, slotHref } from "./lib";
 import { SceneFrame } from "./scene-frame";
 import { PlotMotion, SceneEvents, type CitySnapshot } from "./scene-events";
@@ -26,7 +28,21 @@ const SCAFFOLD = "/assets/fx/scaffold.webp";
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
 
-export function CityScene({ city, serverNow, selected }: { city: GameCity; serverNow: number; selected: number | null }) {
+export function CityScene({
+  city,
+  serverNow,
+  selected,
+  ready = [],
+  nameIt = false,
+}: {
+  city: GameCity;
+  serverNow: number;
+  selected: number | null;
+  /** plots whose next level the city can pay right now (a small arrow on their badge) */
+  ready?: number[];
+  /** the city still has its automatic name: invite the player to name it */
+  nameIt?: boolean;
+}) {
   const docked = Math.min(city.ships, MOORINGS.length);
   const focusX = selected != null ? CITY_PLOTS[selected].x : CITY_PLOTS[0].x;
   const snapshot: CitySnapshot = {
@@ -48,10 +64,11 @@ export function CityScene({ city, serverNow, selected }: { city: GameCity; serve
           <p className="truncate text-xs text-foam/75 sm:text-sm">
             {city.isCapital ? "Capital" : "Colonia"} en {city.island.name}
           </p>
+          {nameIt && <NameCityPrompt cityId={city.id} name={city.name} />}
         </div>
       </div>
 
-      <SceneFrame focusX={focusX}>
+      <SceneFrame focusX={focusX} hint="Deslizá para ver toda la ciudad">
         <ParallaxScene className="relative aspect-[3/2] w-full min-w-[720px] overflow-clip md:min-w-0">
           <nav aria-label="Lugares de la ciudad" data-depth="1" data-oversize="1.016" className="absolute inset-0">
             <Image
@@ -92,7 +109,15 @@ export function CityScene({ city, serverNow, selected }: { city: GameCity; serve
 
             <SceneEvents cityId={city.id} snapshot={snapshot}>
               {CITY_SLOTS.map(({ slot, kind }) => (
-                <Plot key={slot} city={city} slot={slot} kind={kind} selected={selected === slot} serverNow={serverNow} />
+                <Plot
+                  key={slot}
+                  city={city}
+                  slot={slot}
+                  kind={kind}
+                  selected={selected === slot}
+                  canUpgrade={ready.includes(slot)}
+                  serverNow={serverNow}
+                />
               ))}
             </SceneEvents>
 
@@ -123,9 +148,6 @@ export function CityScene({ city, serverNow, selected }: { city: GameCity; serve
           </div>
         </ParallaxScene>
       </SceneFrame>
-      <p className="pointer-events-none absolute right-2 bottom-2 z-[60] rounded-full bg-sea-950/75 px-2.5 py-1 text-xs font-bold text-foam/90 md:hidden">
-        Deslizá para ver toda la ciudad
-      </p>
     </section>
   );
 }
@@ -167,12 +189,14 @@ function Plot({
   slot,
   kind,
   selected,
+  canUpgrade,
   serverNow,
 }: {
   city: GameCity;
   slot: number;
   kind: SlotKind;
   selected: boolean;
+  canUpgrade: boolean;
   serverNow: number;
 }) {
   const pos = CITY_PLOTS[slot];
@@ -191,7 +215,7 @@ function Plot({
       ? building
         ? `${def.name}, nivel ${building.level}, mejorando a nivel ${work.targetLevel}`
         : `${def.name}, en obra hacia nivel ${work.targetLevel}`
-      : `${def.name}, nivel ${building!.level}`;
+      : `${def.name}, nivel ${building!.level}${canUpgrade ? ". Podés mejorarlo" : ""}`;
     return (
       <Link
         id={plotId(slot)}
@@ -265,9 +289,17 @@ function Plot({
             className="absolute top-[56%] left-[70%] grid size-6 place-items-center rounded-full bg-gradient-to-b from-sea-800 to-sea-950 text-xs font-black text-gold shadow-md ring-1 ring-gold/70 tabular sm:size-7 sm:text-sm"
           >
             {building!.level}
+            {canUpgrade && (
+              <span
+                className="absolute -top-2 -right-2 grid size-4 place-items-center rounded-full bg-success text-white shadow-md ring-1 ring-gold-light/90 sm:size-[18px] motion-safe:animate-[fx-hop_2.8s_ease-in-out_infinite]"
+                style={{ animationDelay: `${(-slot * 0.37).toFixed(2)}s` }}
+              >
+                <IconUp size={11} />
+              </span>
+            )}
           </span>
         )}
-        <SceneRibbon title={def.name} sub={work ? undefined : `Nivel ${building!.level}`} top={84} reveal />
+        <SceneRibbon title={def.name} sub={work ? undefined : canUpgrade ? `Nivel ${building!.level} · se puede mejorar` : `Nivel ${building!.level}`} top={84} reveal />
       </Link>
     );
   }

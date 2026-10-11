@@ -48,6 +48,15 @@ export function totalShips(snapshot: GameSnapshot): number {
   return snapshot.cities.reduce((s, c) => s + c.ships, 0) + snapshot.missions.reduce((s, m) => s + m.ships, 0);
 }
 
+/** Rough wait for estimates ("12 min", "3 h 05 min"): no seconds, rounded up. */
+export function fmtSoon(ms: number): string {
+  const min = Math.max(1, Math.ceil(ms / 60_000));
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h} h ${String(m).padStart(2, "0")} min` : `${h} h`;
+}
+
 export function joinEs(parts: string[]): string {
   if (parts.length <= 1) return parts[0] ?? "";
   return `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;

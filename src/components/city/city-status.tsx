@@ -1,65 +1,106 @@
 import Image from "next/image";
 import Link from "next/link";
-import clsx from "clsx";
 import { BUILDINGS, RESOURCE_INFO } from "@/game/data";
 import { CONSTRUCTION_IMAGE } from "@/game/layout";
 import { Countdown, TimeProgress } from "@/components/ui/countdown";
-import { ResIcon, type ResKey } from "@/components/ui/res";
-import { fmt, fmt1, fmtSigned } from "@/lib/format";
+import { CostList, ResIcon } from "@/components/ui/res";
+import { fmt1, fmtDuration, fmtSigned } from "@/lib/format";
 import type { Game } from "@/server/game-context";
-import { slotHref, unitCount } from "./lib";
+import { SectionTitle, Stat, StatGrid } from "./bits";
+import { readyUpgrades } from "./effects";
+import { FaceIcon, IconChevron, IconHammer, IconSword, IconUp } from "./icons";
+import { asPlayer, slotHref, unitCount } from "./lib";
+import { PopulationBar } from "./population";
 
-/** Compact card next to (desktop) or under (mobile) the scene: current works and what the city makes. */
+const MAX_READY = 4;
+const perHour = (n: number) => `${n > 0.05 ? "+" : n < -0.05 ? "−" : ""}${fmt1(Math.abs(n))}/h`;
+
+/** Card next to (desktop) or under (phones) the scene: the work in progress or what is ready to upgrade, and the city at a glance. */
 export function CityStatus({ game }: { game: Game }) {
   const { snapshot, city } = game;
   const r = city.rates;
   const work = city.construction;
   const training = [...city.training].sort((a, b) => a.endsAt - b.endsAt);
   const barracks = city.buildings.find((b) => b.type === "barracks");
+  const ready = readyUpgrades(asPlayer(snapshot), city, snapshot.speed);
   const goldNet = r.goldIncome - r.goldUpkeep;
-  const wineNet = (r.luxuryResource === "wine" ? r.luxury : 0) - r.wineUse;
+  const lux = r.luxuryResource;
 
   return (
-    <div className="panel flex flex-col gap-4 p-4">
-      <section aria-labelledby="works-title" className="flex flex-col gap-2.5">
-        <h2 id="works-title" className="font-display text-base font-bold">
+    <div className="panel flex flex-col gap-3 p-3.5">
+      <section aria-labelledby="works-title" className="flex flex-col gap-2">
+        <SectionTitle as="h2" id="works-title" aside={work ? undefined : ready.length ? `${ready.length} para mejorar` : "sin obras"}>
           Obras
-        </h2>
+        </SectionTitle>
         {work ? (
           <Link
             href={slotHref(city.id, work.slot)}
             scroll={false}
-            className="group flex items-center gap-3 rounded-xl border border-parchment-3 bg-parchment-2/60 p-2.5 transition-colors duration-100 hover:bg-parchment-2"
+            className="group flex items-center gap-3 rounded-xl border border-gold/60 bg-gradient-to-b from-gold/20 to-parchment-2/60 p-2 transition-colors duration-100 hover:border-bronze"
           >
-            <Image src={CONSTRUCTION_IMAGE} alt="" width={112} height={112} sizes="56px" className="sprite size-14 shrink-0 object-contain" />
+            <Image src={CONSTRUCTION_IMAGE} alt="" width={112} height={112} sizes="48px" className="sprite size-12 shrink-0 object-contain" />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="flex items-baseline justify-between gap-2">
                 <span className="truncate font-bold">
-                  {BUILDINGS[work.type].name} · nivel {work.targetLevel}
+                  {BUILDINGS[work.type].name}
+                  <span className="font-bold text-ink-soft"> · nivel {work.targetLevel}</span>
                 </span>
                 <span className="shrink-0 text-sm font-extrabold text-bronze-dark">
                   <Countdown endsAt={work.endsAt} serverNow={snapshot.now} />
                 </span>
               </span>
               <TimeProgress startedAt={work.startedAt} endsAt={work.endsAt} serverNow={snapshot.now} />
-              <span className="text-xs font-bold text-ink-soft group-hover:text-ink">Ver obra</span>
             </span>
+            <IconChevron size={16} className="shrink-0 text-ink-soft transition-transform duration-100 group-hover:translate-x-0.5" />
           </Link>
+        ) : ready.length > 0 ? (
+          <ul className="flex flex-col gap-1" aria-label="Edificios que podés mejorar ya">
+            {ready.slice(0, MAX_READY).map((o) => (
+              <li key={o.slot}>
+                <Link
+                  href={slotHref(city.id, o.slot)}
+                  scroll={false}
+                  className="group flex min-h-11 items-center gap-2 rounded-lg py-1 pr-1.5 pl-1 transition-colors duration-100 hover:bg-parchment-2/80"
+                >
+                  <Image src={BUILDINGS[o.type].image} alt="" width={80} height={80} sizes="36px" className="sprite size-9 shrink-0 object-contain" />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="flex items-center gap-1 truncate text-sm font-bold">
+                      {BUILDINGS[o.type].name}
+                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-success/15 px-1.5 text-xs font-extrabold text-success">
+                        <IconUp size={11} />
+                        {o.next}
+                        <span className="sr-only">: mejorar a nivel {o.next}</span>
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2 text-xs text-ink-soft">
+                      <CostList cost={o.cost} className="gap-x-2 text-xs [&_img]:size-3.5" />
+                      <span className="tabular">{fmtDuration(o.seconds * 1000)}</span>
+                    </span>
+                  </span>
+                  <IconChevron size={16} className="shrink-0 text-ink-soft transition-transform duration-100 group-hover:translate-x-0.5" />
+                </Link>
+              </li>
+            ))}
+            {ready.length > MAX_READY && <li className="px-1 text-xs text-ink-soft">y {ready.length - MAX_READY} más, marcados en el mapa</li>}
+          </ul>
         ) : (
-          <div className="rounded-xl border border-dashed border-parchment-3 p-3">
-            <p className="font-bold">Sin obras en marcha</p>
-            <p className="text-sm text-ink-soft">Tocá un lugar con + para construir o un edificio para mejorarlo.</p>
-          </div>
+          <p className="flex items-center gap-2 rounded-xl border border-dashed border-parchment-3 px-3 py-2 text-sm text-ink-soft">
+            <IconHammer size={16} className="shrink-0 text-bronze-dark" />
+            Tocá un edificio para mejorarlo o un ＋ para construir.
+          </p>
         )}
         {training.length > 0 && barracks && (
           <Link
             href={slotHref(city.id, barracks.slot)}
             scroll={false}
-            className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm hover:bg-ink/5"
+            className="flex min-h-10 items-center justify-between gap-2 rounded-lg px-1 text-sm hover:bg-ink/5"
           >
-            <span className="min-w-0 truncate">
-              Entrenando {unitCount(training[0].unit, training[0].count)}
-              {training.length > 1 ? ` y ${training.length - 1} más` : ""}
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <IconSword size={15} className="shrink-0 text-terracotta" />
+              <span className="truncate">
+                Entrenando {unitCount(training[0].unit, training[0].count)}
+                {training.length > 1 ? ` y ${training.length - 1} más` : ""}
+              </span>
             </span>
             <span className="shrink-0 font-bold text-ink-soft">
               <Countdown endsAt={training[training.length - 1].endsAt} serverNow={snapshot.now} />
@@ -68,62 +109,30 @@ export function CityStatus({ game }: { game: Game }) {
         )}
       </section>
 
-      <section aria-labelledby="city-summary-title" className="flex flex-col gap-2.5">
-        <h2 id="city-summary-title" className="font-display text-base font-bold">
-          La ciudad hoy
-        </h2>
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
-          <Row icon="citizens" label="Población" value={`${fmt(city.population)} / ${fmt(r.housing)}`} />
-          <Row
+      <section aria-labelledby="city-summary-title" className="flex flex-col gap-2 border-t border-parchment-3/70 pt-3">
+        <SectionTitle as="h2" id="city-summary-title" aside="por hora">
+          Ciudad
+        </SectionTitle>
+        <PopulationBar population={city.population} housing={r.housing} growth={r.growth} />
+        <StatGrid>
+          <Stat
+            icon={<FaceIcon happy={r.netHappiness >= 0} />}
             label="Satisfacción"
             value={fmtSigned(r.netHappiness)}
             tone={r.netHappiness < 0 ? "bad" : undefined}
-            glyph={r.netHappiness >= 0 ? "☺" : "☹"}
           />
-          <Row icon="wood" label="Madera" value={`+${fmt1(r.wood)}/h`} />
-          <Row
-            icon={r.luxuryResource}
-            label={RESOURCE_INFO[r.luxuryResource].label}
-            value={r.luxuryResource === "wine" ? `${wineNet >= 0 ? "+" : "−"}${fmt1(Math.abs(wineNet))}/h` : `+${fmt1(r.luxury)}/h`}
-            tone={r.luxuryResource === "wine" && wineNet < 0 ? "bad" : undefined}
+          <Stat icon={<ResIcon kind="research" size={20} />} label="Investigación" value={perHour(r.research)} />
+          <Stat icon={<ResIcon kind="gold" size={20} />} label="Oro" value={perHour(goldNet)} tone={goldNet < 0 ? "bad" : undefined} />
+          <Stat icon={<ResIcon kind="wood" size={20} />} label="Madera" value={perHour(r.wood)} />
+          <Stat
+            icon={<ResIcon kind={lux} size={20} />}
+            label={RESOURCE_INFO[lux].label}
+            value={perHour(lux === "wine" ? r.luxury - r.wineUse : r.luxury)}
+            tone={lux === "wine" && r.luxury - r.wineUse < -0.05 ? "bad" : undefined}
           />
-          {r.luxuryResource !== "wine" && r.wineUse > 0 && (
-            <Row icon="wine" label="Vino" value={`−${fmt1(r.wineUse)}/h`} tone="bad" />
-          )}
-          <Row icon="research" label="Investigación" value={`+${fmt1(r.research)}/h`} />
-          <Row icon="gold" label="Oro" value={`${fmtSigned(goldNet)}/h`} tone={goldNet < 0 ? "bad" : undefined} />
-        </dl>
+          {lux !== "wine" && r.wineUse > 0 && <Stat icon={<ResIcon kind="wine" size={20} />} label="Vino" value={perHour(-r.wineUse)} tone="bad" />}
+        </StatGrid>
       </section>
-    </div>
-  );
-}
-
-function Row({
-  icon,
-  glyph,
-  label,
-  value,
-  tone,
-}: {
-  icon?: ResKey;
-  glyph?: string;
-  label: string;
-  value: string;
-  tone?: "bad";
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      {icon ? (
-        <ResIcon kind={icon} size={22} />
-      ) : (
-        <span aria-hidden className="grid size-[22px] shrink-0 place-items-center text-lg leading-none text-bronze-dark">
-          {glyph}
-        </span>
-      )}
-      <div className="min-w-0">
-        <dt className="truncate text-xs text-ink-soft">{label}</dt>
-        <dd className={clsx("font-extrabold tabular", tone === "bad" && "text-danger")}>{value}</dd>
-      </div>
     </div>
   );
 }

@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import clsx from "clsx";
 import type { ResourceBag, UnitType } from "@/game/data";
 import { ActionButton } from "@/components/ui/action-button";
 import { CostList, ResIcon } from "@/components/ui/res";
 import { fmt, fmtDuration, fmtSigned } from "@/lib/format";
 import { trainAction } from "@/server/actions";
 import { AmountInput } from "./amount-input";
-import { Duration } from "./bits";
+import { Duration, jumpLink } from "./bits";
+import { IconChevron, IconLock, IconShield, IconSword } from "./icons";
 import { missingText, unitCount, unitPlural } from "./lib";
 
-export interface TrainUnitProps {
-  cityId: string;
+export interface UnitOption {
   unit: UnitType;
   name: string;
   image: string;
@@ -20,108 +22,217 @@ export interface TrainUnitProps {
   defense: number;
   /** gold per hour per unit, game speed included */
   upkeep: number;
-  /** tax a free citizen pays per hour (every recruit stops paying it), game speed included */
-  taxPerCitizen: number;
-  /** the player's net gold per hour right now, every city included */
-  goldPerHour: number;
   cost: Partial<ResourceBag>;
   /** seconds per unit with techs, barracks and speed applied */
   secondsPerUnit: number;
-  freeCitizens: number;
-  res: ResourceBag;
+  /** soldiers of this kind in the city */
+  home: number;
+  /** why it can't be trained yet, or null */
+  lock: string | null;
+  /** where to go to unlock it */
+  unlock: { href: string; label: string } | null;
 }
 
-export function TrainUnitForm(props: TrainUnitProps) {
-  const { cityId, unit, cost, res, freeCitizens } = props;
-  const affordable = Object.entries(cost).reduce(
+/**
+ * Barracks: a row of unit portraits (count at home, lock when not available) and one form for the
+ * picked unit. One button, always saying what it trains.
+ */
+export function TrainingPicker({
+  cityId,
+  units,
+  freeCitizens,
+  res,
+  goldPerHour,
+  taxPerCitizen,
+}: {
+  cityId: string;
+  units: UnitOption[];
+  freeCitizens: number;
+  res: ResourceBag;
+  /** the player's net gold per hour right now, every city included */
+  goldPerHour: number;
+  /** tax a free citizen pays per hour (every recruit stops paying it), game speed included */
+  taxPerCitizen: number;
+}) {
+  const [picked, setPicked] = useState<UnitType>(() => (units.find((u) => !u.lock) ?? units[0]).unit);
+  const u = units.find((x) => x.unit === picked) ?? units[0];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div role="radiogroup" aria-label="Tropa" className="grid grid-cols-6 gap-1.5">
+        {units.map((o) => (
+          <label key={o.unit} className="relative cursor-pointer">
+            <input
+              type="radio"
+              name={`unit-${cityId}`}
+              value={o.unit}
+              checked={o.unit === picked}
+              onChange={() => setPicked(o.unit)}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden
+              className={clsx(
+                "relative grid aspect-square place-items-center rounded-lg bg-marble/70 ring-1 ring-parchment-3 transition-[background-color,box-shadow] duration-100",
+                "hover:bg-parchment-2 peer-checked:bg-gold/25 peer-checked:ring-2 peer-checked:ring-bronze peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold",
+              )}
+            >
+              <Image
+                src={o.image}
+                alt=""
+                width={96}
+                height={96}
+                sizes="56px"
+                className={clsx("size-[88%] object-contain", o.lock ? "opacity-55 grayscale-[70%]" : "sprite")}
+              />
+              {o.lock && (
+                <span className="absolute top-0.5 right-0.5 grid size-4 place-items-center rounded-full bg-sea-950/85 text-gold">
+                  <IconLock size={10} strokeWidth={2.6} />
+                </span>
+              )}
+              {o.home > 0 && (
+                <span className="absolute -right-1 -bottom-1 min-w-5 rounded-full bg-sea-950 px-1 text-center text-[11px] leading-[18px] font-extrabold text-gold tabular ring-1 ring-gold/60">
+                  {fmt(o.home)}
+                </span>
+              )}
+            </span>
+            <span className="sr-only">
+              {o.name}
+              {o.home > 0 ? `, ${unitCount(o.unit, o.home)} en la ciudad` : ""}
+              {o.lock ? ", bloqueado" : ""}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      <UnitDetail key={u.unit} cityId={cityId} u={u} freeCitizens={freeCitizens} res={res} goldPerHour={goldPerHour} taxPerCitizen={taxPerCitizen} />
+    </div>
+  );
+}
+
+function UnitDetail({
+  cityId,
+  u,
+  freeCitizens,
+  res,
+  goldPerHour,
+  taxPerCitizen,
+}: {
+  cityId: string;
+  u: UnitOption;
+  freeCitizens: number;
+  res: ResourceBag;
+  goldPerHour: number;
+  taxPerCitizen: number;
+}) {
+  const affordable = Object.entries(u.cost).reduce(
     (m, [r, c]) => (c && c > 0 ? Math.min(m, Math.floor(res[r as keyof ResourceBag] / c)) : m),
     1000,
   );
   const max = Math.max(0, Math.min(1000, freeCitizens, affordable));
   const [count, setCount] = useState(() => Math.min(max, 10));
   const n = Math.max(0, Math.min(count, max));
-  const total = Object.fromEntries(Object.entries(cost).map(([r, c]) => [r, (c ?? 0) * Math.max(1, n)])) as Partial<ResourceBag>;
-  const seconds = Math.max(3, Math.round(props.secondsPerUnit * Math.max(1, n)));
-  const reason =
-    freeCitizens === 0
-      ? "No hay ciudadanos libres para reclutar."
-      : missingText(total, res);
-  const inputId = `train-${unit}`;
-  const goldAfter = props.goldPerHour - Math.max(1, n) * (props.upkeep + props.taxPerCitizen);
+  const total = Object.fromEntries(Object.entries(u.cost).map(([r, c]) => [r, (c ?? 0) * Math.max(1, n)])) as Partial<ResourceBag>;
+  const seconds = Math.max(3, Math.round(u.secondsPerUnit * Math.max(1, n)));
+  const reason = freeCitizens === 0 ? "No hay ciudadanos libres para reclutar." : missingText(total, res);
+  const inputId = `train-${u.unit}`;
+  const goldAfter = goldPerHour - Math.max(1, n) * (u.upkeep + taxPerCitizen);
   const goesNegative = goldAfter < 0;
 
   return (
-    <li className="flex flex-col gap-3 rounded-xl border border-parchment-3 bg-parchment-2/60 p-3">
-      <div className="flex gap-3">
-        <Image src={props.image} alt="" width={128} height={128} sizes="64px" className="sprite size-16 shrink-0 object-contain" />
-        <div className="min-w-0 flex-1">
-          <h4 className="font-display text-base leading-tight font-bold">{props.name}</h4>
-          <dl className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-ink-soft">
-            <div className="flex gap-1">
-              <dt>Ataque</dt>
-              <dd className="font-bold text-ink tabular">{props.attack}</dd>
-            </div>
-            <div className="flex gap-1">
-              <dt>Defensa</dt>
-              <dd className="font-bold text-ink tabular">{props.defense}</dd>
-            </div>
-            <div className="flex items-center gap-1">
-              <dt>Sueldo</dt>
-              <dd className="inline-flex items-center gap-0.5 font-bold text-ink tabular">
-                <ResIcon kind="gold" size={14} />
-                {fmt(props.upkeep)}/h
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-soft">
-            Cada uno: <CostList cost={cost} className="text-xs" />
-          </p>
-        </div>
+    <div className="flex flex-col gap-2.5 rounded-xl border border-parchment-3 bg-parchment-2/60 p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h4 className="font-display text-base leading-tight font-bold">{u.name}</h4>
+        <dl className="flex items-center gap-2.5 text-sm font-bold text-ink tabular">
+          <div className="inline-flex items-center gap-0.5" title="Ataque">
+            <dt>
+              <IconSword size={15} className="text-terracotta" />
+              <span className="sr-only">Ataque</span>
+            </dt>
+            <dd>{u.attack}</dd>
+          </div>
+          <div className="inline-flex items-center gap-0.5" title="Defensa">
+            <dt>
+              <IconShield size={15} className="text-sea-700" />
+              <span className="sr-only">Defensa</span>
+            </dt>
+            <dd>{u.defense}</dd>
+          </div>
+          <div className="inline-flex items-center gap-0.5" title="Sueldo por hora">
+            <dt>
+              <ResIcon kind="gold" size={15} />
+              <span className="sr-only">Sueldo</span>
+            </dt>
+            <dd>{fmt(u.upkeep)}/h</dd>
+          </div>
+        </dl>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={inputId} className="text-sm font-bold">
-          Cantidad
-        </label>
-        <AmountInput
-          id={inputId}
-          value={count}
-          max={max}
-          onChange={setCount}
-          describedBy={`${inputId}-hint`}
-          maxLabel={`Entrenar el máximo de ${props.name.toLowerCase()}`}
-        />
-        <div id={`${inputId}-hint`} className="flex flex-col gap-1.5">
-          <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
-            <CostList cost={total} have={res} />
-            <Duration>{fmtDuration(seconds * 1000)}</Duration>
+      {u.lock ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="inline-flex items-center gap-1.5 text-sm font-bold text-bronze-dark">
+            <IconLock size={15} />
+            {u.lock}
           </p>
-          <p
-            className={
-              goesNegative
-                ? "flex flex-wrap items-center gap-x-1.5 rounded-lg bg-danger/10 px-2.5 py-1.5 text-sm font-bold text-danger ring-1 ring-danger/30"
-                : "flex flex-wrap items-center gap-x-1.5 text-sm text-ink-soft"
-            }
-          >
-            <ResIcon kind="gold" size={16} />
-            <span>
-              Tu oro por hora pasa de <span className="tabular">{fmtSigned(Math.round(props.goldPerHour))}/h</span> a{" "}
-              <strong className="tabular">{fmtSigned(Math.round(goldAfter))}/h</strong>
-              {goesNegative ? ". Vas a perder oro cada hora." : "."}
+          {u.unlock && (
+            <Link href={u.unlock.href} scroll={!u.unlock.href.startsWith("/ciudad/")} className={jumpLink}>
+              {u.unlock.label}
+              <IconChevron size={14} />
+            </Link>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <label htmlFor={inputId} className="sr-only">
+              Cantidad de {unitPlural(u.unit)}
+            </label>
+            <AmountInput
+              id={inputId}
+              value={count}
+              max={max}
+              onChange={setCount}
+              describedBy={`${inputId}-hint`}
+              className="w-40 shrink-0"
+              maxLabel={`Entrenar el máximo de ${unitPlural(u.unit)}`}
+            />
+            <span className="min-w-0 text-xs leading-tight text-ink-soft">
+              <span className="font-bold text-ink tabular">{fmt(freeCitizens)}</span> libres
+              <br />
+              cada uno: <CostList cost={u.cost} className="gap-x-2 text-xs" />
             </span>
-          </p>
-        </div>
-      </div>
-
-      <ActionButton
-        className="w-full"
-        disabled={n < 1 || reason != null}
-        pendingLabel="Reclutando…"
-        action={() => trainAction({ cityId, unit, count: n })}
-      >
-        {n >= 1 ? `Entrenar ${unitCount(unit, n)}` : `Entrenar ${unitPlural(unit)}`}
-      </ActionButton>
-      {reason && <p className="-mt-1 text-sm font-bold text-danger">{reason}</p>}
-    </li>
+          </div>
+          <div id={`${inputId}-hint`} className="flex flex-col gap-1.5">
+            <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+              <CostList cost={total} have={res} />
+              <Duration>{fmtDuration(seconds * 1000)}</Duration>
+            </p>
+            <p
+              className={clsx(
+                "flex flex-wrap items-center gap-x-1.5 text-sm tabular",
+                goesNegative ? "rounded-lg bg-danger/10 px-2.5 py-1 font-bold text-danger ring-1 ring-danger/30" : "text-ink-soft",
+              )}
+            >
+              <ResIcon kind="gold" size={16} />
+              <span className="sr-only">Tu oro por hora pasa de</span>
+              <span>{fmtSigned(Math.round(goldPerHour))}/h</span>
+              <span aria-hidden>→</span>
+              <span className="sr-only">a</span>
+              <strong className={goesNegative ? undefined : "text-ink"}>{fmtSigned(Math.round(goldAfter))}/h</strong>
+              {goesNegative && <span>· vas a perder oro</span>}
+            </p>
+          </div>
+          <ActionButton
+            className="w-full"
+            disabled={n < 1 || reason != null}
+            pendingLabel="Reclutando…"
+            action={() => trainAction({ cityId, unit: u.unit, count: n })}
+          >
+            {n >= 1 ? `Entrenar ${unitCount(u.unit, n)}` : `Entrenar ${unitPlural(u.unit)}`}
+          </ActionButton>
+          {reason && <p className="-mt-1 text-sm font-bold text-danger">{reason}</p>}
+        </>
+      )}
+    </div>
   );
 }

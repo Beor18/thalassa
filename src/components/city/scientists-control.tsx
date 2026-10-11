@@ -6,6 +6,7 @@ import { ResIcon } from "@/components/ui/res";
 import { fmt, fmt1 } from "@/lib/format";
 import { setWorkersAction } from "@/server/actions";
 import { AmountInput } from "./amount-input";
+import { SectionTitle, Stat, StatGrid } from "./bits";
 
 export function ScientistsControl({
   cityId,
@@ -34,16 +35,12 @@ export function ScientistsControl({
     changed && n === 0 ? "Mandar a casa a los científicos" : `Asignar ${fmt(n)} ${n === 1 ? "científico" : "científicos"}`;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <label htmlFor="scientists" className="text-sm font-bold">
-            Científicos
-          </label>
-          <span className="text-xs text-ink-soft tabular">
-            Hoy trabajan {fmt(current)} · {fmt(seats)} pupitres · {fmt(freeCitizens)} libres
-          </span>
-        </div>
+        <SectionTitle aside={`hoy ${fmt(current)} · ${fmt(seats)} pupitres · ${fmt(freeCitizens)} libres`}>Científicos</SectionTitle>
+        <label htmlFor="scientists" className="sr-only">
+          Científicos
+        </label>
         <div className="flex items-center gap-3">
           <input
             type="range"
@@ -60,32 +57,26 @@ export function ScientistsControl({
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-2 text-sm">
-        <div className="rounded-lg bg-marble/55 px-3 py-2 ring-1 ring-parchment-3/80">
-          <dt className="text-xs font-bold text-ink-soft">Investigación</dt>
-          <dd className="inline-flex items-center gap-1 text-xl font-extrabold tabular">
-            <ResIcon kind="research" size={18} />+{fmt1(n * researchPer)}/h
-          </dd>
-        </div>
-        <div className="rounded-lg bg-marble/55 px-3 py-2 ring-1 ring-parchment-3/80">
-          <dt className="text-xs font-bold text-ink-soft">Sueldos</dt>
-          <dd className="inline-flex items-center gap-1 text-xl font-extrabold tabular">
-            <ResIcon kind="gold" size={18} />−{fmt1(n * goldPer)}/h
-          </dd>
-        </div>
-      </dl>
+      <StatGrid>
+        <Stat
+          icon={<ResIcon kind="research" size={20} />}
+          label="Investigación"
+          value={`+${fmt1(n * researchPer)}/h`}
+          tip={`Cada científico suma ${fmt1(researchPer)} por hora`}
+        />
+        <Stat
+          icon={<ResIcon kind="gold" size={20} />}
+          label="Sueldos"
+          value={`−${fmt1(n * goldPer)}/h`}
+          tip={`Cada científico cobra ${fmt1(goldPer)} de oro por hora`}
+          align="end"
+        />
+      </StatGrid>
 
-      <ActionButton
-        className="w-full"
-        disabled={!changed}
-        pendingLabel="Asignando…"
-        action={() => setWorkersAction({ cityId, scientists: n })}
-      >
+      <ActionButton className="w-full" disabled={!changed} pendingLabel="Asignando…" action={() => setWorkersAction({ cityId, scientists: n })}>
         {label}
       </ActionButton>
-      {max === 0 && (
-        <p className="text-sm font-bold text-bronze-dark">No hay ciudadanos libres para sentar en la academia.</p>
-      )}
+      {max === 0 && <p className="-mt-1 text-sm font-bold text-bronze-dark">No hay ciudadanos libres para sentar en la academia.</p>}
     </div>
   );
 }

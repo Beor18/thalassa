@@ -293,6 +293,36 @@
   }
 }
 
+/* A hammer tapping (work in progress icons). */
+@keyframes fx-hammer {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-22deg);
+  }
+  85% {
+    transform: rotate(4deg);
+  }
+}
+
+/* "Can upgrade" arrow on a level badge: a short hop now and then. */
+@keyframes fx-hop {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+  }
+  80% {
+    transform: translateY(-3px);
+  }
+  90% {
+    transform: translateY(0);
+  }
+}
+
 @keyframes fx-rise-in {
   from {
     opacity: 0;
