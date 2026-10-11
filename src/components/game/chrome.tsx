@@ -1,34 +1,43 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import type { AdvisorHint } from "@/game/engine";
-import { RESOURCES } from "@/game/data";
-import { ResIcon } from "@/components/ui/res";
+import { buttonClass } from "@/components/ui/button";
+import { useAnchoredPopover } from "@/components/ui/popover";
 import { markShellMount } from "@/components/motion/late-mount";
-import {
-  isNewAdvisor,
-  markAdvisorSeen,
-  readChrome,
-  rememberChrome,
-  subscribeNever,
-  type ChromeData,
-  type HeaderData,
-} from "./chrome-cache";
-import { OwlIcon } from "./icons";
-import { CitySwitcher, GameNav, NavPlaceholder } from "./nav";
-import { BAR_LAYOUT, ResourceBar } from "./resource-bar";
+import { isNewAdvisor, markAdvisorSeen, readChrome, rememberChrome, subscribeNever, type ChromeData } from "./chrome-cache";
+import { IconChevron, IconLeave, OwlIcon } from "./icons";
+import { CitySwitcher, GameNav, NavPlaceholder, TabBar, TabBarPlaceholder } from "./nav";
+import { ResourceBar, ResourceBarPlaceholder } from "./resource-bar";
 
 /** Stays still during section changes (see ::view-transition-group(game-header) in globals.css). */
 const ANCHOR = { viewTransitionName: "game-header" } as const;
 
+/*
+  Layout, from the top:
+  - desktop (1024px+): brand, sections and account on one line; then the resource bar, opened by
+    the city in focus, with the advisor at its right when there is room.
+  - phones and tablets: brand, city and account; the resources in two even rows; the advisor in
+    one line; the sections in a bar at the bottom of the screen.
+*/
+const ROW = "flex h-11 items-center gap-2 lg:gap-3 xl:gap-5";
+const BRAND =
+  "font-display text-base font-black tracking-[0.12em] text-gold [text-shadow:0_1px_0_var(--color-bronze-deep),0_2px_10px_rgb(6_26_48/0.7)] sm:text-lg sm:tracking-[0.16em] xl:text-xl xl:tracking-[0.18em]";
+
 /**
- * Brand, city switcher, HUD, sections and advisor. `fromCache` renders the last header while the
- * next section loads: same pixels, no entrance animations, nothing recorded.
+ * Brand, sections, account, live resources and advisor. `fromCache` renders the last header while
+ * the next section loads: same pixels, no entrance animations, nothing recorded.
  */
-export function GameChrome({ header, advisor, fromCache = false }: ChromeData & { fromCache?: boolean }) {
+export function GameChrome({
+  header,
+  advisor,
+  fromCache = false,
+  anchored = true,
+}: ChromeData & { fromCache?: boolean; anchored?: boolean }) {
   useState(() => {
     if (!fromCache) markShellMount();
     return null;
@@ -36,99 +45,243 @@ export function GameChrome({ header, advisor, fromCache = false }: ChromeData & 
   useEffect(() => {
     if (!fromCache) rememberChrome({ header, advisor });
   }, [header, advisor, fromCache]);
+  const shownAdvisor = useHeldWhileSheetOpen(advisor);
 
+  // The tab bar sits outside the anchored header: view-transition-name makes the header its own
+  // stacking context, which would trap the bar under the page.
   return (
-    <div style={ANCHOR} className="flex flex-col gap-1.5 sm:gap-3">
-      <header className="flex flex-col gap-1.5 sm:gap-2.5">
-        <TopRow header={header} />
-        <ResourceBar {...header.bar} />
-        <GameNav cityId={header.cityId} islandId={header.islandId} unreadReports={header.unreadReports} />
-      </header>
-      <AnimatePresence initial={false} mode="wait">
-        {advisor && <AdvisorCard key={advisor.title} advisor={advisor} quiet={fromCache} />}
-      </AnimatePresence>
-    </div>
+    <>
+      <div style={anchored ? ANCHOR : undefined} className="flex flex-col">
+        <SkipLink />
+        <header className="flex flex-col gap-1.5">
+          <div className={ROW}>
+            <Link
+              href={`/ciudad/${header.cityId}`}
+              className={clsx("-ml-1.5 inline-flex min-h-11 shrink-0 items-center rounded-lg px-1.5", BRAND)}
+            >
+              THALASSA
+            </Link>
+            <div className="flex min-w-0 lg:hidden">
+              <CitySwitcher currentId={header.cityId} cities={header.cities} />
+            </div>
+            <GameNav cityId={header.cityId} islandId={header.islandId} unreadReports={header.unreadReports} className="hidden lg:flex" />
+            <AccountMenu name={header.playerName} speed={header.speed} />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <ResourceBar
+              {...header.bar}
+              lead={<CitySwitcher variant="bar" currentId={header.cityId} cities={header.cities} />}
+              className="w-full lg:w-auto"
+            />
+            {/* The slot opens and closes smoothly (a finished hint must not yank the page up); hints swap inside it. */}
+            <AnimatePresence initial={false}>
+              {shownAdvisor && (
+                <motion.div
+                  key="advisor"
+                  className="min-w-0 grow basis-80 2xl:ml-auto 2xl:max-w-[46rem]"
+                  initial={{ height: 0, opacity: 0, overflow: "hidden" }}
+                  animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }}
+                  exit={{ height: 0, opacity: 0, overflow: "hidden" }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <AnimatePresence initial={false} mode="wait">
+                    <Advisor key={shownAdvisor.title} advisor={shownAdvisor} quiet={fromCache} />
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </header>
+      </div>
+      <TabBar cityId={header.cityId} islandId={header.islandId} unreadReports={header.unreadReports} anchored={anchored} />
+    </>
   );
 }
 
-function TopRow({ header }: { header: HeaderData }) {
+const sameHint = (a: AdvisorHint | null, b: AdvisorHint | null) => a?.title === b?.title && a?.href === b?.href && a?.body === b?.body;
+
+/**
+ * A hint that just got done stays put while a modal sheet is open (the page behind it must not
+ * jump); its slot closes once the sheet is gone, where the player can see it happen.
+ */
+function useHeldWhileSheetOpen(advisor: AdvisorHint | null) {
+  const [held, setHeld] = useState(advisor);
+  // Derived state: a new hint replaces the held one right away.
+  if (advisor && !sameHint(advisor, held)) setHeld(advisor);
+  useEffect(() => {
+    if (advisor || !held) return;
+    const release = () => {
+      if (document.querySelector('[aria-modal="true"]')) return;
+      observer.disconnect();
+      setHeld(null);
+    };
+    const observer = new MutationObserver(release);
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-modal"] });
+    const frame = requestAnimationFrame(release);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [advisor, held]);
+  return advisor ?? held;
+}
+
+/** First stop for keyboards: jumps over the header to the section on screen. */
+function SkipLink() {
+  const jump = (e: MouseEvent<HTMLAnchorElement>) => {
+    // Sections kept alive in the background are hidden: pick the main that is on screen.
+    const main = Array.from(document.querySelectorAll("main")).find((m) => m.getClientRects().length > 0);
+    if (!main) return;
+    e.preventDefault();
+    main.focus({ preventScroll: true });
+    main.scrollIntoView({ block: "start" });
+  };
   return (
-    <div className="flex items-center justify-between gap-x-2 sm:gap-x-3">
-      <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-        <Link
-          href={`/ciudad/${header.cityId}`}
-          className="-ml-2 inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 font-display text-lg font-black tracking-[0.14em] text-gold [text-shadow:0_1px_0_var(--color-bronze-deep),0_2px_10px_rgb(6_26_48/0.7)] sm:text-xl sm:tracking-[0.18em]"
-        >
-          THALASSA
-        </Link>
-        <span aria-hidden className="hidden h-6 w-px bg-foam/25 sm:block" />
-        <CitySwitcher currentId={header.cityId} cities={header.cities} />
-      </div>
-      <div className="-mr-2 flex shrink-0 items-center gap-1 text-sm text-foam/80 sm:gap-2">
-        <span className="hidden max-w-40 truncate sm:inline">{header.playerName}</span>
+    <a
+      href="#"
+      onClick={jump}
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:rounded-lg focus:bg-parchment focus:px-4 focus:py-2.5 focus:font-bold focus:text-ink focus:shadow-lg"
+    >
+      Saltar al contenido
+    </a>
+  );
+}
+
+/** Player coin with the game speed; opens the name, what "red de prueba" means, and Salir. */
+function AccountMenu({ name, speed }: { name: string; speed: number }) {
+  const pop = useAnchoredPopover<HTMLButtonElement>({ align: "end", gap: 6 });
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div className="-mr-1.5 ml-auto shrink-0">
+      <button
+        type="button"
+        {...pop.triggerProps}
+        aria-label={`Tu cuenta: ${name}. Red de prueba, tiempo ×${speed}`}
+        className={clsx(
+          "flex h-11 items-center gap-1.5 rounded-full pr-1.5 pl-1 text-foam/90 transition-colors hover:bg-foam/10 hover:text-foam",
+          pop.open && "bg-foam/10 text-foam",
+        )}
+      >
         <span
-          title={`Jugás en la red de prueba de Solana y el tiempo corre ${header.speed} veces más rápido.`}
-          className="hidden rounded-full bg-sea-800/90 px-2.5 py-1 text-xs font-bold whitespace-nowrap text-sea-300 ring-1 ring-sea-500/40 sm:inline"
+          aria-hidden
+          className="grid size-8 place-items-center rounded-full bg-gradient-to-b from-gold-light via-gold to-bronze font-display text-[15px] font-black text-sea-950 shadow-[0_1px_0_rgb(255_255_255/0.5)_inset,0_2px_6px_-2px_rgb(2_10_20/0.7)] ring-1 ring-bronze-deep/40"
         >
-          Red de prueba ×{header.speed}
+          {initial}
         </span>
-        <Link
-          href="/salir"
-          prefetch={false}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 font-bold text-foam/75 underline-offset-4 transition-colors hover:text-foam hover:underline"
+        <span className="hidden max-w-40 truncate text-sm font-bold xl:block">{name}</span>
+        <span
+          aria-hidden
+          className="hidden rounded-full bg-sea-800/90 px-1.5 py-0.5 text-[11px] leading-none font-bold whitespace-nowrap text-sea-300 ring-1 ring-sea-500/40 sm:inline"
         >
-          Salir
-        </Link>
+          <span className="hidden 2xl:inline">Red de prueba </span>×{speed}
+        </span>
+        <IconChevron className={clsx("size-4 text-sea-300 transition-transform duration-200", pop.open && "rotate-180")} />
+      </button>
+      <div {...pop.popoverProps} className="hud-pop">
+        <div className="panel w-64 p-1.5">
+          <div className="px-2.5 pt-1.5 pb-2.5">
+            <p className="truncate font-display text-[15px] font-bold text-ink">{name}</p>
+            <p className="mt-1 text-sm leading-snug text-ink-soft">
+              Red de prueba: el tiempo corre <b className="text-ink">{speed} veces</b> más rápido.
+            </p>
+          </div>
+          <Link
+            href="/salir"
+            prefetch={false}
+            className="flex min-h-11 items-center gap-2.5 rounded-lg border-t border-parchment-3/70 px-2.5 font-bold text-ink transition-colors hover:bg-parchment-2 focus-visible:bg-parchment-2"
+          >
+            <IconLeave className="size-5 text-bronze-dark" />
+            Salir
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
 
-/** What the advisor button does, read from where it goes. */
-function advisorCta(href: string) {
+/** What the advisor button does, read from where it goes (and from where you are). */
+function advisorCta(href: string, pathname: string) {
+  // Already in that section: the button only points at the spot.
+  if (href.split("?")[0] === pathname) return "Mostrar";
   if (href.startsWith("/isla")) return "Ir a la isla";
-  if (href.startsWith("/ciudad")) return href.includes("slot=") ? "Ver en la ciudad" : "Ir a la ciudad";
-  if (href.startsWith("/investigacion")) return "Ir a investigar";
-  if (href.startsWith("/tesoro")) return "Ver el néctar";
+  if (href.startsWith("/ciudad")) return "Ir a la ciudad";
+  if (href.startsWith("/investigacion")) return "Investigar";
+  if (href.startsWith("/tesoro")) return "Ver néctar";
   return "Ir ahora";
 }
 
-function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
+const WIDE = "(min-width: 1536px)";
+
+/**
+ * The owl's next step, in one line: what to do and one button that takes you there. The reason
+ * opens in a bubble on hover (it is always in the line on very wide screens and for screen readers).
+ * The button is secondary on purpose: the section's own main action keeps the bronze.
+ */
+function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
+  const pathname = usePathname();
   // A hint this tab has not shown yet gets an entrance and a few gentle pulses; a known one sits still.
   const [fresh] = useState(() => !quiet && isNewAdvisor(advisor.title));
   useEffect(() => {
     if (!quiet) markAdvisorSeen(advisor.title);
   }, [advisor.title, quiet]);
+  const bubble = useAnchoredPopover<HTMLAnchorElement>({
+    hover: true,
+    align: "start",
+    gap: 8,
+  });
 
   return (
     <motion.div
       initial={fresh ? { opacity: 0, y: -8, scale: 0.98 } : false}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -6, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
+      exit={{
+        opacity: 0,
+        y: -6,
+        transition: { duration: 0.14, ease: [0.4, 0, 1, 1] },
+      }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
     >
       <Link
+        {...bubble.anchorProps}
         href={advisor.href as never}
-        className="panel group flex items-center gap-2.5 px-2 py-1.5 transition-[filter,transform] duration-150 hover:brightness-[1.03] active:translate-y-px sm:gap-3 sm:px-4 sm:py-2.5"
+        onPointerEnter={(e) => {
+          if (!window.matchMedia(WIDE).matches) bubble.hoverProps.onPointerEnter?.(e);
+        }}
+        onPointerLeave={bubble.hoverProps.onPointerLeave}
+        className="panel group flex h-10 w-full items-center gap-2 py-1 pr-1 pl-1 transition-[filter,transform] duration-150 hover:brightness-[1.03] active:translate-y-px lg:h-11 lg:gap-2.5"
       >
         <span
           aria-hidden
           className={clsx(
-            "relative grid size-8 shrink-0 place-items-center rounded-full sm:size-11 bg-gradient-to-b from-bronze-light to-bronze-dark text-sea-950 shadow-[0_1px_0_rgb(255_255_255/0.4)_inset,0_2px_6px_-2px_rgb(43_33_24/0.6)] ring-1 ring-gold/40 sm:ring-2",
+            "relative grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-b from-bronze-light to-bronze-dark text-sea-950 shadow-[0_1px_0_rgb(255_255_255/0.4)_inset,0_2px_6px_-2px_rgb(43_33_24/0.6)] ring-1 ring-gold/40",
             fresh && "ring-pulse",
           )}
         >
-          <OwlIcon className="size-6 sm:size-8" />
+          <OwlIcon className="size-6" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-display text-sm leading-tight font-bold sm:text-[15px]">{advisor.title}</span>
-          {/* Phones keep the advisor to one line; screen readers still get the full hint. */}
-          <span className="sr-only sm:not-sr-only sm:mt-0.5 sm:block sm:text-sm sm:leading-snug sm:text-ink-soft">{advisor.body}</span>
+        <span className="min-w-0 flex-1 truncate">
+          <span className="font-display text-sm font-bold sm:text-[15px]">{advisor.title}</span>
+          <span className="sr-only 2xl:not-sr-only 2xl:ml-2 2xl:text-sm 2xl:text-ink-soft">{advisor.body}</span>
         </span>
-        <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-bronze-dark/30 bg-gradient-to-b from-marble to-parchment-2 px-2.5 text-[13px] font-bold text-bronze-dark shadow-[0_2px_0_var(--color-parchment-3)] transition-colors group-hover:border-bronze-dark/60 group-hover:text-ink sm:h-10 sm:px-3 sm:text-sm">
-          {advisorCta(advisor.href)}
+        <span className={buttonClass("secondary", "sm", "shrink-0 px-2.5 text-bronze-dark group-hover:text-ink lg:h-9")}>
+          {advisorCta(advisor.href, pathname)}
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden
+            className="size-3.5 transition-transform group-hover:translate-x-0.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
         </span>
       </Link>
+      <div {...bubble.popoverProps} className="hud-pop pointer-events-none">
+        {bubble.open && <p className="hud-bubble max-w-72 px-3 py-2 text-sm leading-snug text-ink">{advisor.body}</p>}
+      </div>
     </motion.div>
   );
 }
@@ -137,39 +290,27 @@ function AdvisorCard({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean 
  * Header for the loading screen: the last real header when there is one (client navigations),
  * otherwise a placeholder with the same shape (first load).
  */
-export function CachedChrome() {
+export function CachedChrome({ anchored = true }: { anchored?: boolean }) {
   const cached = useSyncExternalStore(subscribeNever, readChrome, () => null);
-  if (cached) return <GameChrome header={cached.header} advisor={cached.advisor} fromCache />;
-  return <ChromePlaceholder />;
+  if (cached) return <GameChrome header={cached.header} advisor={cached.advisor} fromCache anchored={anchored} />;
+  return <ChromePlaceholder anchored={anchored} />;
 }
 
-function ChromePlaceholder() {
+function ChromePlaceholder({ anchored }: { anchored: boolean }) {
   return (
-    <div style={ANCHOR} className="flex flex-col gap-1.5 sm:gap-3" aria-hidden>
-      <div className="flex flex-col gap-1.5 sm:gap-2.5">
-        <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3">
-          <div className="flex items-center gap-2">
-            <span className="font-display text-lg font-black tracking-[0.14em] text-gold/80 [text-shadow:0_1px_0_var(--color-bronze-deep)] sm:text-xl sm:tracking-[0.18em]">
-              THALASSA
-            </span>
-            <span className="hidden h-6 w-px bg-foam/25 sm:block" />
-            <span className="skel-line on-dark h-6 w-32" />
+    <>
+      <div style={anchored ? ANCHOR : undefined} className="flex flex-col" aria-hidden>
+        <div className="flex flex-col gap-1.5">
+          <div className={ROW}>
+            <span className={clsx("-ml-1.5 px-1.5 opacity-80", BRAND)}>THALASSA</span>
+            <span className="skel-line on-dark h-8 w-32 lg:hidden" />
+            <NavPlaceholder className="hidden lg:flex" />
+            <span className="skel-line on-dark ml-auto h-8 w-16 rounded-full xl:w-56" />
           </div>
-          <span className="skel-line on-dark h-6 w-16 rounded-full sm:w-36" />
+          <ResourceBarPlaceholder className="w-full lg:w-auto lg:self-start" />
         </div>
-        <div className={`panel-glass ${BAR_LAYOUT}`}>
-          {[...RESOURCES, "gold", "citizens", "research", "ambrosia"].map((k) => (
-            <span key={k} className="flex shrink-0 items-center gap-1.5 px-1 py-0.5">
-              <ResIcon kind={k as never} size={22} className="size-[18px] opacity-70 sm:size-[22px]" />
-              <span className="flex flex-col gap-1">
-                <span className="skel-line on-dark h-3.5 w-9" />
-                <span className="skel-line on-dark h-[3px] w-9" />
-              </span>
-            </span>
-          ))}
-        </div>
-        <NavPlaceholder />
       </div>
-    </div>
+      <TabBarPlaceholder anchored={anchored} />
+    </>
   );
 }

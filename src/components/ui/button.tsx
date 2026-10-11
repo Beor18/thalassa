@@ -2,7 +2,7 @@ import clsx from "clsx";
 import type { ComponentProps } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "ambrosia" | "sea";
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "touch" | "md" | "lg";
 
 /*
   Bronze and ambrosia buttons are physical: a 3px "depth" under the face, a light sweep on hover,
@@ -43,6 +43,8 @@ const variants: Record<Variant, string> = {
 
 const sizes: Record<Size, string> = {
   sm: "h-8 px-3 text-sm gap-1.5",
+  /** Same as sm from 640px up; 40px tall on phones, where it has to be easy to hit with a thumb. */
+  touch: "h-10 px-3.5 text-sm gap-1.5 sm:h-8 sm:px-3",
   md: "h-10 px-4 text-[15px] gap-2",
   lg: "h-12 px-6 text-base gap-2",
 };

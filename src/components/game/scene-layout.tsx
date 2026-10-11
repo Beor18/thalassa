@@ -19,9 +19,14 @@ export function SceneFit({ children }: { children: ReactNode }) {
   );
 }
 
-/** City: scene (1px border) + detail column. */
+/**
+ * City: scene (1px border) + detail column, side by side from xl inside CityFit (components/city).
+ * The column takes what the height-filling scene leaves (between 340 and 440px), so the scene is
+ * height-bound on common laptops instead of stopping short. From lg to xl a column would leave the
+ * scene too narrow: it stacks over the summary, capped to the height under the header.
+ */
 export const CITY_GRID =
-  "grid gap-3 lg:items-start lg:justify-center lg:grid-cols-[minmax(0,max(640px,calc(150cqh-2px)))_360px] xl:grid-cols-[minmax(0,max(640px,calc(150cqh-2px)))_420px]";
+  "grid gap-3 lg:max-xl:justify-center lg:max-xl:grid-cols-[minmax(0,calc((100dvh_-_8.5rem)_*_1.5))] xl:items-start xl:justify-center xl:grid-cols-[minmax(0,max(640px,calc(150cqh_-_2px)))_clamp(340px,calc(100cqw_-_150cqh_-_10px),440px)]";
 
 /** Island: framed scene (padding + border) + panel column (narrower on small laptops so the scene keeps more room). */
 export const ISLAND_GRID =

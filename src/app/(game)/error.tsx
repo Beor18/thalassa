@@ -19,10 +19,11 @@ export default function GameError({ error, retry }: { error: Error & { digest?: 
           alt=""
           width={72}
           height={72}
+          loading="eager"
           className="mx-auto mb-3 size-16 opacity-90 drop-shadow-[0_4px_6px_rgb(43_33_24/0.35)] motion-safe:animate-[compass-seek_3.2s_var(--ease-in-out-sine)_infinite]"
         />
         <h1 className="font-display text-2xl font-bold">Se cortó el viento</h1>
-        <p className="mt-2 text-ink-soft">Algo falló al cargar esta parte del Egeo. Tu polis está a salvo.</p>
+        <p className="mt-2 text-ink-soft">No pudimos cargar esta parte del Egeo. Tu polis está a salvo.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button onClick={() => retry()}>Probar de nuevo</Button>
           <Link href="/ciudad" className={buttonClass("secondary")}>

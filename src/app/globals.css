@@ -311,12 +311,16 @@
 }
 
 html {
-  /* The sea lives on the root so it also fills the reserved scrollbar gutter. */
+  /*
+    The sea lives on the root. The reserved scrollbar gutter only gets the base color, so that color
+    is the tile's average blue (not the deep sea-900) and the scrollbar matches it: no dark strip.
+  */
   background:
     radial-gradient(1200px 600px at 50% -10%, rgb(31 111 178 / 0.35), transparent 70%),
     url("/assets/tile-sea.webp") repeat,
-    var(--color-sea-900);
+    rgb(8 72 126);
   background-size: auto, 384px 384px, auto;
+  scrollbar-color: rgb(111 179 230 / 0.55) rgb(8 72 126);
   /* Opening a long panel must not shift the whole scene sideways. */
   scrollbar-gutter: stable;
 }
@@ -546,6 +550,117 @@ body::before {
   animation: stamp-in 0.5s var(--ease-out-quint) both;
 }
 
+/*
+  Game layout: the section fills the page. Its skeleton (hidden by default in the markup) shows
+  through only while no section is on screen: a section that is redirecting renders nothing for a
+  moment, and the ones React keeps alive in the background carry an inline display: none.
+*/
+.game-stage {
+  display: contents;
+}
+.game-stage:not(:has(> :not([style*="display: none"]))) + .game-stage-fallback {
+  display: contents;
+}
+
+/* A section on its way (components/game/nav): the lit tab shimmers and the page you leave dims. */
+.nav-pill {
+  overflow: hidden;
+}
+:root[data-nav-pending] .nav-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 25%, rgb(255 255 255 / 0.8) 50%, transparent 75%);
+  animation: skeleton-sweep 0.9s ease-in-out infinite;
+}
+:root[data-nav-pending] .game-stage main {
+  opacity: 0.6;
+  transition: opacity 0.25s ease 0.12s;
+}
+
+/* Phone and tablet section bar: steps aside while a modal sheet (plot, island place) is open. */
+.game-tabbar {
+  transition:
+    translate 0.24s var(--ease-out-quint),
+    visibility 0s linear 0s;
+}
+:root:has([aria-modal="true"]) .game-tabbar {
+  translate: 0 110%;
+  visibility: hidden;
+  transition:
+    translate 0.2s var(--ease-in-quad),
+    visibility 0s linear 0.2s;
+}
+
+/* ------------------------------------------------------------------------- */
+/* HUD popovers (components/ui/popover): top layer, placed next to the trigger */
+/* ------------------------------------------------------------------------- */
+
+.hud-pop {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  color: inherit;
+  --pop-dy: -4px;
+}
+.hud-pop[data-side="above"] {
+  --pop-dy: 4px;
+}
+.hud-pop:popover-open {
+  animation: pop-open 0.16s var(--ease-out-quint) both;
+}
+@keyframes pop-open {
+  from {
+    opacity: 0;
+    transform: translateY(var(--pop-dy)) scale(0.97);
+  }
+}
+
+/* Game tooltip: deep sea glass with a small arrow toward the trigger. */
+.hud-tip,
+.hud-bubble {
+  position: relative;
+  border-radius: 12px;
+}
+.hud-tip {
+  background: linear-gradient(180deg, rgb(15 58 99 / 0.97), rgb(6 26 48 / 0.98));
+  border: 1px solid rgb(111 179 230 / 0.32);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.12) inset,
+    0 16px 32px -14px rgb(2 10 20 / 0.95);
+  color: var(--color-foam);
+}
+/* The owl speaks on parchment. */
+.hud-bubble {
+  background: var(--color-parchment);
+  border: 1px solid var(--color-parchment-3);
+  box-shadow: var(--shadow-panel);
+}
+.hud-tip::before,
+.hud-bubble::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: calc(var(--arrow-x, 50%) - 5px);
+  width: 10px;
+  height: 10px;
+  rotate: 45deg;
+  background: inherit;
+  border: inherit;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 2px;
+}
+.hud-pop[data-side="above"] :is(.hud-tip, .hud-bubble)::before {
+  top: auto;
+  bottom: -6px;
+  rotate: 225deg;
+}
+
 /* ------------------------------------------------------------------------- */
 /* View transitions (React <ViewTransition> + Link transitionTypes)          */
 /* ------------------------------------------------------------------------- */
@@ -554,15 +669,18 @@ body::before {
   pointer-events: none;
 }
 
-/* The HUD is the spatial anchor: it never moves or fades between sections. */
-::view-transition-group(game-header) {
+/* The HUD (header and the phone tab bar) is the spatial anchor: it never moves or fades between sections. */
+::view-transition-group(game-header),
+::view-transition-group(game-tabbar) {
   animation: none;
   z-index: 100;
 }
-::view-transition-old(game-header) {
+::view-transition-old(game-header),
+::view-transition-old(game-tabbar) {
   display: none;
 }
-::view-transition-new(game-header) {
+::view-transition-new(game-header),
+::view-transition-new(game-tabbar) {
   animation: none;
 }
 

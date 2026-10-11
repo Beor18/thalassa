@@ -84,18 +84,16 @@ export function TimeProgress({
         )}
       </div>
       {marker === "ship" && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 transition-transform duration-500 ease-linear"
-          style={{ transform: `translateX(${pct}%)` }}
-        >
+        // Moves with `left` (a share of the bar), clamped so the hull never leaves it: a transform in %
+        // of a full-width box used to push the page wider than the screen.
+        <div aria-hidden className="pointer-events-none absolute inset-0">
           <Image
             src="/assets/fx/trireme-top.webp"
             alt=""
             width={48}
             height={48}
-            className="absolute top-1/2 left-0 -mt-5 -ml-5 size-10 drop-shadow-[0_3px_2px_rgb(6_26_48/0.45)] motion-safe:animate-[ship-bob_2.4s_var(--ease-in-out-sine)_infinite]"
-            style={{ transform: "rotate(90deg)" }}
+            className="absolute top-1/2 -mt-5 -ml-5 size-10 drop-shadow-[0_3px_2px_rgb(6_26_48/0.45)] transition-[left] duration-500 ease-linear motion-safe:animate-[ship-bob_2.4s_var(--ease-in-out-sine)_infinite]"
+            style={{ left: `clamp(1.25rem, ${pct}%, calc(100% - 1.25rem))`, transform: "rotate(90deg)" }}
           />
         </div>
       )}
