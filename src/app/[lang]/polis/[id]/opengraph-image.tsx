@@ -1,24 +1,33 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { RESOURCE_LABEL, getPublicCity } from "@/server/growth/public-city";
+import { buildingName, resourceLabel } from "@/game/names";
+import { makeI18n, toLocale } from "@/i18n/i18n";
+import { getPublicCity } from "@/server/growth/public-city";
 
-export const alt = "Una polis de Thalassa en el Egeo";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+const size = { width: 1200, height: 630 };
+const contentType = "image/png";
 
-// Assets don't depend on the request: read them once per server process.
-const assets = (async () => {
+/** One card per polis; this only exists to give the image its alt text in the page's language. */
+export function generateImageMetadata({ params }: { params: { lang: string } }) {
+  const { t } = makeI18n(toLocale(params.lang));
+  return [{ id: "card", size, contentType, alt: t({ en: "A Thalassa polis in the Aegean", es: "Una polis de Thalassa en el Egeo" }) }];
+}
+
+// File reads live in cached helpers: with Cache Components a route can't do uncached IO.
+async function fontData() {
+  "use cache";
   const root = process.cwd();
   const [cinzel, alegreya] = await Promise.all([
-    readFile(join(root, "src/server/growth/og-assets/cinzel-700.woff")),
-    readFile(join(root, "src/server/growth/og-assets/alegreya-sans-700.woff")),
+    readFile(join(root, "src/server/growth/og-assets/cinzel-700.woff"), "base64"),
+    readFile(join(root, "src/server/growth/og-assets/alegreya-sans-700.woff"), "base64"),
   ]);
   return { cinzel, alegreya };
-})();
+}
 
 /** PNG copy of the building art (the renderer can't draw WebP). See og-assets/NOTES.txt. */
 async function buildingArt(type: string) {
+  "use cache";
   if (!/^[a-z_]+$/.test(type)) return null;
   try {
     const data = await readFile(join(process.cwd(), "src/server/growth/og-assets/buildings", `b-${type}.png`), "base64");
@@ -28,9 +37,13 @@ async function buildingArt(type: string) {
   }
 }
 
-export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const [{ cinzel, alegreya }, city] = await Promise.all([assets, getPublicCity(id)]);
+// Route handler: root params aren't available here, so the language comes from the route's params.
+export default async function Image({ params }: { params: Promise<{ lang: string; id: string }> }) {
+  const { lang: rawLang, id } = await params;
+  const { lang, t, fmt } = makeI18n(toLocale(rawLang));
+  const [fonts, city] = await Promise.all([fontData(), getPublicCity(id)]);
+  const cinzel = Buffer.from(fonts.cinzel, "base64");
+  const alegreya = Buffer.from(fonts.alegreya, "base64");
   const main = city?.topBuildings[0];
   const art = await buildingArt(main?.type ?? "town_hall");
 
@@ -54,20 +67,25 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ fontFamily: "Cinzel", fontSize: 30, color: "#e3b341", letterSpacing: 8 }}>THALASSA</div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: "auto", gap: 12 }}>
             <div style={{ fontFamily: "Cinzel", fontSize: city && city.name.length > 16 ? 64 : 80, color: "#f7f4ee", lineHeight: 1.05 }}>
-              {city?.name ?? "Tu polis en el Egeo"}
+              {city?.name ?? t({ en: "Your polis in the Aegean", es: "Tu polis en el Egeo" })}
             </div>
             <div style={{ fontSize: 34, color: "#e6f3fb" }}>
-              {city ? `Polis de ${city.ownerName} en ${city.islandName}, isla de ${RESOURCE_LABEL[city.resource]}` : "Estrategia por navegador"}
+              {city
+                ? t({
+                    en: `${city.ownerName}'s polis on ${city.islandName}, a ${resourceLabel(city.resource, "en").toLowerCase()} island`,
+                    es: `Polis de ${city.ownerName} en ${city.islandName}, isla de ${resourceLabel(city.resource, "es").toLowerCase()}`,
+                  })
+                : t({ en: "Browser strategy game", es: "Estrategia por navegador" })}
             </div>
             {city && (
               <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
-                <Chip label="Puntos" value={city.score.toLocaleString("es-AR")} />
-                <Chip label="Edificios" value={String(city.buildingCount)} />
-                {main && <Chip label={main.name} value={`Nivel ${main.level}`} />}
+                <Chip label={t({ en: "Points", es: "Puntos" })} value={fmt(city.score)} />
+                <Chip label={t({ en: "Buildings", es: "Edificios" })} value={fmt(city.buildingCount)} />
+                {main && <Chip label={buildingName(main.type, lang)} value={t({ en: `Level ${main.level}`, es: `Nivel ${main.level}` })} />}
               </div>
             )}
           </div>
-          <div style={{ marginTop: 32, fontSize: 28, color: "#e3b341" }}>Fundá la tuya al lado.</div>
+          <div style={{ marginTop: 32, fontSize: 28, color: "#e3b341" }}>{t({ en: "Found yours next door.", es: "Fundá la tuya al lado." })}</div>
         </div>
         {art && (
           // eslint-disable-next-line jsx-a11y/alt-text -- rendered to a PNG by next/og

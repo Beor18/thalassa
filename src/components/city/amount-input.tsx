@@ -1,8 +1,9 @@
 "use client";
 
 import clsx from "clsx";
+import { useI18n } from "@/i18n/client";
 
-/** Integer field for amounts: numeric keyboard on phones, clamps to [0, max], optional "Máx" shortcut. */
+/** Integer field for amounts: numeric keyboard on phones, clamps to [0, max], optional "Max" shortcut. */
 export function AmountInput({
   id,
   value,
@@ -24,9 +25,10 @@ export function AmountInput({
   describedBy?: string;
   className?: string;
   ariaLabel?: string;
-  /** accessible name for the "Máx" button when several fields share a form */
+  /** accessible name for the "Max" button when several fields share a form */
   maxLabel?: string;
 }) {
+  const { t } = useI18n();
   const safeMax = Math.max(0, Math.floor(max));
   return (
     <div className={clsx("flex items-stretch gap-1.5", className)}>
@@ -55,7 +57,7 @@ export function AmountInput({
           disabled={safeMax === 0 || value === safeMax}
           className="h-10 shrink-0 rounded-lg border border-parchment-3 bg-parchment-2 px-2.5 text-sm font-bold text-ink-soft transition-colors duration-100 hover:bg-parchment-3/70 hover:text-ink disabled:opacity-50"
         >
-          Máx
+          {t({ en: "Max", es: "Máx" })}
         </button>
       )}
     </div>

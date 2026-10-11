@@ -11,9 +11,13 @@ import { readyUpgrades } from "@/components/city/effects";
 import { asPlayer, cityHref, parseSlot } from "@/components/city/lib";
 import { SlotPanel } from "@/components/city/slot-panel";
 import { SlotPresence } from "@/components/city/slot-drawer";
+import { getI18n } from "@/i18n/server";
 import { getGame } from "@/server/game-context";
 
-export const metadata: Metadata = { title: "Ciudad" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "City", es: "Ciudad" }) };
+}
 
 export default function CityPage({ params, searchParams }: PageProps<"/[lang]/ciudad/[id]">) {
   return (
@@ -28,6 +32,7 @@ async function CityContent({ params, searchParams }: Pick<PageProps<"/[lang]/ciu
   const game = await getGame(id);
   // Unknown or foreign city id: getGame fell back to one of the player's cities.
   if (game.city.id !== id) redirect(cityHref(game.city.id));
+  const { t } = await getI18n();
   const slot = parseSlot(query.slot);
   const ready = readyUpgrades(asPlayer(game.snapshot), game.city, game.snapshot.speed).map((o) => o.slot);
   // New capitals are called "Polis" + the first letters of the account: invite the player to name it.
@@ -40,7 +45,7 @@ async function CityContent({ params, searchParams }: Pick<PageProps<"/[lang]/ciu
         <div className={CITY_GRID}>
           <CityScene city={game.city} serverNow={game.snapshot.now} selected={slot} ready={ready} nameIt={nameIt} />
           {/* Wide screens: the column is exactly as tall as the scene; an open panel fills it and scrolls inside. */}
-          <aside aria-label="Detalle de la ciudad" className="flex min-w-0 flex-col gap-3 xl:relative xl:self-stretch">
+          <aside aria-label={t({ en: "City details", es: "Detalle de la ciudad" })} className="flex min-w-0 flex-col gap-3 xl:relative xl:self-stretch">
             <div className={clsx("xl:sticky xl:top-3", slot != null && "xl:hidden")}>
               <CityStatus game={game} />
             </div>

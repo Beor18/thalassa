@@ -5,6 +5,7 @@ import { z } from "zod";
 import { BUILDING_TYPES, RESOURCES, TECH_IDS, UNIT_TYPES } from "@/game/data";
 import { GameError } from "@/game/engine";
 import type { Text } from "@/i18n/config";
+import { getFormat } from "@/i18n/format";
 import type { I18n } from "@/i18n/i18n";
 import { getRequestI18n } from "@/i18n/request";
 import type { ActionResult } from "@/lib/action-result";
@@ -13,6 +14,11 @@ import * as cmd from "./commands";
 import { track, trackFirst } from "./growth/analytics";
 
 type Message<T> = string | Text | ((r: T, i: I18n) => string | Text);
+
+/** Amounts in each language's style: "1,200" in English, "1.200" in Spanish. */
+const enNum = (n: number) => getFormat("en").fmt(n);
+const esNum = (n: number) => getFormat("es").fmt(n);
+const NAME_UPDATED: Text = { en: "Name updated.", es: "Nombre actualizado." };
 
 /** Runs a command for the signed-in player and answers in their language (cookie, English by default). */
 async function run<T>(fn: (playerId: string) => Promise<T>, message?: Message<T>): Promise<ActionResult<T>> {
@@ -46,13 +52,13 @@ export async function buildAction(input: { cityId: string; slot: number; type?: 
     const started = await cmd.build(pid, v.cityId, v.slot, v.type ?? null);
     await trackFirst("first_build_started", pid, { type: started.type }); // growth hook
     return started;
-  }, "Obra en marcha.");
+  }, { en: "Construction started.", es: "Obra en marcha." });
 }
 
 export async function cancelBuildAction(input: { cityId: string }) {
   return run(async (pid) => {
     await cmd.cancelBuild(pid, id.parse(input.cityId));
-  }, "Obra cancelada. Te devolvimos los materiales.");
+  }, { en: "Construction canceled. You got your materials back.", es: "Obra cancelada. Te devolvimos los materiales." });
 }
 
 export async function finishNowAction(input: { cityId: string; what: "construction" | "training" }) {
@@ -61,7 +67,7 @@ export async function finishNowAction(input: { cityId: string; what: "constructi
       const v = z.object({ cityId: id, what: z.enum(["construction", "training"]) }).parse(input);
       return cmd.finishNow(pid, v.cityId, v.what);
     },
-    (price) => `Listo. Usaste ${price} de néctar.`,
+    (price) => ({ en: `Done. You spent ${enNum(price)} Nectar.`, es: `Listo. Usaste ${esNum(price)} de néctar.` }),
   );
 }
 
@@ -71,27 +77,27 @@ export async function setWorkersAction(input: { cityId: string; woodWorkers?: nu
       .object({ cityId: id, woodWorkers: int(0, 10_000).optional(), luxWorkers: int(0, 10_000).optional(), scientists: int(0, 10_000).optional() })
       .parse(input);
     await cmd.assignWorkers(pid, v.cityId, v);
-  }, "Trabajadores asignados.");
+  }, { en: "Workers assigned.", es: "Trabajadores asignados." });
 }
 
 export async function setWineAction(input: { cityId: string; level: number }) {
   return run(async (pid) => {
     const v = z.object({ cityId: id, level: int(0, 30) }).parse(input);
     await cmd.serveWine(pid, v.cityId, v.level);
-  }, "La taberna ya sirve.");
+  }, { en: "The Tavern is serving.", es: "La taberna ya sirve." });
 }
 
 export async function trainAction(input: { cityId: string; unit: string; count: number }) {
   return run(async (pid) => {
     const v = z.object({ cityId: id, unit: z.enum(UNIT_TYPES), count: int(1, 1000) }).parse(input);
     await cmd.train(pid, v.cityId, v.unit, v.count);
-  }, "Entrenamiento en marcha.");
+  }, { en: "Training started.", es: "Entrenamiento en marcha." });
 }
 
 export async function buyShipAction(input: { cityId: string }) {
   return run(
     async (pid) => cmd.purchaseShip(pid, id.parse(input.cityId)),
-    (price) => `Barco comprado por ${price} de oro.`,
+    (price) => ({ en: `Ship bought for ${enNum(price)} gold.`, es: `Barco comprado por ${esNum(price)} de oro.` }),
   );
 }
 
@@ -100,27 +106,27 @@ export async function researchAction(input: { tech: string }) {
     const tech = z.enum(TECH_IDS).parse(input.tech);
     await cmd.doResearch(pid, tech);
     await trackFirst("first_research", pid, { tech }); // growth hook
-  }, "Investigación completa.");
+  }, { en: "Research complete.", es: "Investigación completa." });
 }
 
 export async function merchantAction(input: { cityId: string; resource: string }) {
   return run(async (pid) => {
     const v = z.object({ cityId: id, resource: z.enum(RESOURCES) }).parse(input);
     await cmd.tradeAmbrosia(pid, v.cityId, v.resource);
-  }, "El mercader descargó la mercadería.");
+  }, { en: "The merchant unloaded the goods.", es: "El mercader descargó la mercadería." });
 }
 
 export async function renameCityAction(input: { cityId: string; name: string }) {
   return run(async (pid) => {
     const v = z.object({ cityId: id, name: z.string().max(40) }).parse(input);
     await cmd.rename(pid, v.cityId, v.name);
-  }, "Nombre actualizado.");
+  }, NAME_UPDATED);
 }
 
 export async function renamePlayerAction(input: { name: string }) {
   return run(async (pid) => {
     await cmd.renamePlayer(pid, z.string().max(40).parse(input.name));
-  }, "Nombre actualizado.");
+  }, NAME_UPDATED);
 }
 
 export async function donateAction(input: { cityId: string; target: "sawmill" | "mine"; amount: number }) {
@@ -129,7 +135,7 @@ export async function donateAction(input: { cityId: string; target: "sawmill" | 
       const v = z.object({ cityId: id, target: z.enum(["sawmill", "mine"]), amount: int(1, 10_000_000) }).parse(input);
       return cmd.donate(pid, v.cityId, v.target, v.amount);
     },
-    (r) => `Gracias por la donación. Nivel actual: ${r.level}.`,
+    (r) => ({ en: `Thanks for donating. Current level: ${r.level}.`, es: `Gracias por la donación. Nivel actual: ${r.level}.` }),
   );
 }
 
@@ -137,7 +143,11 @@ export async function transportAction(input: { originCityId: string; targetCityI
   return run(async (pid) => {
     const v = z.object({ originCityId: id, targetCityId: id, cargo: cargoSchema }).parse(input);
     return cmd.sendTransport(pid, v.originCityId, v.targetCityId, v.cargo);
-  }, (m) => (m.ships === 1 ? "Tu barco zarpó." : `Tus ${m.ships} barcos zarparon.`));
+  }, (m) =>
+    m.ships === 1
+      ? { en: "Your ship set sail.", es: "Tu barco zarpó." }
+      : { en: `Your ${m.ships} ships set sail.`, es: `Tus ${m.ships} barcos zarparon.` },
+  );
 }
 
 export async function attackAction(input: {
@@ -156,14 +166,14 @@ export async function attackAction(input: {
     const sent = await cmd.sendAttack(pid, v.originCityId, v.target, v.units);
     await trackFirst("first_attack_sent", pid, { target: "cityId" in v.target ? "player" : "barbarians" }); // growth hook
     return sent;
-  }, "Tus tropas zarparon.");
+  }, { en: "Your troops set sail.", es: "Tus tropas zarparon." });
 }
 
 export async function colonizeAction(input: { originCityId: string; islandId: number; slot: number; name: string }) {
   return run(async (pid) => {
     const v = z.object({ originCityId: id, islandId: int(1, 100_000), slot: int(0, 7), name: z.string().max(40) }).parse(input);
     return cmd.sendColonists(pid, v.originCityId, v.islandId, v.slot, v.name);
-  }, "Los colonos zarparon.");
+  }, { en: "Your colonists set sail.", es: "Los colonos zarparon." });
 }
 
 export async function syncAmbrosiaAction() {
@@ -173,7 +183,10 @@ export async function syncAmbrosiaAction() {
       if (synced.credited > 0) await track("ambrosia_purchased", { amount: synced.credited }, pid); // growth hook
       return synced;
     },
-    (r) => (r.credited > 0 ? `Sumaste ${r.credited} de néctar.` : "No hay compras nuevas en la red."),
+    (r) =>
+      r.credited > 0
+        ? { en: `You got ${enNum(r.credited)} Nectar.`, es: `Sumaste ${esNum(r.credited)} de néctar.` }
+        : { en: "No new purchases yet.", es: "No hay compras nuevas en la red." },
   );
 }
 
@@ -186,7 +199,7 @@ export async function claimFaucetAction() {
       await track("faucet_claimed", {}, pid); // growth hook
       return claimed;
     },
-    "Te mandamos 0,06 SOL de prueba. Ya podés comprar un pack.",
+    { en: "We sent you 0.06 test SOL. You can buy a pack now.", es: "Te mandamos 0,06 SOL de prueba. Ya podés comprar un pack." },
   );
 }
 

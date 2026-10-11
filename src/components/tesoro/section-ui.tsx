@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import clsx from "clsx";
 
 /*
-  Small pieces shared by the secondary sections (Investigación, Flota, Informes, Ranking, Néctar,
-  Invitar) so their hero bands and "details on demand" look and behave the same.
-  Server-safe: no hooks, no client JavaScript (the disclosure is a native <details>).
+  Small pieces shared by the secondary sections (Research, Fleet, Reports, Rankings, Nectar,
+  Invite) so their hero bands and "details on demand" look and behave the same.
+  Server-safe: no hooks, no client JavaScript (the disclosure is a native <details>). Callers pass
+  their copy already translated, so these work from Server and Client Components alike.
 */
 
 /** Page column: wide boards (research tree, forces) or narrow lists and forms. */
@@ -90,14 +91,15 @@ function Chevron() {
   );
 }
 
-/** The one "¿Cómo funciona?" fold per screen: rules and fine print live here, closed by default. */
+/** The one "How does it work?" fold per screen: rules and fine print live here, closed by default. */
 export function HowItWorks({
-  title = "¿Cómo funciona?",
+  title,
   tone = "light",
   className,
   children,
 }: {
-  title?: string;
+  /** Usually t({ en: "How does it work?", es: "¿Cómo funciona?" }). */
+  title: string;
   tone?: "light" | "dark";
   className?: string;
   children: ReactNode;

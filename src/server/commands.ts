@@ -4,6 +4,7 @@ import { db, type Tx } from "@/db";
 import { ambrosiaLedger, cities, islands, missions, players } from "@/db/schema";
 import { BALANCE, ISLAND_PLOTS, RESOURCES, type BuildingType, type Resource, type ResourceBag, type TechId, type UnitBag, type UnitType } from "@/game/data";
 import {
+  CITY_NAME_LENGTH,
   GameError,
   ISLAND_MAX_LEVEL,
   advance,
@@ -32,10 +33,21 @@ import {
   travelSeconds,
   type PlayerState,
 } from "@/game/engine";
+import { techName } from "@/game/names";
+import type { Text } from "@/i18n/config";
+import { getFormat } from "@/i18n/format";
 import { GAME_SPEED } from "./config";
 import { processDueMissions } from "./missions";
 import { readCitizenAmbrosia } from "./solana";
 import { loadPlayer, savePlayer, toIslandInfo } from "./state";
+
+/** Amounts in each language's style: "1,200" in English, "1.200" in Spanish. */
+const enNum = (n: number) => getFormat("en").fmt(n);
+const esNum = (n: number) => getFormat("es").fmt(n);
+const INVALID_AMOUNT: Text = { en: "Invalid amount.", es: "Cantidad inválida." };
+const NO_SUCH_CITY: Text = { en: "That city doesn't exist.", es: "Esa ciudad no existe." };
+const NO_SUCH_PLOT: Text = { en: "That plot doesn't exist.", es: "Ese lugar no existe." };
+const shipsInPort = (n: number) => (n === 1 ? "1 ship" : `${n} ships`);
 
 interface Ctx {
   tx: Tx;
@@ -47,7 +59,7 @@ export async function withPlayer<T>(playerId: string, fn: (p: PlayerState, ctx: 
   await processDueMissions();
   return db.transaction(async (tx) => {
     const p = await loadPlayer(tx, playerId, { lock: true });
-    if (!p) throw new GameError("Tu cuenta no existe. Volvé a entrar.");
+    if (!p) throw new GameError({ en: "Your account doesn't exist. Sign in again.", es: "Tu cuenta no existe. Volvé a entrar." });
     const now = Date.now();
     advance(p, now, GAME_SPEED);
     const result = await fn(p, { tx, now });
@@ -83,19 +95,30 @@ export const finishNow = (playerId: string, cityId: string, what: "construction"
       // Troops can't be rushed into a war: only short queues, and never with an own attack at sea.
       const endsAt = city.training.reduce((m, b) => Math.max(m, b.endsAt), 0);
       if (endsAt - now > BALANCE.trainingFinishMaxMinutes * 60_000) {
-        throw new GameError(`Solo podés apurar entrenamientos a los que les falte una hora o menos.`);
+        throw new GameError({
+          en: "You can only rush training with an hour or less to go.",
+          es: "Solo podés apurar entrenamientos a los que les falte una hora o menos.",
+        });
       }
       const [atSea] = await tx
         .select({ n: count() })
         .from(missions)
         .where(and(eq(missions.playerId, playerId), eq(missions.kind, "attack"), eq(missions.status, "outbound")));
-      if (atSea.n > 0) throw new GameError("No podés apurar tropas mientras tenés un ataque en viaje.");
+      if (atSea.n > 0) {
+        throw new GameError({
+          en: "You can't rush troops while one of your attacks is at sea.",
+          es: "No podés apurar tropas mientras tenés un ataque en viaje.",
+        });
+      }
     }
     const endsAt = what === "construction" ? city.construction?.endsAt : city.training.reduce((m, b) => Math.max(m, b.endsAt), 0);
     const price = endsAt && endsAt > now ? ambrosiaToFinish(now, endsAt) : 0;
     const { spent } = await spentToday(tx, playerId, "finish:%", now);
     if (price > 0 && spent + price > BALANCE.finishDailyCap) {
-      throw new GameError(`Llegaste al tope diario: ${BALANCE.finishDailyCap} de néctar por día para terminar al instante.`);
+      throw new GameError({
+        en: `Daily limit reached: you can spend up to ${enNum(BALANCE.finishDailyCap)} Nectar a day on instant finishes.`,
+        es: `Llegaste al tope diario: ${BALANCE.finishDailyCap} de néctar por día para terminar al instante.`,
+      });
     }
     const paid = finishWithAmbrosia(p, cityId, what, now);
     await tx.insert(ambrosiaLedger).values({ playerId, delta: -paid, reason: `finish:${what}` });
@@ -131,7 +154,10 @@ export const tradeAmbrosia = (playerId: string, cityId: string, resource: Resour
   withPlayer(playerId, async (p, { tx, now }) => {
     const { times } = await spentToday(tx, playerId, `merchant:${cityId}:%`, now);
     if (times >= BALANCE.merchantPerCityPerDay) {
-      throw new GameError(`El mercader pasa ${BALANCE.merchantPerCityPerDay} veces por día por ciudad. Volvé mañana.`);
+      throw new GameError({
+        en: `The merchant visits each city ${BALANCE.merchantPerCityPerDay} times a day. Come back tomorrow.`,
+        es: `El mercader pasa ${BALANCE.merchantPerCityPerDay} veces por día por ciudad. Volvé mañana.`,
+      });
     }
     merchantTrade(p, cityId, resource);
     await tx.insert(ambrosiaLedger).values({ playerId, delta: -BALANCE.merchantAmbrosia, reason: `merchant:${cityId}:${resource}` });
@@ -141,19 +167,21 @@ export const rename = (playerId: string, cityId: string, name: string) => withPl
 
 export async function renamePlayer(playerId: string, name: string) {
   const clean = name.trim().replace(/\s+/g, " ");
-  if (clean.length < 3 || clean.length > 20) throw new GameError("Tu nombre tiene que tener entre 3 y 20 letras.");
+  if (clean.length < 3 || clean.length > 20) {
+    throw new GameError({ en: "Your name must be 3 to 20 characters long.", es: "Tu nombre tiene que tener entre 3 y 20 letras." });
+  }
   await db.update(players).set({ name: clean }).where(eq(players.id, playerId));
 }
 
 export const donate = (playerId: string, cityId: string, target: "sawmill" | "mine", amount: number) =>
   withPlayer(playerId, async (p, { tx }) => {
-    if (!Number.isInteger(amount) || amount < 1) throw new GameError("Cantidad inválida.");
+    if (!Number.isInteger(amount) || amount < 1) throw new GameError(INVALID_AMOUNT);
     const city = getCity(p, cityId);
-    if (city.res.wood + 1e-6 < amount) throw new GameError("No tenés tanta madera.");
+    if (city.res.wood + 1e-6 < amount) throw new GameError({ en: "You don't have that much wood.", es: "No tenés tanta madera." });
     const [island] = await tx.select().from(islands).where(eq(islands.id, city.islandId)).for("update");
     let level = target === "sawmill" ? island.sawmillLevel : island.mineLevel;
     let pool = (target === "sawmill" ? island.sawmillDonated : island.mineDonated) + amount;
-    if (level >= ISLAND_MAX_LEVEL) throw new GameError("Ya está al máximo.");
+    if (level >= ISLAND_MAX_LEVEL) throw new GameError({ en: "It's already at max level.", es: "Ya está al máximo." });
     city.res.wood -= amount;
     while (level < ISLAND_MAX_LEVEL && pool >= islandUpgradeCost(target, level)) {
       pool -= islandUpgradeCost(target, level);
@@ -170,7 +198,7 @@ function cleanCargo(cargo: Partial<ResourceBag>) {
   const out: Partial<ResourceBag> = {};
   for (const r of RESOURCES) {
     const n = Math.floor(cargo[r] ?? 0);
-    if (n < 0) throw new GameError("Cantidad inválida.");
+    if (n < 0) throw new GameError(INVALID_AMOUNT);
     if (n > 0) out[r] = n;
   }
   return out;
@@ -178,21 +206,21 @@ function cleanCargo(cargo: Partial<ResourceBag>) {
 
 async function islandOf(tx: Tx, islandId: number) {
   const [row] = await tx.select().from(islands).where(eq(islands.id, islandId));
-  if (!row) throw new GameError("Esa isla no existe.");
+  if (!row) throw new GameError({ en: "That island doesn't exist.", es: "Esa isla no existe." });
   return toIslandInfo(row);
 }
 
 export const sendTransport = (playerId: string, originCityId: string, targetCityId: string, cargo: Partial<ResourceBag>) =>
   withPlayer(playerId, async (p, { tx, now }) => {
     const origin = getCity(p, originCityId);
-    if (originCityId === targetCityId) throw new GameError("Elegí otra ciudad de destino.");
+    if (originCityId === targetCityId) throw new GameError({ en: "Pick a different destination city.", es: "Elegí otra ciudad de destino." });
     const [target] = await tx.select().from(cities).where(eq(cities.id, targetCityId));
-    if (!target) throw new GameError("Esa ciudad no existe.");
+    if (!target) throw new GameError(NO_SUCH_CITY);
     const clean = cleanCargo(cargo);
     const total = Object.values(clean).reduce((s, n) => s + (n ?? 0), 0);
-    if (total <= 0) throw new GameError("Cargá algo en los barcos.");
+    if (total <= 0) throw new GameError({ en: "Load something onto the ships.", es: "Cargá algo en los barcos." });
     const ships = shipsForCargo(total);
-    if (ships > origin.ships) throw new GameError(`Necesitás ${ships} barcos en el puerto.`);
+    if (ships > origin.ships) throw new GameError({ en: `You need ${shipsInPort(ships)} in port.`, es: `Necesitás ${ships} barcos en el puerto.` });
     takeCargo(origin, clean);
     origin.ships -= ships;
     const seconds = travelSeconds(p, origin.island, await islandOf(tx, target.islandId), GAME_SPEED);
@@ -220,19 +248,29 @@ export const sendAttack = (playerId: string, originCityId: string, target: Attac
   withPlayer(playerId, async (p, { tx, now }) => {
     const origin = getCity(p, originCityId);
     const n = countUnits(units);
-    if (n <= 0) throw new GameError("Elegí tropas para mandar.");
+    if (n <= 0) throw new GameError({ en: "Choose troops to send.", es: "Elegí tropas para mandar." });
     const ships = shipsForUnits(n);
-    if (ships > origin.ships) throw new GameError(`Necesitás ${ships} barcos en el puerto para llevar ${n} soldados.`);
+    if (ships > origin.ships) {
+      throw new GameError({
+        en: `You need ${shipsInPort(ships)} in port to carry ${enNum(n)} ${n === 1 ? "soldier" : "soldiers"}.`,
+        es: `Necesitás ${ships} barcos en el puerto para llevar ${n} soldados.`,
+      });
+    }
 
     let targetIslandId: number;
     let targetCityId: string | null = null;
     if ("cityId" in target) {
       const [row] = await tx.select().from(cities).where(eq(cities.id, target.cityId));
-      if (!row) throw new GameError("Esa ciudad no existe.");
-      if (row.playerId === playerId) throw new GameError("No podés atacar tus propias ciudades.");
+      if (!row) throw new GameError(NO_SUCH_CITY);
+      if (row.playerId === playerId) throw new GameError({ en: "You can't attack your own cities.", es: "No podés atacar tus propias ciudades." });
       const [owner] = await tx.select({ createdAt: players.createdAt }).from(players).where(eq(players.id, row.playerId));
       const protectedUntil = owner.createdAt.getTime() + (BALANCE.newbieProtectionHours * 3_600_000) / GAME_SPEED;
-      if (protectedUntil > now) throw new GameError("Esa polis recién se fundó y está bajo protección. Probá más tarde.");
+      if (protectedUntil > now) {
+        throw new GameError({
+          en: "That polis was just founded and is under protection. Try again later.",
+          es: "Esa polis recién se fundó y está bajo protección. Probá más tarde.",
+        });
+      }
       targetIslandId = row.islandId;
       targetCityId = row.id;
     } else {
@@ -261,26 +299,35 @@ export const sendAttack = (playerId: string, originCityId: string, target: Attac
 
 export const sendColonists = (playerId: string, originCityId: string, islandId: number, slot: number, name: string) =>
   withPlayer(playerId, async (p, { tx, now }) => {
-    if (!hasTech(p, "expansion")) throw new GameError("Investigá Expansión para fundar colonias.");
+    if (!hasTech(p, "expansion")) {
+      throw new GameError({ en: `Research ${techName("expansion", "en")} to found colonies.`, es: "Investigá Expansión para fundar colonias." });
+    }
     const origin = getCity(p, originCityId);
     const palace = buildingLevel(capitalOf(p), "palace");
     const [pending] = await tx
       .select({ n: count() })
       .from(missions)
       .where(and(eq(missions.playerId, playerId), eq(missions.kind, "colonize"), eq(missions.status, "outbound")));
-    if (p.cities.length - 1 + pending.n >= palace) throw new GameError("Subí el Palacio de la capital para tener otra colonia.");
-    if (!Number.isInteger(slot) || slot < 0 || slot >= ISLAND_PLOTS) throw new GameError("Ese lugar no existe.");
+    if (p.cities.length - 1 + pending.n >= palace) {
+      throw new GameError({
+        en: "Upgrade the Palace in your capital to found another colony.",
+        es: "Subí el Palacio de la capital para tener otra colonia.",
+      });
+    }
+    if (!Number.isInteger(slot) || slot < 0 || slot >= ISLAND_PLOTS) throw new GameError(NO_SUCH_PLOT);
     const [taken] = await tx
       .select({ id: cities.id })
       .from(cities)
       .where(and(eq(cities.islandId, islandId), eq(cities.slot, slot)));
-    if (taken) throw new GameError("Ese lugar ya tiene dueño.");
+    if (taken) throw new GameError({ en: "That plot is already taken.", es: "Ese lugar ya tiene dueño." });
     const clean = name.trim().replace(/\s+/g, " ");
-    if (clean.length < 3 || clean.length > 24) throw new GameError("El nombre tiene que tener entre 3 y 24 letras.");
+    if (clean.length < 3 || clean.length > 24) throw new GameError(CITY_NAME_LENGTH);
     const c = BALANCE.colonizeCost;
-    if (origin.ships < 1) throw new GameError("Necesitás un barco en el puerto.");
-    if (freeCitizens(origin) < c.citizens) throw new GameError(`Necesitás ${c.citizens} ciudadanos libres.`);
-    if (p.gold < c.gold) throw new GameError(`Necesitás ${c.gold} de oro.`);
+    if (origin.ships < 1) throw new GameError({ en: "You need a ship in port.", es: "Necesitás un barco en el puerto." });
+    if (freeCitizens(origin) < c.citizens) {
+      throw new GameError({ en: `You need ${enNum(c.citizens)} idle citizens.`, es: `Necesitás ${esNum(c.citizens)} ciudadanos libres.` });
+    }
+    if (p.gold < c.gold) throw new GameError({ en: `You need ${enNum(c.gold)} gold.`, es: `Necesitás ${esNum(c.gold)} de oro.` });
     takeCargo(origin, { wood: c.wood });
     p.gold -= c.gold;
     origin.population -= c.citizens;
@@ -307,7 +354,7 @@ export const sendColonists = (playerId: string, originCityId: string, islandId: 
 /** Credit ambrosia bought on-chain since the last sync. Idempotent. */
 export async function syncAmbrosia(playerId: string) {
   const [row] = await db.select({ wallet: players.wallet }).from(players).where(eq(players.id, playerId));
-  if (!row) throw new GameError("Tu cuenta no existe.");
+  if (!row) throw new GameError({ en: "Your account doesn't exist.", es: "Tu cuenta no existe." });
   const onchain = await readCitizenAmbrosia(row.wallet);
   return db.transaction(async (tx) => {
     const [p] = await tx.select().from(players).where(eq(players.id, playerId)).for("update");

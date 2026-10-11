@@ -1,27 +1,33 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import clsx from "clsx";
-import { BALANCE, ISLAND_PLOTS, RESOURCE_INFO } from "@/game/data";
+import { BALANCE, ISLAND_PLOTS } from "@/game/data";
 import { hasTech, luxuryMultiplier, travelSeconds, type PlayerState } from "@/game/engine";
 import type { Game } from "@/server/game-context";
 import type { IslandView as IslandData } from "@/server/queries";
 import { ISLAND_GRID, SceneFit } from "@/components/game/scene-layout";
 import { Countdown } from "@/components/ui/countdown";
 import { ResIcon } from "@/components/ui/res";
-import { fmt, fmtDuration } from "@/lib/format";
 import { IconArrowRight, IconClock, IconFlag, IconLock, IconMap, IconPin, IconSwords, IconTemple } from "./icons";
 import { ISLAND_FEATURES, ISLAND_PLOT_POS } from "@/game/layout";
 import { troopMissions } from "@/components/city/troops-away";
+import { resourceLabel, techName } from "@/game/names";
+import { getI18n } from "@/i18n/server";
+import type { I18n } from "@/i18n/i18n";
 import type { FleetPath } from "./fleets";
 import { IslandScene } from "./island-scene";
-import { MINE_NAME } from "./names";
+import { mineName } from "./names";
 import { PanelHost, PanelLink, PanelProvider, type PanelDef } from "./panel-host";
 import { campPanel, minePanel, plotPanel, sawmillPanel, type IslandCtx } from "./panels";
 
-export function IslandView({ game, island }: { game: Game; island: IslandData }) {
+export async function IslandView({ game, island }: { game: Game; island: IslandData }) {
+  const i18n = await getI18n();
+  const { t, lang } = i18n;
+  const res = resourceLabel(island.resource, lang);
   const { snapshot, city } = game;
   const player: PlayerState = { ...snapshot.player, cities: snapshot.cities };
   const ctx: IslandCtx = {
+    i18n,
     island,
     player,
     city,
@@ -38,7 +44,7 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
     troopsAway: troopMissions(snapshot.missions, city.id),
   };
 
-  const fleets = fleetPaths(snapshot.missions, island);
+  const fleets = fleetPaths(snapshot.missions, island, i18n);
   const panels: Record<string, PanelDef> = {
     sawmill: sawmillPanel(ctx),
     mine: minePanel(ctx),
@@ -53,15 +59,15 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
       <div className="flex flex-col gap-3 lg:flex-1">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <h1 className="font-display text-2xl leading-none font-bold text-foam drop-shadow sm:text-3xl">{island.name}</h1>
-          <ul aria-label="Datos de la isla" className="order-last flex w-full flex-wrap gap-1.5 sm:order-none sm:w-auto">
-            <HeaderChip label={`Isla de ${RESOURCE_INFO[island.resource].label.toLowerCase()}`}>
+          <ul aria-label={t({ en: "Island details", es: "Datos de la isla" })} className="order-last flex w-full flex-wrap gap-1.5 sm:order-none sm:w-auto">
+            <HeaderChip label={t({ en: `${res} island`, es: `Isla de ${res.toLowerCase()}` })}>
               <ResIcon kind={island.resource} size={18} />
-              {RESOURCE_INFO[island.resource].label}
+              {res}
             </HeaderChip>
-            <HeaderChip label="Coordenadas en el mapa">
+            <HeaderChip label={t({ en: "Map coordinates", es: "Coordenadas en el mapa" })}>
               <IconPin size={15} className="text-foam/70" />[{island.x}:{island.y}]
             </HeaderChip>
-            <HeaderChip label="Lugares ocupados">
+            <HeaderChip label={t({ en: "Plots taken", es: "Lugares ocupados" })}>
               <IconTemple size={15} className="text-foam/70" />
               {island.cities.length}/{ISLAND_PLOTS}
             </HeaderChip>
@@ -71,7 +77,7 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
             className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-foam/85 hover:bg-foam/10 hover:text-foam"
           >
             <IconMap size={17} />
-            Mapa del Egeo
+            {t({ en: "Aegean map", es: "Mapa del Egeo" })}
           </Link>
         </header>
         <SceneFit>
@@ -98,7 +104,8 @@ function HeaderChip({ label, children }: { label: string; children: ReactNode })
 }
 
 /** Where the player's ships sail on this island's map: from their city (or the open sea) to the target. */
-function fleetPaths(missions: Game["snapshot"]["missions"], island: IslandData): FleetPath[] {
+function fleetPaths(missions: Game["snapshot"]["missions"], island: IslandData, { t }: I18n): FleetPath[] {
+  const back = t({ en: "Back in", es: "Vuelven en" });
   const SEA = { x: 50, y: 112 };
   const cityPos = (id: string) => {
     const c = island.cities.find((x) => x.id === id);
@@ -117,7 +124,7 @@ function fleetPaths(missions: Game["snapshot"]["missions"], island: IslandData):
     if (m.targetIslandId !== island.id) {
       // Coming back from another island to a city of this one.
       return m.status === "returning" && home && m.returnsAt
-        ? [{ id: m.id, kind: m.kind, ...trip(SEA, home), departsAt: m.arrivesAt, arrivesAt: m.returnsAt, verb: "Vuelven en" }]
+        ? [{ id: m.id, kind: m.kind, ...trip(SEA, home), departsAt: m.arrivesAt, arrivesAt: m.returnsAt, verb: back }]
         : [];
     }
     const targetCity = island.cities.find((c) => c.name === m.targetLabel);
@@ -125,10 +132,15 @@ function fleetPaths(missions: Game["snapshot"]["missions"], island: IslandData):
       m.kind === "attack" && !targetCity ? ISLAND_FEATURES.barbarians : targetCity ? ISLAND_PLOT_POS[targetCity.slot] : { x: 50, y: 70 };
     const from = home ?? SEA;
     if (m.status === "outbound") {
-      const verb = m.kind === "attack" ? "Ataque en" : m.kind === "colonize" ? "Colonos en" : "Carga en";
+      const verb =
+        m.kind === "attack"
+          ? t({ en: "Attack in", es: "Ataque en" })
+          : m.kind === "colonize"
+            ? t({ en: "Settlers in", es: "Colonos en" })
+            : t({ en: "Cargo in", es: "Carga en" });
       return [{ id: m.id, kind: m.kind, ...trip(from, target), departsAt: m.departsAt, arrivesAt: m.arrivesAt, verb }];
     }
-    return m.returnsAt ? [{ id: m.id, kind: m.kind, ...trip(target, from), departsAt: m.arrivesAt, arrivesAt: m.returnsAt, verb: "Vuelven en" }] : [];
+    return m.returnsAt ? [{ id: m.id, kind: m.kind, ...trip(target, from), departsAt: m.arrivesAt, arrivesAt: m.returnsAt, verb: back }] : [];
   });
 }
 
@@ -138,13 +150,28 @@ const rowClass = (alert?: boolean) =>
     alert ? "bg-gold/20 ring-2 ring-gold hover:bg-gold/30" : "hover:bg-parchment-2",
   );
 
-function RowBody({ icon, title, level, right }: { icon: ReactNode; title: ReactNode; level?: number; right?: ReactNode }) {
+function RowBody({
+  icon,
+  title,
+  level,
+  right,
+  lv,
+}: {
+  icon: ReactNode;
+  title: ReactNode;
+  level?: number;
+  right?: ReactNode;
+  /** short "level" tag in the player's language */
+  lv?: string;
+}) {
   return (
     <>
       <span className="grid size-9 shrink-0 place-items-center rounded-full bg-parchment-2 ring-1 ring-parchment-3">{icon}</span>
       <span className="min-w-0 flex-1 truncate leading-tight font-bold">
         {title}
-        {level !== undefined && <span className="tabular ml-1.5 text-sm font-semibold text-ink-soft">Nv. {level}</span>}
+        {level !== undefined && <span className="tabular ml-1.5 text-sm font-semibold text-ink-soft">
+            {lv} {level}
+          </span>}
       </span>
       {right && <span className="tabular inline-flex shrink-0 items-center gap-1 text-sm font-bold">{right}</span>}
       <IconArrowRight size={16} className="shrink-0 text-bronze-dark transition group-hover:translate-x-0.5" />
@@ -163,7 +190,11 @@ function SummaryRow({ panel, alert, ...body }: { panel: string; alert?: boolean 
 }
 
 function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: boolean }) {
-  const { island, city, myCities, travelSec, speed, player, now } = ctx;
+  const { island, city, myCities, travelSec, speed, player, now, i18n } = ctx;
+  const { t, lang, fmt, fmtDuration } = i18n;
+  const lv = t({ en: "Lv.", es: "Nv." });
+  const res = resourceLabel(island.resource, lang);
+  const wealthName = techName("wealth", lang);
   const here = city.islandId === island.id;
   const mineHere = myCities.filter((c) => c.islandId === island.id);
   const freeSlots = Array.from({ length: ISLAND_PLOTS }, (_, i) => i).filter((s) => !island.cities.some((c) => c.slot === s));
@@ -174,25 +205,32 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
   const kicker = "px-2 text-xs font-extrabold tracking-wider text-bronze-dark uppercase";
 
   return (
-    <section aria-label={`Resumen de ${island.name}`} className="panel flex flex-col gap-1.5 p-3">
+    <section aria-label={t({ en: `${island.name} overview`, es: `Resumen de ${island.name}` })} className="panel flex flex-col gap-1.5 p-3">
       <div className="flex items-baseline justify-between gap-3 pr-8">
-        <h2 className={kicker}>En la isla</h2>
+        <h2 className={kicker}>{t({ en: "On the island", es: "En la isla" })}</h2>
         {/* The numbers in the rows are the active city's, not the island's. */}
-        {here && <p className="min-w-0 truncate text-xs font-semibold text-ink-soft">Producción de {city.name}</p>}
+        {here && (
+          <p className="min-w-0 truncate text-xs font-semibold text-ink-soft">
+            {t({ en: `Output of ${city.name}`, es: `Producción de ${city.name}` })}
+          </p>
+        )}
       </div>
       <ul className="flex flex-col gap-0.5">
         <SummaryRow
           panel="sawmill"
           alert={idleSawmill}
           icon={<ResIcon kind="wood" size={22} />}
-          title="Aserradero"
+          title={t({ en: "Sawmill", es: "Aserradero" })}
           level={island.sawmill.level}
+          lv={lv}
           right={
             idleSawmill ? (
-              <span className="rounded-full bg-terracotta px-2 py-0.5 text-xs font-extrabold text-marble">Sin trabajadores</span>
+              <span className="rounded-full bg-terracotta px-2 py-0.5 text-xs font-extrabold text-marble">
+                {t({ en: "No workers", es: "Sin trabajadores" })}
+              </span>
             ) : here ? (
-              <span className="text-success" title="Tu producción de madera">
-                <span className="sr-only">Producción: </span>+{fmt(woodRate)}/h
+              <span className="text-success" title={t({ en: "Your wood output", es: "Tu producción de madera" })}>
+                <span className="sr-only">{t({ en: "Output: ", es: "Producción: " })}</span>+{fmt(woodRate)}/h
               </span>
             ) : null
           }
@@ -200,17 +238,21 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
         <SummaryRow
           panel="mine"
           icon={<ResIcon kind={island.resource} size={22} />}
-          title={MINE_NAME[island.resource]}
+          title={mineName(island.resource, lang)}
           level={island.mine.level}
+          lv={lv}
           right={
             !wealth ? (
-              <span title="Necesita Riqueza" className="text-ink-soft">
+              <span title={t({ en: `Needs ${wealthName}`, es: `Necesita ${wealthName}` })} className="text-ink-soft">
                 <IconLock size={16} />
-                <span className="sr-only">Bloqueado: necesita Riqueza</span>
+                <span className="sr-only">{t({ en: `Locked: needs ${wealthName}`, es: `Bloqueado: necesita ${wealthName}` })}</span>
               </span>
             ) : here ? (
-              <span className={luxRate > 0 ? "text-success" : "text-ink-soft"} title={`Tu producción de ${RESOURCE_INFO[island.resource].label.toLowerCase()}`}>
-                <span className="sr-only">Producción: </span>+{fmt(luxRate)}/h
+              <span
+                className={luxRate > 0 ? "text-success" : "text-ink-soft"}
+                title={t({ en: `Your ${res.toLowerCase()} output`, es: `Tu producción de ${res.toLowerCase()}` })}
+              >
+                <span className="sr-only">{t({ en: "Output: ", es: "Producción: " })}</span>+{fmt(luxRate)}/h
               </span>
             ) : null
           }
@@ -218,13 +260,14 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
         <SummaryRow
           panel="camp"
           icon={<IconSwords size={18} className="text-terracotta" />}
-          title="Bárbaros"
+          title={t({ en: "Barbarians", es: "Bárbaros" })}
           level={island.barbarians.level}
+          lv={lv}
           right={
             rebuilding ? (
-              <span className="inline-flex items-center gap-1 text-ink-soft" title="Se rearman en">
+              <span className="inline-flex items-center gap-1 text-ink-soft" title={t({ en: "They rearm in", es: "Se rearman en" })}>
                 <IconClock size={15} />
-                <span className="sr-only">Se rearman en </span>
+                <span className="sr-only">{t({ en: "They rearm in ", es: "Se rearman en " })}</span>
                 <Countdown endsAt={rebuilding} serverNow={now} />
               </span>
             ) : null
@@ -234,13 +277,17 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
           <SummaryRow
             panel={`plot-${freeSlots[0]}`}
             icon={<IconFlag size={16} className="text-bronze-dark" />}
-            title={freeSlots.length === 1 ? "1 lugar libre" : `${freeSlots.length} lugares libres`}
+            title={
+              freeSlots.length === 1
+                ? t({ en: "1 free plot", es: "1 lugar libre" })
+                : t({ en: `${freeSlots.length} free plots`, es: `${freeSlots.length} lugares libres` })
+            }
           />
         )}
       </ul>
 
       <div className="flex flex-col gap-1 border-t border-parchment-3 pt-2">
-        <h2 className={kicker}>Tus ciudades</h2>
+        <h2 className={kicker}>{t({ en: "Your cities", es: "Tus ciudades" })}</h2>
         {mineHere.length ? (
           <ul className="flex flex-col gap-0.5">
             {mineHere.map((c) => (
@@ -251,7 +298,9 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
                     title={c.name}
                     right={
                       c.id === city.id ? (
-                        <span className="rounded-full bg-sea-900 px-2 py-0.5 text-xs font-extrabold text-gold">Estás acá</span>
+                        <span className="rounded-full bg-sea-900 px-2 py-0.5 text-xs font-extrabold text-gold">
+                          {t({ en: "You're here", es: "Estás acá" })}
+                        </span>
                       ) : null
                     }
                   />
@@ -263,7 +312,7 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
           <p className="flex items-center gap-1.5 px-2 py-1 text-sm text-ink-soft">
             <IconClock size={16} className="shrink-0" />
             <span>
-              <strong className="tabular text-ink">{fmtDuration(travelSec * 1000)}</strong> desde {city.name}
+              <strong className="tabular text-ink">{fmtDuration(travelSec * 1000)}</strong> {t({ en: "from", es: "desde" })} {city.name}
             </span>
           </p>
         )}

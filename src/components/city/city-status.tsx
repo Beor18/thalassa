@@ -1,10 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BUILDINGS, RESOURCE_INFO } from "@/game/data";
+import { BUILDINGS } from "@/game/data";
+import { buildingName, resourceLabel } from "@/game/names";
 import { CONSTRUCTION_IMAGE } from "@/game/layout";
 import { Countdown, TimeProgress } from "@/components/ui/countdown";
 import { CostList, ResIcon } from "@/components/ui/res";
-import { fmt1, fmtDuration, fmtSigned } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
 import type { Game } from "@/server/game-context";
 import { SectionTitle, Stat, StatGrid } from "./bits";
 import { readyUpgrades } from "./effects";
@@ -13,10 +14,11 @@ import { asPlayer, slotHref, unitCount } from "./lib";
 import { PopulationBar } from "./population";
 
 const MAX_READY = 4;
-const perHour = (n: number) => `${n > 0.05 ? "+" : n < -0.05 ? "−" : ""}${fmt1(Math.abs(n))}/h`;
 
 /** Card next to (desktop) or under (phones) the scene: the work in progress or what is ready to upgrade, and the city at a glance. */
-export function CityStatus({ game }: { game: Game }) {
+export async function CityStatus({ game }: { game: Game }) {
+  const { t, lang, fmt, fmt1, fmtSigned, fmtDuration } = await getI18n();
+  const perHour = (n: number) => `${n > 0.05 ? "+" : n < -0.05 ? "−" : ""}${fmt1(Math.abs(n))}/h`;
   const { snapshot, city } = game;
   const r = city.rates;
   const work = city.construction;
@@ -29,8 +31,18 @@ export function CityStatus({ game }: { game: Game }) {
   return (
     <div className="panel flex flex-col gap-3 p-3.5">
       <section aria-labelledby="works-title" className="flex flex-col gap-2">
-        <SectionTitle as="h2" id="works-title" aside={work ? undefined : ready.length ? `${ready.length} para mejorar` : "sin obras"}>
-          Obras
+        <SectionTitle
+          as="h2"
+          id="works-title"
+          aside={
+            work
+              ? undefined
+              : ready.length
+                ? t({ en: `${fmt(ready.length)} ready to upgrade`, es: `${fmt(ready.length)} para mejorar` })
+                : t({ en: "nothing building", es: "sin obras" })
+          }
+        >
+          {t({ en: "Construction", es: "Obras" })}
         </SectionTitle>
         {work ? (
           <Link
@@ -42,8 +54,8 @@ export function CityStatus({ game }: { game: Game }) {
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="flex items-baseline justify-between gap-2">
                 <span className="truncate font-bold">
-                  {BUILDINGS[work.type].name}
-                  <span className="font-bold text-ink-soft"> · nivel {work.targetLevel}</span>
+                  {buildingName(work.type, lang)}
+                  <span className="font-bold text-ink-soft"> · {t({ en: `level ${work.targetLevel}`, es: `nivel ${work.targetLevel}` })}</span>
                 </span>
                 <span className="shrink-0 text-sm font-extrabold text-bronze-dark">
                   <Countdown endsAt={work.endsAt} serverNow={snapshot.now} />
@@ -54,7 +66,7 @@ export function CityStatus({ game }: { game: Game }) {
             <IconChevron size={16} className="shrink-0 text-ink-soft transition-transform duration-100 group-hover:translate-x-0.5" />
           </Link>
         ) : ready.length > 0 ? (
-          <ul className="flex flex-col gap-1" aria-label="Edificios que podés mejorar ya">
+          <ul className="flex flex-col gap-1" aria-label={t({ en: "Buildings you can upgrade now", es: "Edificios que podés mejorar ya" })}>
             {ready.slice(0, MAX_READY).map((o) => (
               <li key={o.slot}>
                 <Link
@@ -65,11 +77,11 @@ export function CityStatus({ game }: { game: Game }) {
                   <Image src={BUILDINGS[o.type].image} alt="" width={80} height={80} sizes="36px" className="sprite size-9 shrink-0 object-contain" />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="flex items-center gap-1 truncate text-sm font-bold">
-                      {BUILDINGS[o.type].name}
+                      {buildingName(o.type, lang)}
                       <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-success/15 px-1.5 text-xs font-extrabold text-success">
                         <IconUp size={11} />
                         {o.next}
-                        <span className="sr-only">: mejorar a nivel {o.next}</span>
+                        <span className="sr-only">{t({ en: `: upgrade to level ${o.next}`, es: `: mejorar a nivel ${o.next}` })}</span>
                       </span>
                     </span>
                     <span className="flex items-center gap-2 text-xs text-ink-soft">
@@ -81,12 +93,19 @@ export function CityStatus({ game }: { game: Game }) {
                 </Link>
               </li>
             ))}
-            {ready.length > MAX_READY && <li className="px-1 text-xs text-ink-soft">y {ready.length - MAX_READY} más, marcados en el mapa</li>}
+            {ready.length > MAX_READY && (
+              <li className="px-1 text-xs text-ink-soft">
+                {t({
+                  en: `and ${fmt(ready.length - MAX_READY)} more, marked on the map`,
+                  es: `y ${fmt(ready.length - MAX_READY)} más, marcados en el mapa`,
+                })}
+              </li>
+            )}
           </ul>
         ) : (
           <p className="flex items-center gap-2 rounded-xl border border-dashed border-parchment-3 px-3 py-2 text-sm text-ink-soft">
             <IconHammer size={16} className="shrink-0 text-bronze-dark" />
-            Tocá un edificio para mejorarlo o un ＋ para construir.
+            {t({ en: "Tap a building to upgrade it or a ＋ to build.", es: "Tocá un edificio para mejorarlo o un ＋ para construir." })}
           </p>
         )}
         {training.length > 0 && barracks && (
@@ -98,8 +117,10 @@ export function CityStatus({ game }: { game: Game }) {
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <IconSword size={15} className="shrink-0 text-terracotta" />
               <span className="truncate">
-                Entrenando {unitCount(training[0].unit, training[0].count)}
-                {training.length > 1 ? ` y ${training.length - 1} más` : ""}
+                {t({
+                  en: `Training ${unitCount(training[0].unit, training[0].count, lang)}${training.length > 1 ? ` and ${fmt(training.length - 1)} more` : ""}`,
+                  es: `Entrenando ${unitCount(training[0].unit, training[0].count, lang)}${training.length > 1 ? ` y ${fmt(training.length - 1)} más` : ""}`,
+                })}
               </span>
             </span>
             <span className="shrink-0 font-bold text-ink-soft">
@@ -110,27 +131,34 @@ export function CityStatus({ game }: { game: Game }) {
       </section>
 
       <section aria-labelledby="city-summary-title" className="flex flex-col gap-2 border-t border-parchment-3/70 pt-3">
-        <SectionTitle as="h2" id="city-summary-title" aside="por hora">
-          Ciudad
+        <SectionTitle as="h2" id="city-summary-title" aside={t({ en: "per hour", es: "por hora" })}>
+          {t({ en: "City", es: "Ciudad" })}
         </SectionTitle>
         <PopulationBar population={city.population} housing={r.housing} growth={r.growth} />
         <StatGrid>
           <Stat
             icon={<FaceIcon happy={r.netHappiness >= 0} />}
-            label="Satisfacción"
+            label={t({ en: "Satisfaction", es: "Satisfacción" })}
             value={fmtSigned(r.netHappiness)}
             tone={r.netHappiness < 0 ? "bad" : undefined}
           />
-          <Stat icon={<ResIcon kind="research" size={20} />} label="Investigación" value={perHour(r.research)} />
-          <Stat icon={<ResIcon kind="gold" size={20} />} label="Oro" value={perHour(goldNet)} tone={goldNet < 0 ? "bad" : undefined} />
-          <Stat icon={<ResIcon kind="wood" size={20} />} label="Madera" value={perHour(r.wood)} />
+          <Stat icon={<ResIcon kind="research" size={20} />} label={resourceLabel("research", lang)} value={perHour(r.research)} />
+          <Stat
+            icon={<ResIcon kind="gold" size={20} />}
+            label={resourceLabel("gold", lang)}
+            value={perHour(goldNet)}
+            tone={goldNet < 0 ? "bad" : undefined}
+          />
+          <Stat icon={<ResIcon kind="wood" size={20} />} label={resourceLabel("wood", lang)} value={perHour(r.wood)} />
           <Stat
             icon={<ResIcon kind={lux} size={20} />}
-            label={RESOURCE_INFO[lux].label}
+            label={resourceLabel(lux, lang)}
             value={perHour(lux === "wine" ? r.luxury - r.wineUse : r.luxury)}
             tone={lux === "wine" && r.luxury - r.wineUse < -0.05 ? "bad" : undefined}
           />
-          {lux !== "wine" && r.wineUse > 0 && <Stat icon={<ResIcon kind="wine" size={20} />} label="Vino" value={perHour(-r.wineUse)} tone="bad" />}
+          {lux !== "wine" && r.wineUse > 0 && (
+            <Stat icon={<ResIcon kind="wine" size={20} />} label={resourceLabel("wine", lang)} value={perHour(-r.wineUse)} tone="bad" />
+          )}
         </StatGrid>
       </section>
     </div>

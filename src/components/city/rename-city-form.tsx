@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { reportResult } from "@/components/ui/action-button";
+import { useI18n } from "@/i18n/client";
 import { renameCityAction } from "@/server/actions";
 
 export function RenameCityForm({ cityId, name }: { cityId: string; name: string }) {
+  const { t } = useI18n();
   const [value, setValue] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -19,7 +21,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
       onSubmit={(e) => {
         e.preventDefault();
         if (clean.length < 3 || clean.length > 24) {
-          setError("El nombre tiene que tener entre 3 y 24 letras.");
+          setError(t({ en: "The name must be 3 to 24 letters long.", es: "El nombre tiene que tener entre 3 y 24 letras." }));
           return;
         }
         setError(null);
@@ -31,7 +33,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
       }}
     >
       <label htmlFor="city-name" className="sr-only">
-        Nombre de la ciudad
+        {t({ en: "City name", es: "Nombre de la ciudad" })}
       </label>
       <div className="flex gap-2">
         <input
@@ -48,7 +50,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
           className="h-10 min-w-0 flex-1 rounded-lg border border-parchment-3 bg-marble px-3 text-[15px] text-ink shadow-inner focus-visible:border-bronze"
         />
         <Button type="submit" variant="secondary" disabled={pending || unchanged} aria-busy={pending}>
-          {pending ? "Guardando…" : "Guardar nombre"}
+          {pending ? t({ en: "Saving…", es: "Guardando…" }) : t({ en: "Save name", es: "Guardar nombre" })}
         </Button>
       </div>
       {error ? (
@@ -57,7 +59,7 @@ export function RenameCityForm({ cityId, name }: { cityId: string; name: string 
         </p>
       ) : (
         <p id="city-name-hint" className="text-xs text-ink-soft">
-          De 3 a 24 letras. Lo ven todos en la isla.
+          {t({ en: "3 to 24 letters. Everyone on the island sees it.", es: "De 3 a 24 letras. Lo ven todos en la isla." })}
         </p>
       )}
     </form>

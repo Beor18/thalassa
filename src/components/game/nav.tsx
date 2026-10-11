@@ -11,9 +11,11 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { useReducedMotion } from "motion/react";
+import { useI18n, usePagePathname } from "@/i18n/client";
+import type { Text } from "@/i18n/config";
 import { useAnchoredPopover } from "@/components/ui/popover";
 import {
   IconCheck,
@@ -40,67 +42,41 @@ function rememberCityCookie(id: string) {
 
 /*
   Sections in reading order (it also sets the slide direction between them).
-  tier 1: always in sight. tier 2: in the "Más" sheet on phones. tier 3: also in "Más" on small desktops.
+  tier 1: always in sight. tier 2: in the "More" sheet on phones. tier 3: also in "More" on small desktops.
 */
 export const NAV_LABELS: {
-  label: string;
-  short: string;
+  label: Text;
+  short: Text;
   match: string;
   icon: HudIcon;
   tier: 1 | 2 | 3;
 }[] = [
+  { label: { en: "City", es: "Ciudad" }, short: { en: "City", es: "Ciudad" }, match: "/ciudad", icon: IconCity, tier: 1 },
+  { label: { en: "Island", es: "Isla" }, short: { en: "Island", es: "Isla" }, match: "/isla", icon: IconIsland, tier: 1 },
+  { label: { en: "World", es: "Mundo" }, short: { en: "World", es: "Mundo" }, match: "/mundo", icon: IconWorld, tier: 1 },
   {
-    label: "Ciudad",
-    short: "Ciudad",
-    match: "/ciudad",
-    icon: IconCity,
-    tier: 1,
-  },
-  { label: "Isla", short: "Isla", match: "/isla", icon: IconIsland, tier: 1 },
-  { label: "Mundo", short: "Mundo", match: "/mundo", icon: IconWorld, tier: 1 },
-  {
-    label: "Investigación",
-    short: "Investigar",
+    label: { en: "Research", es: "Investigación" },
+    short: { en: "Research", es: "Investigar" },
     match: "/investigacion",
     icon: IconResearch,
     tier: 1,
   },
   {
-    label: "Flota y tropas",
-    short: "Tropas",
+    label: { en: "Fleet & troops", es: "Flota y tropas" },
+    short: { en: "Troops", es: "Tropas" },
     match: "/militar",
     icon: IconSwords,
     tier: 1,
   },
-  {
-    label: "Informes",
-    short: "Informes",
-    match: "/informes",
-    icon: IconReports,
-    tier: 2,
-  },
-  {
-    label: "Ranking",
-    short: "Ranking",
-    match: "/ranking",
-    icon: IconTrophy,
-    tier: 3,
-  },
-  {
-    label: "Néctar",
-    short: "Néctar",
-    match: "/tesoro",
-    icon: IconNectar,
-    tier: 3,
-  },
-  {
-    label: "Invitar",
-    short: "Invitar",
-    match: "/invitar",
-    icon: IconInvite,
-    tier: 3,
-  },
+  { label: { en: "Reports", es: "Informes" }, short: { en: "Reports", es: "Informes" }, match: "/informes", icon: IconReports, tier: 2 },
+  { label: { en: "Rankings", es: "Ranking" }, short: { en: "Rankings", es: "Ranking" }, match: "/ranking", icon: IconTrophy, tier: 3 },
+  { label: { en: "Nectar", es: "Néctar" }, short: { en: "Nectar", es: "Néctar" }, match: "/tesoro", icon: IconNectar, tier: 3 },
+  { label: { en: "Invite", es: "Invitar" }, short: { en: "Invite", es: "Invitar" }, match: "/invitar", icon: IconInvite, tier: 3 },
 ];
+
+const MORE: Text = { en: "More", es: "Más" };
+const MORE_SECTIONS: Text = { en: "More sections", es: "Más secciones" };
+const SECTIONS: Text = { en: "Sections", es: "Secciones" };
 
 const hrefFor = (match: string, cityId: string, islandId: number) =>
   match === "/ciudad" ? `/ciudad/${cityId}` : match === "/isla" ? `/isla/${islandId}` : match;
@@ -117,11 +93,11 @@ export function sectionTransition(pathname: string, match: string): string[] | u
 
 type Variant = "top" | "bar";
 
-/** Which items fold into "Más", and the classes that swap them with it, per nav. */
+/** Which items fold into "More", and the classes that swap them with it, per nav. */
 const FOLD: Record<Variant, { from: number; inline: string; more: string }> = {
-  // Desktop: Ranking, Néctar and Invitar fold below 1280px.
+  // Desktop: Rankings, Nectar and Invite fold below 1280px.
   top: { from: 3, inline: "hidden xl:inline-flex", more: "xl:hidden" },
-  // Phones and tablets: Informes and the rest fold below 768px.
+  // Phones and tablets: Reports and the rest fold below 768px.
   bar: { from: 2, inline: "hidden md:flex", more: "md:hidden" },
 };
 
@@ -160,7 +136,7 @@ function clearNavPending() {
 
 /** State shared by both navs: active and optimistic section, pill slide, badge pop. */
 function useSectionNav(variant: Variant, unreadReports: number) {
-  const pathname = usePathname();
+  const pathname = usePagePathname();
   const navRef = useRef<HTMLElement>(null);
   const pills = useRef(new Set<HTMLElement>());
   const reduce = useReducedMotion();
@@ -234,6 +210,7 @@ function useSectionNav(variant: Variant, unreadReports: number) {
 }
 
 function Badge({ count, pop, className }: { count: number; pop: boolean; className?: string }) {
+  const { t } = useI18n();
   return (
     <span
       key={count}
@@ -244,7 +221,10 @@ function Badge({ count, pop, className }: { count: number; pop: boolean; classNa
       )}
     >
       {count}
-      <span className="sr-only"> {count === 1 ? "informe nuevo" : "informes nuevos"}</span>
+      <span className="sr-only">
+        {" "}
+        {count === 1 ? t({ en: "new report", es: "informe nuevo" }) : t({ en: "new reports", es: "informes nuevos" })}
+      </span>
     </span>
   );
 }
@@ -264,11 +244,12 @@ const TOP_IDLE = "text-foam/85 transition-colors duration-200 hover:bg-foam/10 h
  */
 export function GameNav({ cityId, islandId, unreadReports, className }: NavProps & { className?: string }) {
   const { navRef, pillIndex, pillRef, linkProps, popBadge } = useSectionNav("top", unreadReports);
+  const { t } = useI18n();
   const fold = FOLD.top;
   const folded = NAV_LABELS.map((_, i) => i).filter((i) => NAV_LABELS[i].tier >= fold.from);
 
   return (
-    <nav ref={navRef} aria-label="Secciones" className={clsx("relative min-w-0 items-center gap-0.5", className)}>
+    <nav ref={navRef} aria-label={t(SECTIONS)} className={clsx("relative min-w-0 items-center gap-0.5", className)}>
       {NAV_LABELS.map((item, i) => {
         const lit = i === pillIndex;
         const Icon = item.icon;
@@ -281,7 +262,7 @@ export function GameNav({ cityId, islandId, unreadReports, className }: NavProps
           >
             {lit && <span ref={pillRef} aria-hidden className={clsx(PILL, "inset-0 rounded-lg")} />}
             <Icon className="relative hidden size-[18px] opacity-80 2xl:block" />
-            <span className="relative">{item.label}</span>
+            <span className="relative">{t(item.label)}</span>
             {badge > 0 && <Badge count={badge} pop={popBadge(badge)} className="relative" />}
           </Link>
         );
@@ -300,16 +281,17 @@ export function GameNav({ cityId, islandId, unreadReports, className }: NavProps
 
 /**
  * Phones and tablets: the sections live in a bar at the bottom, in reach of the thumb.
- * Same pill, same slide; the less used sections fold into "Más" on phones.
+ * Same pill, same slide; the less used sections fold into "More" on phones.
  */
 export function TabBar({ cityId, islandId, unreadReports, anchored = true }: NavProps & { anchored?: boolean }) {
   const { navRef, pillIndex, pillRef, linkProps, popBadge } = useSectionNav("bar", unreadReports);
+  const { t } = useI18n();
   const fold = FOLD.bar;
   const folded = NAV_LABELS.map((_, i) => i).filter((i) => NAV_LABELS[i].tier >= fold.from);
 
   return (
     <TabBarFrame anchored={anchored}>
-      <nav ref={navRef} aria-label="Secciones" className="relative mx-auto flex h-full max-w-3xl items-stretch">
+      <nav ref={navRef} aria-label={t(SECTIONS)} className="relative mx-auto flex h-full max-w-3xl items-stretch">
         {NAV_LABELS.map((item, i) => {
           const lit = i === pillIndex;
           const badge = item.match === "/informes" ? unreadReports : 0;
@@ -319,7 +301,7 @@ export function TabBar({ cityId, islandId, unreadReports, anchored = true }: Nav
               {...linkProps(i, cityId, islandId)}
               className={clsx(BAR_ITEM, item.tier >= fold.from ? fold.inline : "flex", lit ? "text-ink" : BAR_IDLE)}
             >
-              <BarFace icon={item.icon} label={item.short} lit={lit} pillRef={pillRef} />
+              <BarFace icon={item.icon} label={t(item.short)} lit={lit} pillRef={pillRef} />
               {badge > 0 && <Badge count={badge} pop={popBadge(badge)} className={BAR_BADGE} />}
             </Link>
           );
@@ -388,7 +370,7 @@ function BarFace({
   );
 }
 
-/** "Más": the folded sections. A list under the tab on desktop, tiles over the bar on phones. */
+/** "More": the folded sections. A list under the tab on desktop, tiles over the bar on phones. */
 function MoreMenu({
   variant,
   items,
@@ -407,6 +389,7 @@ function MoreMenu({
   badge?: ReactNode;
 }) {
   const bar = variant === "bar";
+  const { t } = useI18n();
   const pop = useAnchoredPopover<HTMLButtonElement>({
     side: bar ? "above" : "below",
     align: bar ? "end" : "start",
@@ -415,14 +398,14 @@ function MoreMenu({
   // While a folded section is open, the button wears its name, so you always see where you are.
   const current = items.includes(pillIndex) ? NAV_LABELS[pillIndex] : null;
   const lit = current != null;
-  const label = current ? (bar ? current.short : current.label) : "Más";
+  const label = t(current ? (bar ? current.short : current.label) : MORE);
 
   return (
     <div className={clsx(FOLD[variant].more, bar ? "flex flex-1" : "contents")}>
       <button
         type="button"
         {...pop.triggerProps}
-        aria-label={current ? `${current.label}. Más secciones` : "Más secciones"}
+        aria-label={current ? `${t(current.label)}. ${t(MORE_SECTIONS)}` : t(MORE_SECTIONS)}
         className={clsx(
           bar ? clsx(BAR_ITEM, "flex") : clsx(TOP_ITEM, "inline-flex"),
           lit ? "text-ink" : bar ? BAR_IDLE : TOP_IDLE,
@@ -442,7 +425,7 @@ function MoreMenu({
       </button>
       <div {...pop.popoverProps} className="hud-pop">
         {bar ? (
-          <ul aria-label="Más secciones" className="panel grid w-[min(20rem,calc(100vw-1rem))] grid-cols-2 gap-1.5 p-2">
+          <ul aria-label={t(MORE_SECTIONS)} className="panel grid w-[min(20rem,calc(100vw-1rem))] grid-cols-2 gap-1.5 p-2">
             {items.map((i) => {
               const item = NAV_LABELS[i];
               const here = i === pillIndex;
@@ -461,7 +444,7 @@ function MoreMenu({
                     )}
                   >
                     <item.icon className="size-6 text-bronze-dark" />
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
                     {count > 0 && <Badge count={count} pop={false} />}
                   </Link>
                 </li>
@@ -469,7 +452,7 @@ function MoreMenu({
             })}
           </ul>
         ) : (
-          <ul aria-label="Más secciones" className="panel flex w-52 flex-col gap-0.5 p-1.5">
+          <ul aria-label={t(MORE_SECTIONS)} className="panel flex w-52 flex-col gap-0.5 p-1.5">
             {items.map((i) => {
               const item = NAV_LABELS[i];
               const here = i === pillIndex;
@@ -487,7 +470,7 @@ function MoreMenu({
                     )}
                   >
                     <item.icon className="size-5 text-bronze-dark" />
-                    <span className="flex-1">{item.label}</span>
+                    <span className="flex-1">{t(item.label)}</span>
                     {here && <IconCheck className="size-4 text-bronze-dark" />}
                   </Link>
                 </li>
@@ -502,17 +485,18 @@ function MoreMenu({
 
 /** Same tabs, not interactive, for the very first load before the header data arrives. */
 export function NavPlaceholder({ className }: { className?: string }) {
+  const { t } = useI18n();
   const fold = FOLD.top;
   return (
     <div aria-hidden className={clsx("items-center gap-0.5", className)}>
       {NAV_LABELS.map((item) => (
         <span key={item.match} className={clsx(TOP_ITEM, "text-foam/50", item.tier >= fold.from ? fold.inline : "inline-flex")}>
           <item.icon className="hidden size-[18px] 2xl:block" />
-          {item.label}
+          {t(item.label)}
         </span>
       ))}
       <span className={clsx(TOP_ITEM, "inline-flex text-foam/50", fold.more)}>
-        Más
+        {t(MORE)}
         <IconChevron className="size-4" />
       </span>
     </div>
@@ -521,17 +505,18 @@ export function NavPlaceholder({ className }: { className?: string }) {
 
 /** Tab bar placeholder for the first load on phones and tablets. */
 export function TabBarPlaceholder({ anchored = true }: { anchored?: boolean }) {
+  const { t } = useI18n();
   const fold = FOLD.bar;
   return (
     <TabBarFrame placeholder anchored={anchored}>
       <div className="mx-auto flex h-full max-w-3xl items-stretch">
         {NAV_LABELS.map((item) => (
           <span key={item.match} className={clsx(BAR_ITEM, "text-foam/50", item.tier >= fold.from ? fold.inline : "flex")}>
-            <BarFace icon={item.icon} label={item.short} lit={false} />
+            <BarFace icon={item.icon} label={t(item.short)} lit={false} />
           </span>
         ))}
         <span className={clsx(BAR_ITEM, "flex text-foam/50", fold.more)}>
-          <BarFace icon={IconMore} label="Más" lit={false} />
+          <BarFace icon={IconMore} label={t(MORE)} lit={false} />
         </span>
       </div>
     </TabBarFrame>
@@ -546,7 +531,8 @@ type CityOption = { id: string; name: string; islandName: string };
  */
 export function CitySwitcher({ cities, currentId, variant = "row" }: { cities: CityOption[]; currentId: string; variant?: "row" | "bar" }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePagePathname();
+  const { t } = useI18n();
   const pop = useAnchoredPopover<HTMLButtonElement>({
     align: "start",
     gap: variant === "bar" ? 8 : 6,
@@ -567,7 +553,7 @@ export function CitySwitcher({ cities, currentId, variant = "row" }: { cities: C
     return (
       <span
         className={clsx("min-w-0 truncate drop-shadow", nameClass, variant === "bar" && "max-w-44 px-2.5")}
-        title={`${current?.name}, en ${current?.islandName}`}
+        title={t({ en: `${current?.name}, on ${current?.islandName}`, es: `${current?.name}, en ${current?.islandName}` })}
       >
         {current?.name}
       </span>
@@ -603,7 +589,7 @@ export function CitySwitcher({ cities, currentId, variant = "row" }: { cities: C
       <button
         type="button"
         {...pop.triggerProps}
-        aria-label={`Ciudad actual: ${current?.name}. Cambiar de ciudad`}
+        aria-label={t({ en: `Current city: ${current?.name}. Switch city`, es: `Ciudad actual: ${current?.name}. Cambiar de ciudad` })}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown" && !pop.open) {
             e.preventDefault();
@@ -627,7 +613,7 @@ export function CitySwitcher({ cities, currentId, variant = "row" }: { cities: C
       <div {...pop.popoverProps} className="hud-pop">
         <ul
           ref={listRef}
-          aria-label="Tus ciudades"
+          aria-label={t({ en: "Your cities", es: "Tus ciudades" })}
           onKeyDown={onListKey}
           className="panel flex w-72 max-w-[calc(100vw-1rem)] flex-col gap-0.5 p-1.5"
         >
@@ -647,7 +633,9 @@ export function CitySwitcher({ cities, currentId, variant = "row" }: { cities: C
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-display font-bold text-ink">{c.name}</span>
-                    <span className="block truncate text-sm text-ink-soft">En {c.islandName}</span>
+                    <span className="block truncate text-sm text-ink-soft">
+                      {t({ en: `On ${c.islandName}`, es: `En ${c.islandName}` })}
+                    </span>
                   </span>
                   {selected && <IconCheck className="size-4 text-bronze-dark" />}
                 </button>

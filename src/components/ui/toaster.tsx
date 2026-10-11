@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useI18n } from "@/i18n/client";
 
 type Toast = { id: number; text: string; kind: "ok" | "error" };
 const EVENT = "thalassa:toast";
@@ -45,10 +46,11 @@ export function Toaster() {
   }, []);
   const dismiss = (id: number) => setItems((prev) => prev.filter((t) => t.id !== id));
   const onTop = useToastsOnTop();
+  const { t: tr } = useI18n();
 
   return (
     <section
-      aria-label="Avisos"
+      aria-label={tr({ en: "Notifications", es: "Avisos" })}
       aria-live="polite"
       className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex flex-col-reverse items-center gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 lg:top-auto lg:bottom-0 lg:flex-col lg:items-end lg:pt-0 lg:pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
@@ -81,6 +83,7 @@ function ToastItem({ toast: t, fromTop, onDismiss }: { toast: Toast; fromTop: bo
   }, [paused]);
 
   const ok = t.kind === "ok";
+  const { t: tr } = useI18n();
   return (
     <motion.div
       layout={!reduce}
@@ -118,7 +121,7 @@ function ToastItem({ toast: t, fromTop, onDismiss }: { toast: Toast; fromTop: bo
       <button
         type="button"
         onClick={onDismiss}
-        aria-label="Cerrar aviso"
+        aria-label={tr({ en: "Dismiss", es: "Cerrar aviso" })}
         className="-my-1 grid size-10 shrink-0 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink"
       >
         <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

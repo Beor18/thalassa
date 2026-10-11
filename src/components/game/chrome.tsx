@@ -2,16 +2,18 @@
 
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import type { AdvisorHint } from "@/game/engine";
-import { useI18n } from "@/i18n/client";
+import { useI18n, usePagePathname } from "@/i18n/client";
+import type { Text } from "@/i18n/config";
 import { buttonClass } from "@/components/ui/button";
+import { LanguageSwitch } from "@/components/ui/language-switch";
 import { useAnchoredPopover } from "@/components/ui/popover";
 import { markShellMount } from "@/components/motion/late-mount";
 import { isNewAdvisor, markAdvisorSeen, readChrome, rememberChrome, subscribeNever, type ChromeData } from "./chrome-cache";
-import { IconChevron, IconLeave, OwlIcon } from "./icons";
+import { IconChevron, IconLanguage, IconLeave, OwlIcon } from "./icons";
 import { CitySwitcher, GameNav, NavPlaceholder, TabBar, TabBarPlaceholder } from "./nav";
 import { ResourceBar, ResourceBarPlaceholder } from "./resource-bar";
 
@@ -39,13 +41,14 @@ export function GameChrome({
   fromCache = false,
   anchored = true,
 }: ChromeData & { fromCache?: boolean; anchored?: boolean }) {
+  const { lang } = useI18n();
   useState(() => {
     if (!fromCache) markShellMount();
     return null;
   });
   useEffect(() => {
-    if (!fromCache) rememberChrome({ header, advisor });
-  }, [header, advisor, fromCache]);
+    if (!fromCache) rememberChrome({ header, advisor }, lang);
+  }, [header, advisor, fromCache, lang]);
   const shownAdvisor = useHeldWhileSheetOpen(advisor);
 
   // The tab bar sits outside the anchored header: view-transition-name makes the header its own
@@ -99,7 +102,9 @@ export function GameChrome({
   );
 }
 
-const sameHint = (a: AdvisorHint | null, b: AdvisorHint | null) => a?.title === b?.title && a?.href === b?.href && a?.body === b?.body;
+// Hints come from the server as fresh objects on every snapshot: compare their content.
+const sameHint = (a: AdvisorHint | null, b: AdvisorHint | null) =>
+  a?.title.en === b?.title.en && a?.href === b?.href && a?.body.en === b?.body.en;
 
 /**
  * A hint that just got done stays put while a modal sheet is open (the page behind it must not
@@ -129,6 +134,7 @@ function useHeldWhileSheetOpen(advisor: AdvisorHint | null) {
 
 /** First stop for keyboards: jumps over the header to the section on screen. */
 function SkipLink() {
+  const { t } = useI18n();
   const jump = (e: MouseEvent<HTMLAnchorElement>) => {
     // Sections kept alive in the background are hidden: pick the main that is on screen.
     const main = Array.from(document.querySelectorAll("main")).find((m) => m.getClientRects().length > 0);
@@ -143,13 +149,14 @@ function SkipLink() {
       onClick={jump}
       className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:rounded-lg focus:bg-parchment focus:px-4 focus:py-2.5 focus:font-bold focus:text-ink focus:shadow-lg"
     >
-      Saltar al contenido
+      {t({ en: "Skip to content", es: "Saltar al contenido" })}
     </a>
   );
 }
 
-/** Player coin with the game speed; opens the name, what "red de prueba" means, and Salir. */
+/** Player coin with the game speed; opens the name, what the test network means, the language and Log out. */
 function AccountMenu({ name, speed }: { name: string; speed: number }) {
+  const { t, lang } = useI18n();
   const pop = useAnchoredPopover<HTMLButtonElement>({ align: "end", gap: 6 });
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   return (
@@ -157,7 +164,10 @@ function AccountMenu({ name, speed }: { name: string; speed: number }) {
       <button
         type="button"
         {...pop.triggerProps}
-        aria-label={`Tu cuenta: ${name}. Red de prueba, tiempo ×${speed}`}
+        aria-label={t({
+          en: `Your account: ${name}. Test network, time ×${speed}`,
+          es: `Tu cuenta: ${name}. Red de prueba, tiempo ×${speed}`,
+        })}
         className={clsx(
           "flex h-11 items-center gap-1.5 rounded-full pr-1.5 pl-1 text-foam/90 transition-colors hover:bg-foam/10 hover:text-foam",
           pop.open && "bg-foam/10 text-foam",
@@ -174,7 +184,7 @@ function AccountMenu({ name, speed }: { name: string; speed: number }) {
           aria-hidden
           className="hidden rounded-full bg-sea-800/90 px-1.5 py-0.5 text-[11px] leading-none font-bold whitespace-nowrap text-sea-300 ring-1 ring-sea-500/40 sm:inline"
         >
-          <span className="hidden 2xl:inline">Red de prueba </span>×{speed}
+          <span className="hidden 2xl:inline">{t({ en: "Test network", es: "Red de prueba" })} </span>×{speed}
         </span>
         <IconChevron className={clsx("size-4 text-sea-300 transition-transform duration-200", pop.open && "rotate-180")} />
       </button>
@@ -183,8 +193,21 @@ function AccountMenu({ name, speed }: { name: string; speed: number }) {
           <div className="px-2.5 pt-1.5 pb-2.5">
             <p className="truncate font-display text-[15px] font-bold text-ink">{name}</p>
             <p className="mt-1 text-sm leading-snug text-ink-soft">
-              Red de prueba: el tiempo corre <b className="text-ink">{speed} veces</b> más rápido.
+              {lang === "en" ? (
+                <>
+                  Test network: time runs <b className="text-ink">{speed} times</b> faster.
+                </>
+              ) : (
+                <>
+                  Red de prueba: el tiempo corre <b className="text-ink">{speed} veces</b> más rápido.
+                </>
+              )}
             </p>
+          </div>
+          <div className="flex min-h-11 items-center gap-2.5 border-t border-parchment-3/70 px-2.5 py-1">
+            <IconLanguage className="size-5 text-bronze-dark" />
+            <span className="flex-1 font-bold text-ink">{t({ en: "Language", es: "Idioma" })}</span>
+            <LanguageSwitch tone="light" />
           </div>
           <Link
             href="/salir"
@@ -192,7 +215,7 @@ function AccountMenu({ name, speed }: { name: string; speed: number }) {
             className="flex min-h-11 items-center gap-2.5 rounded-lg border-t border-parchment-3/70 px-2.5 font-bold text-ink transition-colors hover:bg-parchment-2 focus-visible:bg-parchment-2"
           >
             <IconLeave className="size-5 text-bronze-dark" />
-            Salir
+            {t({ en: "Log out", es: "Salir" })}
           </Link>
         </div>
       </div>
@@ -201,14 +224,14 @@ function AccountMenu({ name, speed }: { name: string; speed: number }) {
 }
 
 /** What the advisor button does, read from where it goes (and from where you are). */
-function advisorCta(href: string, pathname: string) {
+function advisorCta(href: string, pathname: string): Text {
   // Already in that section: the button only points at the spot.
-  if (href.split("?")[0] === pathname) return "Mostrar";
-  if (href.startsWith("/isla")) return "Ir a la isla";
-  if (href.startsWith("/ciudad")) return "Ir a la ciudad";
-  if (href.startsWith("/investigacion")) return "Investigar";
-  if (href.startsWith("/tesoro")) return "Ver néctar";
-  return "Ir ahora";
+  if (href.split("?")[0] === pathname) return { en: "Show me", es: "Mostrar" };
+  if (href.startsWith("/isla")) return { en: "Go to island", es: "Ir a la isla" };
+  if (href.startsWith("/ciudad")) return { en: "Go to city", es: "Ir a la ciudad" };
+  if (href.startsWith("/investigacion")) return { en: "Research", es: "Investigar" };
+  if (href.startsWith("/tesoro")) return { en: "See nectar", es: "Ver néctar" };
+  return { en: "Go now", es: "Ir ahora" };
 }
 
 const WIDE = "(min-width: 1536px)";
@@ -219,7 +242,7 @@ const WIDE = "(min-width: 1536px)";
  * The button is secondary on purpose: the section's own main action keeps the bronze.
  */
 function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
-  const pathname = usePathname();
+  const pathname = usePagePathname();
   const { t } = useI18n();
   // A hint this tab has not shown yet gets an entrance and a few gentle pulses; a known one sits still.
   const [fresh] = useState(() => !quiet && isNewAdvisor(advisor.title.en));
@@ -266,7 +289,7 @@ function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
           <span className="sr-only 2xl:not-sr-only 2xl:ml-2 2xl:text-sm 2xl:text-ink-soft">{t(advisor.body)}</span>
         </span>
         <span className={buttonClass("secondary", "sm", "shrink-0 px-2.5 text-bronze-dark group-hover:text-ink lg:h-9")}>
-          {advisorCta(advisor.href, pathname)}
+          {t(advisorCta(advisor.href, pathname))}
           <svg
             viewBox="0 0 16 16"
             aria-hidden
@@ -293,8 +316,9 @@ function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
  * otherwise a placeholder with the same shape (first load).
  */
 export function CachedChrome({ anchored = true }: { anchored?: boolean }) {
+  const { lang } = useI18n();
   const cached = useSyncExternalStore(subscribeNever, readChrome, () => null);
-  if (cached) return <GameChrome header={cached.header} advisor={cached.advisor} fromCache anchored={anchored} />;
+  if (cached && cached.lang === lang) return <GameChrome header={cached.header} advisor={cached.advisor} fromCache anchored={anchored} />;
   return <ChromePlaceholder anchored={anchored} />;
 }
 

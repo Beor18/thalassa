@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getI18n } from "@/i18n/server";
 import { requirePlayerId } from "./auth";
 import { getSnapshot, type GameSnapshot } from "./queries";
 
@@ -21,7 +22,8 @@ export interface Game {
 export const getGame = cache(async (cityId?: string): Promise<Game> => {
   const playerId = await requirePlayerId();
   const remembered = (await cookies()).get(CITY_COOKIE)?.value;
-  const snapshot = await getSnapshot(playerId, cityId ?? remembered);
+  const { lang } = await getI18n(); // game pages live under [lang]: labels in the snapshot follow it
+  const snapshot = await getSnapshot(playerId, cityId ?? remembered, lang);
   if (!snapshot || snapshot.cities.length === 0) redirect("/salir");
   const city =
     snapshot.cities.find((c) => c.id === cityId) ??

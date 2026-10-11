@@ -20,8 +20,9 @@ import type { GameCity } from "@/server/game-context";
 import { buttonClass } from "@/components/ui/button";
 import { Countdown } from "@/components/ui/countdown";
 import { CostList, ResIcon } from "@/components/ui/res";
-import { fmt, fmtDuration } from "@/lib/format";
-import { UnitPortrait, unitEntries, unitName } from "@/components/military/units";
+import { UnitPortrait, unitEntries } from "@/components/military/units";
+import { techName, unitName } from "@/game/names";
+import type { I18n } from "@/i18n/i18n";
 import { TroopsAway } from "@/components/city/troops-away";
 import {
   AttackForm,
@@ -35,11 +36,13 @@ import {
 } from "./forms";
 import { IconClock, IconLock, IconShield, IconSwords, IconTemple } from "./icons";
 import { PanelLink, type PanelDef } from "./panel-host";
-import { MINE_NAME } from "./names";
+import { mineName } from "./names";
 import { Sprite, Token } from "./sprite";
 import { Callout, Disclosure, ResGlyph, ShipGlyph, Stat, StatRow } from "./ui";
 
 export interface IslandCtx {
+  /** copy and number formats in the player's language */
+  i18n: I18n;
   island: IslandView;
   player: PlayerState;
   /** the active city: every action leaves from here */
@@ -76,12 +79,24 @@ function PanelSprite({ image, fallback }: { image: string; fallback: ReactNode }
 }
 
 /** Donations toward the next level. With `donate`, the card opens to the donation form. */
-function LevelCard({ level, donated, nextCost, donate }: { level: number; donated: number; nextCost: number; donate?: ReactNode }) {
+function LevelCard({
+  i18n: { t, fmt },
+  level,
+  donated,
+  nextCost,
+  donate,
+}: {
+  i18n: I18n;
+  level: number;
+  donated: number;
+  nextCost: number;
+  donate?: ReactNode;
+}) {
   const pct = Math.max(0, Math.min(100, (donated / nextCost) * 100));
   const progress = (
     <span className="flex min-w-0 flex-1 flex-col gap-1.5">
       <span className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="font-bold">Nivel {level + 1}</span>
+        <span className="font-bold">{t({ en: `Level ${level + 1}`, es: `Nivel ${level + 1}` })}</span>
         <span className="tabular inline-flex items-center gap-1 font-semibold text-ink-soft">
           <ResGlyph kind="wood" size={16} />
           {fmt(donated)}/{fmt(nextCost)}
@@ -90,7 +105,7 @@ function LevelCard({ level, donated, nextCost, donate }: { level: number; donate
       <span
         className="block h-2 w-full overflow-hidden rounded-full bg-ink/15"
         role="progressbar"
-        aria-label={`Donaciones para el nivel ${level + 1}`}
+        aria-label={t({ en: `Donations toward level ${level + 1}`, es: `Donaciones para el nivel ${level + 1}` })}
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -101,8 +116,10 @@ function LevelCard({ level, donated, nextCost, donate }: { level: number; donate
   );
   if (!donate) return <div className="flex rounded-xl bg-parchment-2/50 px-3 py-2.5 ring-1 ring-parchment-3">{progress}</div>;
   return (
-    <Disclosure summary={progress} aside={<span className="font-bold text-bronze-dark">Donar</span>}>
-      <p className="text-xs text-ink-soft">El nivel lo suben entre todos los vecinos de la isla.</p>
+    <Disclosure summary={progress} aside={<span className="font-bold text-bronze-dark">{t({ en: "Donate", es: "Donar" })}</span>}>
+      <p className="text-xs text-ink-soft">
+        {t({ en: "Everyone on the island chips in to level it up.", es: "El nivel lo suben entre todos los vecinos de la isla." })}
+      </p>
       {donate}
     </Disclosure>
   );
@@ -110,22 +127,23 @@ function LevelCard({ level, donated, nextCost, donate }: { level: number; donate
 
 /** Why the active city can't put people to work here, and the one way to fix it. */
 function NotHere({ ctx }: { ctx: IslandCtx }) {
+  const { t } = ctx.i18n;
   const here = ctx.myCities.filter((c) => c.islandId === ctx.island.id);
   const firstFree = Array.from({ length: 8 }, (_, i) => i).find((s) => !ctx.island.cities.some((c) => c.slot === s));
   return (
     <Callout
-      title={`Trabajan solo las ciudades de ${ctx.island.name}`}
+      title={t({ en: `Only cities on ${ctx.island.name} work here`, es: `Trabajan solo las ciudades de ${ctx.island.name}` })}
       action={
         here.length > 0 ? (
           here.map((c) => <UseCityButton key={c.id} cityId={c.id} name={c.name} />)
         ) : firstFree !== undefined ? (
           <PanelLink panel={`plot-${firstFree}`} className={buttonClass("secondary", "md", "w-full")}>
-            Ver un lugar libre
+            {t({ en: "See a free plot", es: "Ver un lugar libre" })}
           </PanelLink>
         ) : null
       }
     >
-      {here.length === 0 && "Fundá una colonia acá para sumarte."}
+      {here.length === 0 && t({ en: "Found a colony here to join in.", es: "Fundá una colonia acá para sumarte." })}
     </Callout>
   );
 }
@@ -145,16 +163,17 @@ const stepLink = (href: string, label: string, variant: "primary" | "secondary" 
 /** What's missing before the active city can attack, as one card with one button. */
 function attackNextStep(ctx: IslandCtx): ReactNode {
   const { city } = ctx;
+  const { t } = ctx.i18n;
   const hasUnits = UNIT_TYPES.some((t) => (city.units[t] ?? 0) > 0);
   const barracks = slotOf(city, "barracks");
   if (!hasUnits && ctx.troopsAway.length > 0) {
     return (
       <Callout
-        title="Tus tropas están afuera"
+        title={t({ en: "Your troops are away", es: "Tus tropas están afuera" })}
         action={
           <>
             <TroopsAway missions={ctx.troopsAway} now={ctx.now} />
-            {barracks !== undefined && stepLink(`/ciudad/${city.id}?slot=${barracks}`, "Entrenar más", "secondary")}
+            {barracks !== undefined && stepLink(`/ciudad/${city.id}?slot=${barracks}`, t({ en: "Train more", es: "Entrenar más" }), "secondary")}
           </>
         }
       />
@@ -162,15 +181,21 @@ function attackNextStep(ctx: IslandCtx): ReactNode {
   }
   if (!hasUnits && barracks === undefined) {
     return (
-      <Callout title="Construí un Cuartel" action={stepLink(`/ciudad/${city.id}?slot=${freeLandSlot(city)}`, "Construir un Cuartel")}>
-        Sin tropas no hay ataque.
+      <Callout
+        title={t({ en: "Build Barracks", es: "Construí un Cuartel" })}
+        action={stepLink(`/ciudad/${city.id}?slot=${freeLandSlot(city)}`, t({ en: "Build Barracks", es: "Construir un Cuartel" }))}
+      >
+        {t({ en: "No troops, no attack.", es: "Sin tropas no hay ataque." })}
       </Callout>
     );
   }
   if (!hasUnits) {
     return (
-      <Callout title="Entrená tropas" action={stepLink(`/ciudad/${city.id}?slot=${barracks}`, "Ir al Cuartel")}>
-        No hay soldados en {city.name}.
+      <Callout
+        title={t({ en: "Train troops", es: "Entrená tropas" })}
+        action={stepLink(`/ciudad/${city.id}?slot=${barracks}`, t({ en: "Go to Barracks", es: "Ir al Cuartel" }))}
+      >
+        {t({ en: `No soldiers in ${city.name}.`, es: `No hay soldados en ${city.name}.` })}
       </Callout>
     );
   }
@@ -178,8 +203,11 @@ function attackNextStep(ctx: IslandCtx): ReactNode {
     const port = slotOf(city, "port");
     if (ctx.shipsBackAt && port !== undefined) {
       return (
-        <Callout title="Tus barcos están en el mar" action={stepLink(`/ciudad/${city.id}?slot=${port}`, "Comprar otro barco", "secondary")}>
-          Vuelve uno en{" "}
+        <Callout
+          title={t({ en: "Your ships are at sea", es: "Tus barcos están en el mar" })}
+          action={stepLink(`/ciudad/${city.id}?slot=${port}`, t({ en: "Buy another ship", es: "Comprar otro barco" }), "secondary")}
+        >
+          {t({ en: "One is back in", es: "Vuelve uno en" })}{" "}
           <strong className="text-ink">
             <Countdown endsAt={ctx.shipsBackAt} serverNow={ctx.now} />
           </strong>
@@ -189,10 +217,16 @@ function attackNextStep(ctx: IslandCtx): ReactNode {
     }
     return (
       <Callout
-        title={port === undefined ? "Hacé un Puerto" : "Comprá un barco"}
-        action={stepLink(`/ciudad/${city.id}?slot=${port ?? 12}`, port === undefined ? "Construir un Puerto" : "Ir al Puerto")}
+        title={port === undefined ? t({ en: "Build a Port", es: "Hacé un Puerto" }) : t({ en: "Buy a ship", es: "Comprá un barco" })}
+        action={stepLink(
+          `/ciudad/${city.id}?slot=${port ?? 12}`,
+          port === undefined ? t({ en: "Build a Port", es: "Construir un Puerto" }) : t({ en: "Go to Port", es: "Ir al Puerto" }),
+        )}
       >
-        Las tropas viajan en barco: {BALANCE.unitsPerShip} por barco.
+        {t({
+          en: `Troops sail by ship: ${BALANCE.unitsPerShip} per ship.`,
+          es: `Las tropas viajan en barco: ${BALANCE.unitsPerShip} por barco.`,
+        })}
       </Callout>
     );
   }
@@ -207,16 +241,17 @@ const unitsAtHome = (city: GameCity) =>
 // ---------------------------------------------------------------------------
 
 export function sawmillPanel(ctx: IslandCtx): PanelDef {
-  const { island, city, speed } = ctx;
+  const { island, city, speed, i18n } = ctx;
+  const { t } = i18n;
   const here = city.islandId === island.id;
   const level = island.sawmill.level;
   const capacity = maxWoodWorkers(level);
   const perWorker = BALANCE.woodPerWorker * speed;
-  const progress = { level, donated: island.sawmill.donated, nextCost: island.sawmill.nextCost };
+  const progress = { i18n, level, donated: island.sawmill.donated, nextCost: island.sawmill.nextCost };
   return {
     icon: <PanelSprite image={ISLAND_FEATURE_IMAGE.sawmill} fallback={<ResIcon kind="wood" size={24} />} />,
-    kicker: `Nivel ${level}`,
-    title: "Aserradero",
+    kicker: t({ en: `Level ${level}`, es: `Nivel ${level}` }),
+    title: t({ en: "Sawmill", es: "Aserradero" }),
     body: here ? (
       <>
         <WorkersForm
@@ -254,14 +289,15 @@ export function sawmillPanel(ctx: IslandCtx): PanelDef {
 }
 
 export function minePanel(ctx: IslandCtx): PanelDef {
-  const { island, city, speed, player } = ctx;
+  const { island, city, speed, player, i18n } = ctx;
+  const { t, lang } = i18n;
   const here = city.islandId === island.id;
   const resource = island.resource;
   const level = island.mine.level;
   const capacity = maxLuxWorkers(level);
   const unlocked = hasTech(player, "wealth");
   const perWorker = BALANCE.luxuryPerWorker * speed * (here ? luxuryMultiplier(city) : 1);
-  const progress = { level, donated: island.mine.donated, nextCost: island.mine.nextCost };
+  const progress = { i18n, level, donated: island.mine.donated, nextCost: island.mine.nextCost };
   const levelCard = here ? (
     <LevelCard
       {...progress}
@@ -279,16 +315,16 @@ export function minePanel(ctx: IslandCtx): PanelDef {
   );
   return {
     icon: <PanelSprite image={ISLAND_FEATURE_IMAGE[resource]} fallback={<ResIcon kind={resource} size={24} />} />,
-    kicker: `Nivel ${level}`,
-    title: MINE_NAME[resource],
+    kicker: t({ en: `Level ${level}`, es: `Nivel ${level}` }),
+    title: mineName(resource, lang),
     body: (
       <>
         {!unlocked ? (
           <Callout
             tone="dark"
             icon={<IconLock size={18} className="shrink-0 text-gold" />}
-            title="Investigá Riqueza para trabajar acá"
-            action={stepLink("/investigacion", "Ir a Investigación")}
+            title={t({ en: `Research ${techName("wealth", lang)} to work here`, es: `Investigá ${techName("wealth", lang)} para trabajar acá` })}
+            action={stepLink("/investigacion", t({ en: "Go to Research", es: "Ir a Investigación" }))}
           />
         ) : here ? (
           <WorkersForm
@@ -302,7 +338,7 @@ export function minePanel(ctx: IslandCtx): PanelDef {
             perWorker={perWorker}
             resource={resource}
             goldPerCitizen={BALANCE.goldPerCitizen * speed}
-          goldPerHour={city.rates.goldIncome - city.rates.goldUpkeep}
+            goldPerHour={city.rates.goldIncome - city.rates.goldUpkeep}
           />
         ) : (
           <NotHere ctx={ctx} />
@@ -318,7 +354,8 @@ export function minePanel(ctx: IslandCtx): PanelDef {
 // ---------------------------------------------------------------------------
 
 export function campPanel(ctx: IslandCtx): PanelDef {
-  const { island, city, now, travelSec, speed } = ctx;
+  const { island, city, now, travelSec, speed, i18n } = ctx;
+  const { t, lang, fmt, fmtDuration } = i18n;
   const level = island.barbarians.level;
   const army = barbarianArmy(level);
   const loot = barbarianLoot(level);
@@ -327,47 +364,53 @@ export function campPanel(ctx: IslandCtx): PanelDef {
   const canLeaveAt = rebuildingUntil ? rebuildingUntil - travelSec * 1000 : 0;
   const nextStep = attackNextStep(ctx);
   const cooldown = fmtDuration((BALANCE.barbarianCooldown * 1000) / speed);
-  // Attacks from the active city already sailing to this camp.
-  const incoming = ctx.troopsAway.filter((m) => m.kind === "attack" && m.targetIslandId === island.id && m.targetLabel.startsWith("Bárbaros"));
+  // Attacks from the active city already sailing to this camp (an attack on this island that isn't on one of its cities).
+  const incoming = ctx.troopsAway.filter(
+    (m) => m.kind === "attack" && m.targetIslandId === island.id && !island.cities.some((c) => c.name === m.targetLabel),
+  );
 
   return {
     icon: <PanelSprite image={ISLAND_FEATURE_IMAGE.barbarians} fallback={<IconSwords size={22} />} />,
-    kicker: `Nivel ${level}`,
-    title: "Campamento bárbaro",
+    kicker: t({ en: `Level ${level}`, es: `Nivel ${level}` }),
+    title: t({ en: "Barbarian Camp", es: "Campamento bárbaro" }),
     body: (
       <>
         {rebuildingUntil && (
           <p className="flex items-center gap-2 rounded-xl bg-sea-900 px-3 py-2 text-sm font-bold text-foam ring-1 ring-sea-500/40">
             <IconClock size={16} className="shrink-0 text-gold" />
-            Se rearman en
+            {t({ en: "They rearm in", es: "Se rearman en" })}
             <strong className="text-gold">
               <Countdown endsAt={rebuildingUntil} serverNow={now} />
             </strong>
           </p>
         )}
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl bg-parchment-2/50 px-3 py-2.5 ring-1 ring-parchment-3">
-          <dt className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">Defensa</dt>
+          <dt className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">{t({ en: "Defense", es: "Defensa" })}</dt>
           <dd className="flex flex-wrap items-center gap-1.5">
-            {unitEntries(army.units).map(([t, n]) => (
+            {unitEntries(army.units).map(([u, n]) => (
               <span
-                key={t}
-                title={`${fmt(n)} ${unitName(t, n)}`}
+                key={u}
+                title={`${fmt(n)} ${unitName(u, lang, n)}`}
                 className="tabular inline-flex h-8 items-center gap-0.5 rounded-lg bg-parchment-2/70 pr-2 text-sm font-bold ring-1 ring-parchment-3"
               >
-                <UnitPortrait unit={t} size={30} className="bg-transparent" />
+                <UnitPortrait unit={u} size={30} className="bg-transparent" />
                 {fmt(n)}
-                <span className="sr-only"> {unitName(t, n)}</span>
+                <span className="sr-only"> {unitName(u, lang, n)}</span>
               </span>
             ))}
             <Stat
               icon={<IconShield size={16} />}
-              label="Defensa total"
-              hint={army.wall > 0 ? `Empalizada nivel ${army.wall}, +${army.wall * 10}%` : "Sin empalizada"}
+              label={t({ en: "Total defense", es: "Defensa total" })}
+              hint={
+                army.wall > 0
+                  ? t({ en: `Palisade level ${army.wall}, +${army.wall * 10}%`, es: `Empalizada nivel ${army.wall}, +${army.wall * 10}%` })
+                  : t({ en: "No palisade", es: "Sin empalizada" })
+              }
             >
               {fmt(defense)}
             </Stat>
           </dd>
-          <dt className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">Botín</dt>
+          <dt className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">{t({ en: "Loot", es: "Botín" })}</dt>
           <dd>
             <CostList cost={loot} className="text-sm" />
           </dd>
@@ -383,17 +426,23 @@ export function campPanel(ctx: IslandCtx): PanelDef {
             target={{ barbariansOnIsland: island.id }}
             defender={army}
             trainHref={trainHref(city)}
-            submitLabel="Atacar el campamento"
+            submitLabel={t({ en: "Attack the camp", es: "Atacar el campamento" })}
             blocked={
               canLeaveAt > now ? (
                 <>
-                  Llegarías antes de que se rearmen. Zarpá en <Countdown endsAt={canLeaveAt} serverNow={now} />.
+                  {t({ en: "You'd land before they rearm. Sail in", es: "Llegarías antes de que se rearmen. Zarpá en" })}{" "}
+                  <Countdown endsAt={canLeaveAt} serverNow={now} />.
                 </>
               ) : null
             }
           />
         )}
-        <p className="text-xs text-ink-soft">Si ganás, el campamento sube de nivel y se rearma en {cooldown}.</p>
+        <p className="text-xs text-ink-soft">
+          {t({
+            en: `Win and the camp levels up, then rearms in ${cooldown}.`,
+            es: `Si ganás, el campamento sube de nivel y se rearma en ${cooldown}.`,
+          })}
+        </p>
       </>
     ),
   };
@@ -416,6 +465,8 @@ const citySprite = (mine: boolean) => (
 
 function freePlotPanel(ctx: IslandCtx, slot: number): PanelDef {
   const { island, player, city, travelSec } = ctx;
+  const { t, lang, fmtDuration } = ctx.i18n;
+  const expansion = techName("expansion", lang);
   const capital = capitalOf(player);
   const palace = buildingLevel(capital, "palace");
   const colonies = player.cities.length - 1 + ctx.pendingColonies;
@@ -423,20 +474,29 @@ function freePlotPanel(ctx: IslandCtx, slot: number): PanelDef {
   const port = slotOf(city, "port");
   const costOk = city.res.wood >= cost.wood && player.gold >= cost.gold && city.rates.freeCitizens >= cost.citizens;
   const steps: Requirement[] = [
-    { ok: hasTech(player, "expansion"), label: "Expansión investigada", href: "/investigacion", cta: "Investigar", action: "Investigar Expansión" },
+    {
+      ok: hasTech(player, "expansion"),
+      label: t({ en: `${expansion} researched`, es: `${expansion} investigada` }),
+      href: "/investigacion",
+      cta: t({ en: "Research", es: "Investigar" }),
+      action: t({ en: `Research ${expansion}`, es: `Investigar ${expansion}` }),
+    },
     {
       ok: palace > colonies,
-      label: palace === 0 && colonies === 0 ? `Palacio en ${capital.name}` : `Palacio nivel ${colonies + 1} en ${capital.name}`,
+      label:
+        palace === 0 && colonies === 0
+          ? t({ en: `Palace in ${capital.name}`, es: `Palacio en ${capital.name}` })
+          : t({ en: `Palace level ${colonies + 1} in ${capital.name}`, es: `Palacio nivel ${colonies + 1} en ${capital.name}` }),
       href: `/ciudad/${capital.id}?slot=${slotOf(capital, "palace") ?? freeLandSlot(capital)}`,
-      cta: palace === 0 ? "Construir" : "Subir",
-      action: palace === 0 ? "Construir el Palacio" : "Subir el Palacio",
+      cta: palace === 0 ? t({ en: "Build", es: "Construir" }) : t({ en: "Upgrade", es: "Subir" }),
+      action: palace === 0 ? t({ en: "Build the Palace", es: "Construir el Palacio" }) : t({ en: "Upgrade the Palace", es: "Subir el Palacio" }),
     },
     {
       ok: city.ships >= 1,
-      label: `1 barco en ${city.name}`,
+      label: t({ en: `1 ship in ${city.name}`, es: `1 barco en ${city.name}` }),
       href: `/ciudad/${city.id}?slot=${port ?? 12}`,
-      cta: port === undefined ? "Hacer Puerto" : "Comprar",
-      action: port === undefined ? "Construir un Puerto" : "Comprar un barco",
+      cta: port === undefined ? t({ en: "Build Port", es: "Hacer Puerto" }) : t({ en: "Buy a ship", es: "Comprar" }),
+      action: port === undefined ? t({ en: "Build a Port", es: "Construir un Puerto" }) : t({ en: "Buy a ship", es: "Comprar un barco" }),
     },
   ];
   return {
@@ -445,20 +505,23 @@ function freePlotPanel(ctx: IslandCtx, slot: number): PanelDef {
         <IconTemple size={20} />
       </span>
     ),
-    kicker: `Lugar ${slot + 1} de la costa`,
-    title: "Lugar libre",
+    kicker: t({ en: `Coastal plot ${slot + 1}`, es: `Lugar ${slot + 1} de la costa` }),
+    title: t({ en: "Free plot", es: "Lugar libre" }),
     body: (
       <>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl bg-parchment-2/50 px-3 py-2 ring-1 ring-parchment-3">
-          <span className="sr-only">Cuesta:</span>
+          <span className="sr-only">{t({ en: "Cost:", es: "Cuesta:" })}</span>
           <CostList
             cost={{ wood: cost.wood, gold: cost.gold, citizens: cost.citizens }}
             have={{ wood: city.res.wood, gold: player.gold, citizens: city.rates.freeCitizens }}
             className="text-sm"
           />
-          <span className="tabular inline-flex items-center gap-1 text-sm font-semibold text-ink-soft" title={`Viaje desde ${city.name}`}>
+          <span
+            className="tabular inline-flex items-center gap-1 text-sm font-semibold text-ink-soft"
+            title={t({ en: `Voyage from ${city.name}`, es: `Viaje desde ${city.name}` })}
+          >
             <IconClock size={16} />
-            <span className="sr-only">Viaje desde {city.name}:</span>
+            <span className="sr-only">{t({ en: `Voyage from ${city.name}:`, es: `Viaje desde ${city.name}:` })}</span>
             {fmtDuration(travelSec * 1000)}
           </span>
         </div>
@@ -470,37 +533,41 @@ function freePlotPanel(ctx: IslandCtx, slot: number): PanelDef {
 
 function ownPlotPanel(ctx: IslandCtx, c: IslandCityView): PanelDef {
   const { city, travelSec } = ctx;
+  const { t, fmt } = ctx.i18n;
   const full = ctx.myCities.find((x) => x.id === c.id);
   const isActive = c.id === city.id;
   return {
     icon: citySprite(true),
-    kicker: isActive ? "Tu ciudad · estás acá" : "Tu ciudad",
+    kicker: isActive ? t({ en: "Your city · you're here", es: "Tu ciudad · estás acá" }) : t({ en: "Your city", es: "Tu ciudad" }),
     title: c.name,
     body: (
       <>
         <StatRow>
-          <Stat icon={<IconTemple size={16} />} label="Nivel de la Intendencia">
-            Intendencia {c.townHall}
+          <Stat icon={<IconTemple size={16} />} label={t({ en: "Town Hall level", es: "Nivel de la Intendencia" })}>
+            {t({ en: `Town Hall ${c.townHall}`, es: `Intendencia ${c.townHall}` })}
           </Stat>
-          <Stat icon={<IconShield size={16} />} label="Nivel de la muralla" tone={c.wall ? "default" : "muted"}>
-            {c.wall ? `Muralla ${c.wall}` : "Sin muralla"}
+          <Stat icon={<IconShield size={16} />} label={t({ en: "Wall level", es: "Nivel de la muralla" })} tone={c.wall ? "default" : "muted"}>
+            {c.wall ? t({ en: `Wall ${c.wall}`, es: `Muralla ${c.wall}` }) : t({ en: "No wall", es: "Sin muralla" })}
           </Stat>
           {full && (
             <>
-              <Stat icon={<ResGlyph kind="citizens" />} label="Ciudadanos">
+              <Stat icon={<ResGlyph kind="citizens" />} label={t({ en: "Citizens", es: "Ciudadanos" })}>
                 {fmt(full.population)}
               </Stat>
-              <Stat icon={<ShipGlyph />} label="Barcos en el puerto">
+              <Stat icon={<ShipGlyph />} label={t({ en: "Ships in port", es: "Barcos en el puerto" })}>
                 {fmt(full.ships)}
               </Stat>
             </>
           )}
         </StatRow>
         <Link href={`/ciudad/${c.id}`} className={buttonClass("primary", "lg", "w-full")}>
-          Ir a {c.name}
+          {t({ en: `Go to ${c.name}`, es: `Ir a ${c.name}` })}
         </Link>
         {!isActive && (
-          <Disclosure summary="Mandar recursos" aside={`desde ${city.name}`}>
+          <Disclosure
+            summary={t({ en: "Send resources", es: "Mandar recursos" })}
+            aside={t({ en: `from ${city.name}`, es: `desde ${city.name}` })}
+          >
             <TransportForm
               originCityId={city.id}
               originName={city.name}
@@ -518,18 +585,21 @@ function ownPlotPanel(ctx: IslandCtx, c: IslandCityView): PanelDef {
 
 function rivalPlotPanel(ctx: IslandCtx, c: IslandCityView): PanelDef {
   const { city, travelSec } = ctx;
+  const { t } = ctx.i18n;
   return {
     icon: citySprite(false),
-    kicker: `Ciudad de ${c.playerName}`,
+    kicker: t({ en: `${c.playerName}'s city`, es: `Ciudad de ${c.playerName}` }),
     title: c.name,
     body: (
       <>
         <StatRow>
-          <Stat icon={<IconTemple size={16} />} label="Nivel de la Intendencia">
-            Intendencia {c.townHall}
+          <Stat icon={<IconTemple size={16} />} label={t({ en: "Town Hall level", es: "Nivel de la Intendencia" })}>
+            {t({ en: `Town Hall ${c.townHall}`, es: `Intendencia ${c.townHall}` })}
           </Stat>
-          <Stat icon={<IconShield size={16} />} label="Nivel de la muralla" tone={c.wall ? "default" : "muted"}>
-            {c.wall ? `Muralla ${c.wall} · +${c.wall * 10}%` : "Sin muralla"}
+          <Stat icon={<IconShield size={16} />} label={t({ en: "Wall level", es: "Nivel de la muralla" })} tone={c.wall ? "default" : "muted"}>
+            {c.wall
+              ? t({ en: `Wall ${c.wall} · +${c.wall * 10}%`, es: `Muralla ${c.wall} · +${c.wall * 10}%` })
+              : t({ en: "No wall", es: "Sin muralla" })}
           </Stat>
         </StatRow>
         <PlotActions
@@ -543,7 +613,7 @@ function rivalPlotPanel(ctx: IslandCtx, c: IslandCityView): PanelDef {
                 travelSec={travelSec}
                 target={{ cityId: c.id }}
                 trainHref={trainHref(city)}
-                submitLabel={`Atacar ${c.name}`}
+                submitLabel={t({ en: `Attack ${c.name}`, es: `Atacar ${c.name}` })}
               />
             )
           }

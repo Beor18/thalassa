@@ -1,14 +1,32 @@
+"use client";
+
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import { RESOURCE_INFO } from "@/game/data";
-import { fmt } from "@/lib/format";
+import { resourceLabel } from "@/game/names";
+import { useI18n } from "@/i18n/client";
 
 export type ResKey = keyof typeof RESOURCE_INFO;
 
+/*
+  Client components so the names and numbers follow the player's language (from the provider in
+  the root layout); Server Components render them as before, every prop is plain data.
+*/
+
 export function ResIcon({ kind, size = 20, className }: { kind: ResKey; size?: number; className?: string }) {
-  const info = RESOURCE_INFO[kind];
-  return <Image src={info.icon} alt={info.label} title={info.label} width={size} height={size} className={clsx("inline-block shrink-0", className)} />;
+  const { lang } = useI18n();
+  const label = resourceLabel(kind, lang);
+  return (
+    <Image
+      src={RESOURCE_INFO[kind].icon}
+      alt={label}
+      title={label}
+      width={size}
+      height={size}
+      className={clsx("inline-block shrink-0", className)}
+    />
+  );
 }
 
 /** Icon + amount. Marks the amount red when `missing` is true. */
@@ -27,6 +45,7 @@ export function ResAmount({
   className?: string;
   style?: CSSProperties;
 }) {
+  const { fmt } = useI18n();
   return (
     <span className={clsx("inline-flex items-center gap-1 tabular font-bold", missing && "text-danger", className)} style={style}>
       <ResIcon kind={kind} size={size} />
@@ -52,8 +71,9 @@ export function CostList({
   pop?: boolean;
   popDelay?: number;
 }) {
+  const { t } = useI18n();
   const entries = Object.entries(cost).filter(([, v]) => (v ?? 0) > 0) as [ResKey, number][];
-  if (!entries.length) return <span className="text-ink-soft">Gratis</span>;
+  if (!entries.length) return <span className="text-ink-soft">{t({ en: "Free", es: "Gratis" })}</span>;
   return (
     <span className={clsx("inline-flex flex-wrap items-center gap-x-3 gap-y-1", className)}>
       {entries.map(([k, v], i) => (

@@ -2,6 +2,7 @@
 
 import { useRef, useTransition, type ReactNode } from "react";
 import type { ActionResult } from "@/lib/action-result";
+import { useI18n } from "@/i18n/client";
 import { celebrate as burst } from "@/components/motion/celebrate";
 import { Button } from "./button";
 import { toast } from "./toaster";
@@ -24,6 +25,7 @@ type Props = {
 export function ActionButton({ action, children, pendingLabel, variant, size, className, disabled, onDone, title, celebrate }: Props) {
   const [pending, start] = useTransition();
   const ref = useRef<HTMLButtonElement>(null);
+  const { t } = useI18n();
   return (
     <Button
       ref={ref}
@@ -47,7 +49,7 @@ export function ActionButton({ action, children, pendingLabel, variant, size, cl
         });
       }}
     >
-      {pending ? (pendingLabel ?? "Un momento…") : children}
+      {pending ? (pendingLabel ?? t({ en: "One moment…", es: "Un momento…" })) : children}
     </Button>
   );
 }

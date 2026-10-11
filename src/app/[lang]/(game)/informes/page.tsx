@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getI18n } from "@/i18n/server";
 import { getGame } from "@/server/game-context";
 import { getReports } from "@/server/queries";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
@@ -10,7 +11,10 @@ import { MarkReportsRead, ReportList, UnreadSummary } from "@/components/reports
 import { ReportCard, type ReportRow } from "@/components/reports/report-card";
 import { SECTION_NARROW } from "@/components/tesoro/section-ui";
 
-export const metadata: Metadata = { title: "Informes" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Reports", es: "Informes" }) };
+}
 
 export default function Page() {
   return (
@@ -21,7 +25,7 @@ export default function Page() {
 }
 
 async function ReportsContent() {
-  const game = await getGame();
+  const [game, { t, lang }] = await Promise.all([getGame(), getI18n()]);
   const { snapshot, city } = game;
   const reports = (await getReports(snapshot.player.id)) as ReportRow[];
   const latestUnread = reports.find((r) => !r.read)?.id ?? null;
@@ -35,7 +39,7 @@ async function ReportsContent() {
           <span className="grid size-10 shrink-0 place-items-center rounded-full bg-parchment text-bronze-dark ring-1 ring-gold/50">
             <IconScroll size={20} />
           </span>
-          <h1 className="flex-1 font-display text-xl font-bold text-foam sm:text-2xl">Informes</h1>
+          <h1 className="flex-1 font-display text-xl font-bold text-foam sm:text-2xl">{t({ en: "Reports", es: "Informes" })}</h1>
           <UnreadSummary unread={unread} total={reports.length} />
         </header>
 
@@ -45,16 +49,18 @@ async function ReportsContent() {
               <IconScroll size={24} />
             </span>
             <div className="flex-1">
-              <p className="font-display text-lg font-bold">Sin informes todavía</p>
-              <p className="text-sm text-ink-soft">Batallas, envíos y colonias aparecen acá.</p>
+              <p className="font-display text-lg font-bold">{t({ en: "No reports yet", es: "Sin informes todavía" })}</p>
+              <p className="text-sm text-ink-soft">
+                {t({ en: "Battles, shipments and colonies show up here.", es: "Batallas, envíos y colonias aparecen acá." })}
+              </p>
             </div>
             <Link href={`/isla/${city.islandId}?panel=camp`} className={buttonClass("primary", "md")}>
-              Ir al campamento bárbaro
+              {t({ en: "Go to the barbarian camp", es: "Ir al campamento bárbaro" })}
             </Link>
           </div>
         ) : (
           <ReportList
-            items={reports.map((r, i) => ({ id: r.id, unread: !r.read, node: <ReportCard report={r} now={snapshot.now} index={i} /> }))}
+            items={reports.map((r, i) => ({ id: r.id, unread: !r.read, node: <ReportCard report={r} now={snapshot.now} index={i} lang={lang} /> }))}
           />
         )}
       </div>

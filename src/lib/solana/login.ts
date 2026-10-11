@@ -12,10 +12,16 @@ async function post<T>(url: string, body: unknown): Promise<T> {
       cache: "no-store",
     });
   } catch {
-    throw new FriendlyError("No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.");
+    throw new FriendlyError({
+      en: "We couldn't reach the server. Check your connection and try again.",
+      es: "No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.",
+    });
   }
   const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
-  if (!res.ok || !data) throw new FriendlyError(data?.error ?? "El servidor no respondió bien. Probá de nuevo.");
+  // The server already answers in the player's language (cookie), so its error goes through as-is.
+  if (!res.ok || !data) {
+    throw new FriendlyError(data?.error ?? { en: "The server didn't answer properly. Try again.", es: "El servidor no respondió bien. Probá de nuevo." });
+  }
   return data;
 }
 

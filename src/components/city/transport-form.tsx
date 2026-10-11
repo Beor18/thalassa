@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { RESOURCES, RESOURCE_INFO, emptyBag, type Resource, type ResourceBag } from "@/game/data";
+import { RESOURCES, emptyBag, type Resource, type ResourceBag } from "@/game/data";
+import { resourceLabel } from "@/game/names";
 import { ActionButton } from "@/components/ui/action-button";
 import { ResIcon } from "@/components/ui/res";
-import { fmt } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { transportAction } from "@/server/actions";
 import { AmountInput } from "./amount-input";
 import { IconShip } from "./icons";
@@ -32,6 +33,7 @@ export function TransportForm({
   stock: ResourceBag;
   destinations: Destination[];
 }) {
+  const { t, lang, fmt } = useI18n();
   const own = destinations.filter((d) => d.mine);
   const near = destinations.filter((d) => !d.mine && d.near);
   const others = destinations.filter((d) => !d.mine && !d.near);
@@ -45,22 +47,22 @@ export function TransportForm({
   const targetName = destinations.find((d) => d.id === target)?.name;
   const reason =
     ships === 0
-      ? "No hay barcos en el puerto."
+      ? t({ en: "No ships in port.", es: "No hay barcos en el puerto." })
       : needed > ships
-        ? `Esa carga necesita ${needed} barcos y tenés ${ships}.`
+        ? t({ en: `That cargo needs ${fmt(needed)} ships and you have ${fmt(ships)}.`, es: `Esa carga necesita ${fmt(needed)} barcos y tenés ${fmt(ships)}.` })
         : !target
-          ? "Elegí a qué ciudad mandar."
+          ? t({ en: "Choose a city to send it to.", es: "Elegí a qué ciudad mandar." })
           : null;
 
   if (destinations.length === 0) {
-    return <p className="text-sm text-ink-soft">Todavía no hay otras ciudades para comerciar.</p>;
+    return <p className="text-sm text-ink-soft">{t({ en: "No other cities to trade with yet.", es: "Todavía no hay otras ciudades para comerciar." })}</p>;
   }
 
   return (
     <form className="flex flex-col gap-2.5" onSubmit={(e) => e.preventDefault()}>
       <div className="flex items-center gap-2">
         <label htmlFor="transport-target" className="shrink-0 text-sm font-bold">
-          Destino
+          {t({ en: "Destination", es: "Destino" })}
         </label>
         <select
           id="transport-target"
@@ -70,11 +72,11 @@ export function TransportForm({
         >
           {target === "" && (
             <option value="" disabled>
-              Elegí una ciudad
+              {t({ en: "Choose a city", es: "Elegí una ciudad" })}
             </option>
           )}
           {own.length > 0 && (
-            <optgroup label="Tus ciudades">
+            <optgroup label={t({ en: "Your cities", es: "Tus ciudades" })}>
               {own.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -83,7 +85,7 @@ export function TransportForm({
             </optgroup>
           )}
           {near.length > 0 && (
-            <optgroup label="En tu isla">
+            <optgroup label={t({ en: "On your island", es: "En tu isla" })}>
               {near.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -92,7 +94,7 @@ export function TransportForm({
             </optgroup>
           )}
           {others.length > 0 && (
-            <optgroup label="Otras islas">
+            <optgroup label={t({ en: "Other islands", es: "Otras islas" })}>
               {others.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -104,21 +106,22 @@ export function TransportForm({
       </div>
 
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="sr-only">Carga</legend>
+        <legend className="sr-only">{t({ en: "Cargo", es: "Carga" })}</legend>
         <div aria-hidden className="grid grid-cols-[22px_minmax(0,1fr)_minmax(0,10.5rem)] gap-2 text-[11px] font-bold text-ink-soft uppercase">
           <span />
-          <span>Tenés</span>
-          <span>Cargar</span>
+          <span>{t({ en: "You have", es: "Tenés" })}</span>
+          <span>{t({ en: "Load", es: "Cargar" })}</span>
         </div>
         {RESOURCES.map((r: Resource) => {
           const have = Math.floor(stock[r]);
           const max = Math.max(0, Math.min(have, cargo[r] + room));
           const id = `cargo-${r}`;
+          const label = resourceLabel(r, lang);
           return (
             <div key={r} className="grid grid-cols-[22px_minmax(0,1fr)_minmax(0,10.5rem)] items-center gap-2">
               <ResIcon kind={r} size={22} />
               <label htmlFor={id} className="truncate text-sm font-bold text-ink-soft tabular">
-                <span className="sr-only">{RESOURCE_INFO[r].label}: tenés </span>
+                <span className="sr-only">{t({ en: `${label}: you have `, es: `${label}: tenés ` })}</span>
                 {fmt(have)}
               </label>
               <AmountInput
@@ -127,7 +130,7 @@ export function TransportForm({
                 max={max}
                 blankZero
                 onChange={(n) => setCargo((c) => ({ ...c, [r]: n }))}
-                maxLabel={`Cargar todo lo posible de ${RESOURCE_INFO[r].label.toLowerCase()}`}
+                maxLabel={t({ en: `Load as much ${label.toLowerCase()} as you can`, es: `Cargar todo lo posible de ${label.toLowerCase()}` })}
               />
             </div>
           );
@@ -136,18 +139,19 @@ export function TransportForm({
 
       <p className="flex flex-wrap items-center justify-between gap-x-3 text-sm text-ink-soft tabular" aria-live="polite">
         <span>
-          Carga <strong className="text-ink">{fmt(total)}</strong>
+          {t({ en: "Cargo", es: "Carga" })} <strong className="text-ink">{fmt(total)}</strong>
         </span>
         <span className="inline-flex items-center gap-1">
           <IconShip size={16} />
-          <strong className={needed > ships ? "text-danger" : "text-ink"}>{fmt(needed)}</strong> de {fmt(ships)} barcos
-          <span className="sr-only">, {fmt(shipCapacity)} de carga por barco</span>
+          <strong className={needed > ships ? "text-danger" : "text-ink"}>{fmt(needed)}</strong>{" "}
+          {t({ en: `of ${fmt(ships)} ships`, es: `de ${fmt(ships)} barcos` })}
+          <span className="sr-only">{t({ en: `, ${fmt(shipCapacity)} cargo per ship`, es: `, ${fmt(shipCapacity)} de carga por barco` })}</span>
         </span>
       </p>
 
       <ActionButton
         className="w-full"
-        pendingLabel="Zarpando…"
+        pendingLabel={t({ en: "Setting sail…", es: "Zarpando…" })}
         disabled={reason != null || total <= 0}
         action={() =>
           transportAction({
@@ -160,7 +164,12 @@ export function TransportForm({
           if (r.ok) setCargo(emptyBag());
         }}
       >
-        {total > 0 && targetName ? `Enviar ${needed} ${needed === 1 ? "barco" : "barcos"} a ${targetName}` : "Enviar recursos"}
+        {total > 0 && targetName
+          ? t({
+              en: `Send ${fmt(needed)} ${needed === 1 ? "ship" : "ships"} to ${targetName}`,
+              es: `Enviar ${fmt(needed)} ${needed === 1 ? "barco" : "barcos"} a ${targetName}`,
+            })
+          : t({ en: "Send goods", es: "Enviar recursos" })}
       </ActionButton>
       {reason && <p className="-mt-1 text-sm font-bold text-bronze-dark">{reason}</p>}
     </form>

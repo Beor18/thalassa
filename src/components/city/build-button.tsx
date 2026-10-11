@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { BuildingType } from "@/game/data";
 import { ActionButton } from "@/components/ui/action-button";
+import { useI18n } from "@/i18n/client";
 import { buildAction } from "@/server/actions";
 import { CITY_SHEET_QUERY, cityHref, plotId } from "./lib";
 
@@ -30,13 +31,14 @@ export function BuildButton({
   className?: string;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   return (
     <ActionButton
       variant={variant}
       className={className}
       disabled={disabled}
-      pendingLabel="Arrancando obra…"
+      pendingLabel={t({ en: "Starting build…", es: "Arrancando obra…" })}
       action={() => buildAction({ cityId, slot, type: type ?? null })}
       onDone={(result) => {
         if (!result.ok || !window.matchMedia(CITY_SHEET_QUERY).matches) return;

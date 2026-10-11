@@ -4,6 +4,8 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import { motion, useReducedMotion, type Variants } from "motion/react";
+import { useI18n } from "@/i18n/client";
+import type { Text } from "@/i18n/config";
 import "./landing.css";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -33,28 +35,40 @@ const textVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE, delay: 0.2 } },
 };
 
-type Beat = { numeral: string; title: string; text: string; stage: ReactNode; alt: string };
+type Beat = { numeral: string; title: Text; text: Text; stage: ReactNode; alt: Text };
 
 const BEATS: Beat[] = [
   {
     numeral: "I",
-    title: "Fundá tu polis",
-    text: "Ordenás la obra y te vas. Se levanta sin vos.",
-    alt: "Intendencia, academia y depósito que se levantan sobre una plaza",
+    title: { en: "Found your polis", es: "Fundá tu polis" },
+    text: { en: "Start a build and walk away. It rises without you.", es: "Ordenás la obra y te vas. Se levanta sin vos." },
+    alt: {
+      en: "A town hall, an academy and a warehouse rising around a square",
+      es: "Intendencia, academia y depósito que se levantan sobre una plaza",
+    },
     stage: <FoundStage />,
   },
   {
     numeral: "II",
-    title: "Comerciá entre islas",
-    text: "La tuya da vino y la de al lado, mármol. Tus barcos llevan lo que falta.",
-    alt: "Un trirreme navega entre una isla de viñedos y una isla de mármol",
+    title: { en: "Trade between islands", es: "Comerciá entre islas" },
+    text: {
+      en: "Yours grows wine, the next one marble. Your ships carry what's missing.",
+      es: "La tuya da vino y la de al lado, mármol. Tus barcos llevan lo que falta.",
+    },
+    alt: {
+      en: "A trireme sails between a vineyard island and a marble island",
+      es: "Un trirreme navega entre una isla de viñedos y una isla de mármol",
+    },
     stage: <TradeStage />,
   },
   {
     numeral: "III",
-    title: "Conquistá el mar",
-    text: "Primero los bárbaros de tu isla. Después, quien se anime.",
-    alt: "Lanceros, hoplitas, arqueros y una catapulta avanzan hacia un campamento bárbaro",
+    title: { en: "Rule the sea", es: "Conquistá el mar" },
+    text: { en: "First the barbarians on your island. Then anyone who dares.", es: "Primero los bárbaros de tu isla. Después, quien se anime." },
+    alt: {
+      en: "Spearmen, hoplites, archers and a catapult march on a barbarian camp",
+      es: "Lanceros, hoplitas, arqueros y una catapulta avanzan hacia un campamento bárbaro",
+    },
     stage: <ConquerStage />,
   },
 ];
@@ -64,6 +78,7 @@ const BEATS: Beat[] = [
  * Phones swipe through them (the next card peeks in), wider screens see the three in a row.
  */
 export function Beats() {
+  const { t } = useI18n();
   const list = useRef<HTMLOListElement>(null);
   // Keyboard users can scroll the row only while it actually scrolls (phones); on wide screens it's a plain grid.
   useEffect(() => {
@@ -82,7 +97,7 @@ export function Beats() {
   return (
     <ol
       ref={list}
-      aria-label="Cómo se juega, en tres momentos"
+      aria-label={t({ en: "How it plays, in three moments", es: "Cómo se juega, en tres momentos" })}
       className="scrollbar-none -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:scroll-px-6 sm:gap-4 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0"
     >
       {BEATS.map((beat) => (
@@ -93,7 +108,7 @@ export function Beats() {
           viewport={{ once: true, amount: 0.4 }}
           className="panel flex w-[84%] shrink-0 snap-start flex-col p-2 sm:w-[46%] lg:w-auto"
         >
-          <motion.div variants={stageVariants} role="img" aria-label={beat.alt} className="relative aspect-[4/3] w-full">
+          <motion.div variants={stageVariants} role="img" aria-label={t(beat.alt)} className="relative aspect-[4/3] w-full">
             {beat.stage}
           </motion.div>
           <motion.div variants={textVariants} className="flex flex-col gap-1 px-2 pt-3 pb-2">
@@ -101,9 +116,9 @@ export function Beats() {
               <span aria-hidden className="mr-2 text-bronze/60">
                 {beat.numeral}
               </span>
-              {beat.title}
+              {t(beat.title)}
             </h3>
-            <p className="text-[16px] leading-snug text-ink-soft">{beat.text}</p>
+            <p className="text-[16px] leading-snug text-ink-soft">{t(beat.text)}</p>
           </motion.div>
         </motion.li>
       ))}

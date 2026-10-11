@@ -1,14 +1,17 @@
 import type { MetadataRoute } from "next";
-import { SITE_DESCRIPTION } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, siteTitle } from "@/lib/site";
 
-/** Installable web app: the polis one tap away on the home screen. */
+/**
+ * Installable web app: the polis one tap away on the home screen.
+ * The manifest has no route language, so it speaks the default one (English); the app itself follows the player's choice.
+ */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Thalassa · Tu polis en el Egeo",
-    short_name: "Thalassa",
-    description: SITE_DESCRIPTION,
-    lang: "es",
+    name: siteTitle("en"),
+    short_name: SITE_NAME,
+    description: SITE_DESCRIPTION.en,
+    lang: "en",
     dir: "ltr",
     start_url: "/ciudad",
     scope: "/",

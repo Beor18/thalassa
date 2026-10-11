@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Image from "next/image";
 import clsx from "clsx";
-import { BALANCE, RESOURCES, RESOURCE_INFO, type Resource } from "@/game/data";
+import { BALANCE, RESOURCES, type Resource } from "@/game/data";
+import { resourceLabel } from "@/game/names";
 import { ActionButton } from "@/components/ui/action-button";
 import { ResIcon } from "@/components/ui/res";
-import { fmt } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { merchantAction } from "@/server/actions";
 
 /** Trade ambrosia for a full cargo of one resource, delivered to the city in focus. */
@@ -23,6 +24,7 @@ export function Merchant({
   res: Record<Resource, number>;
   storage: number;
 }) {
+  const { t, lang, fmt } = useI18n();
   const [resource, setResource] = useState<Resource>("wood");
   const price = BALANCE.merchantAmbrosia;
   const amount = BALANCE.merchantAmount;
@@ -35,25 +37,32 @@ export function Merchant({
         <Image src="/assets/u-ship.webp" alt="" width={44} height={44} className="sprite size-11 shrink-0 motion-safe:animate-float" />
         <div className="min-w-0 flex-1">
           <h2 id="merchant-title" className="font-display text-xl leading-tight font-bold">
-            El mercader
+            {t({ en: "The merchant", es: "El mercader" })}
           </h2>
           <p className="inline-flex flex-wrap items-center gap-1 text-sm text-ink-soft tabular">
             <ResIcon kind="ambrosia" size={16} />
-            <b className="text-ambrosia-dark">{price}</b>
+            <b className="text-ambrosia-dark">{fmt(price)}</b>
             <span aria-hidden>→</span>
-            <span className="sr-only">por</span>
-            <b className="text-ink">{fmt(amount)}</b> a {cityName}
+            <span className="sr-only">{t({ en: "for", es: "por" })}</span>
+            <b className="text-ink">{fmt(amount)}</b> {t({ en: `to ${cityName}`, es: `a ${cityName}` })}
           </p>
         </div>
       </div>
 
       <fieldset className="flex flex-col">
-        <legend className="sr-only">¿Qué recurso te trae?</legend>
+        <legend className="sr-only">{t({ en: "What should he bring?", es: "¿Qué recurso te trae?" })}</legend>
         <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
           {RESOURCES.map((r) => {
             const isFull = res[r] >= storage - 0.5;
             return (
-              <label key={r} className="group relative cursor-pointer" title={`${RESOURCE_INFO[r].label}: ${fmt(res[r])} de ${fmt(storage)}`}>
+              <label
+                key={r}
+                className="group relative cursor-pointer"
+                title={t({
+                  en: `${resourceLabel(r, lang)}: ${fmt(res[r])} of ${fmt(storage)}`,
+                  es: `${resourceLabel(r, lang)}: ${fmt(res[r])} de ${fmt(storage)}`,
+                })}
+              >
                 <input
                   type="radio"
                   name="merchant-resource"
@@ -71,9 +80,9 @@ export function Merchant({
                   )}
                 >
                   <ResIcon kind={r} size={26} className="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110" />
-                  <span className="text-[13px] leading-tight font-bold">{RESOURCE_INFO[r].label}</span>
+                  <span className="text-[13px] leading-tight font-bold">{resourceLabel(r, lang)}</span>
                   <span className={clsx("text-[11px] leading-none tabular", isFull ? "font-bold text-terracotta" : "text-ink-soft")}>
-                    {isFull ? "Lleno" : fmt(res[r])}
+                    {isFull ? t({ en: "Full", es: "Lleno" }) : fmt(res[r])}
                   </span>
                 </span>
               </label>
@@ -88,15 +97,23 @@ export function Merchant({
           variant="ambrosia"
           size="lg"
           disabled={!canPay || full}
-          pendingLabel="El mercader está cargando…"
+          pendingLabel={t({ en: "The merchant is loading up…", es: "El mercader está cargando…" })}
           celebrate
           className="w-full sm:w-auto"
         >
-          Traer {fmt(amount)} de {RESOURCE_INFO[resource].label.toLowerCase()}
+          {t({
+            en: `Bring ${fmt(amount)} ${resourceLabel(resource, lang).toLowerCase()}`,
+            es: `Traer ${fmt(amount)} de ${resourceLabel(resource, lang).toLowerCase()}`,
+          })}
         </ActionButton>
         {(!canPay || full) && (
           <p className="text-sm font-bold text-danger">
-            {!canPay ? `Te falta néctar: tenés ${fmt(ambrosia)} de ${price}.` : "Ese depósito ya está lleno."}
+            {!canPay
+              ? t({
+                  en: `Not enough Nectar: you have ${fmt(ambrosia)} of ${fmt(price)}.`,
+                  es: `Te falta néctar: tenés ${fmt(ambrosia)} de ${fmt(price)}.`,
+                })
+              : t({ en: "That storage is already full.", es: "Ese depósito ya está lleno." })}
           </p>
         )}
       </div>

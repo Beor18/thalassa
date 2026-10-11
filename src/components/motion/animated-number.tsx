@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { animate, useReducedMotion, type AnimationPlaybackControls } from "motion/react";
-import { fmt } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 
 type Props = {
   value: number;
@@ -26,7 +26,10 @@ type Props = {
  * server HTML and hydration always match; every later update is written straight to the DOM
  * (no React re-render per frame).
  */
-export function AnimatedNumber({ value, format = fmt, animateKey, minDelta = 1, float = false, duration = 0.7, className }: Props) {
+export function AnimatedNumber({ value, format: formatProp, animateKey, minDelta = 1, float = false, duration = 0.7, className }: Props) {
+  // Whole numbers in the player's language unless the caller formats them.
+  const { fmt } = useI18n();
+  const format = formatProp ?? fmt;
   const [initialText] = useState(() => format(value));
   const textRef = useRef<HTMLSpanElement>(null);
   const shown = useRef(value);

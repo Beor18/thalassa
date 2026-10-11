@@ -19,7 +19,7 @@ const body = Alegreya_Sans({
   weight: ["400", "500", "700", "800"],
 });
 
-export const metadata = rootMetadata;
+export const generateMetadata = rootMetadata;
 
 export const viewport: Viewport = {
   themeColor: "#0b2a4a",

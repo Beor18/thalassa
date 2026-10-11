@@ -4,22 +4,28 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonClass } from "@/components/ui/button";
+import { LanguageSwitch } from "@/components/ui/language-switch";
 import { TrackClicks, TrackView } from "@/components/growth/track";
 import { LegalLinks } from "@/components/growth/legal-links";
-import { fmt } from "@/lib/format";
-import { RESOURCE_LABEL, getPublicCity, type PublicCity } from "@/server/growth/public-city";
+import { buildingName, resourceLabel } from "@/game/names";
+import { getI18n } from "@/i18n/server";
+import { openGraphBase } from "@/lib/seo";
+import { getPublicCity, type PublicCity } from "@/server/growth/public-city";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/polis/[id]">): Promise<Metadata> {
-  const { id } = await params;
+  const [{ id }, { lang, t }] = await Promise.all([params, getI18n()]);
   const city = await getPublicCity(id);
-  if (!city) return { title: "Polis no encontrada", robots: { index: false } };
-  const title = `${city.name}, polis de ${city.ownerName}`;
-  const description = `${city.name} crece en ${city.islandName}, una isla del Egeo. Fundá la tuya al lado en Thalassa, estrategia por navegador.`;
+  if (!city) return { title: t({ en: "Polis not found", es: "Polis no encontrada" }), robots: { index: false } };
+  const title = t({ en: `${city.name}, ${city.ownerName}'s polis`, es: `${city.name}, polis de ${city.ownerName}` });
+  const description = t({
+    en: `${city.name} is growing on ${city.islandName}, an island in the Aegean. Found yours next door in Thalassa, a browser strategy game.`,
+    es: `${city.name} crece en ${city.islandName}, una isla del Egeo. Fundá la tuya al lado en Thalassa, estrategia por navegador.`,
+  });
   return {
     title,
     description,
     alternates: { canonical: `/polis/${city.id}` },
-    openGraph: { title, description, type: "website", url: `/polis/${city.id}` },
+    openGraph: { ...openGraphBase(lang), title, description, url: `/polis/${city.id}` },
     twitter: { card: "summary_large_image", title, description },
   };
 }
@@ -30,13 +36,14 @@ export default function PolisPage({ params }: PageProps<"/[lang]/polis/[id]">) {
     <main className="relative isolate flex flex-1 flex-col">
       <Image src="/assets/scene-city.webp" alt="" fill preload sizes="100vw" className="-z-20 object-cover object-center opacity-60" />
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-sea-950/85 via-sea-950/70 to-sea-950" />
-      <header className="mx-auto flex w-full max-w-5xl items-center px-4 pt-3 sm:px-6 sm:pt-5">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 pt-3 sm:px-6 sm:pt-5">
         <Link
           href="/"
           className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 font-display text-lg font-black tracking-[0.22em] text-gold [text-shadow:0_1px_0_var(--color-bronze-deep),0_2px_10px_rgb(6_26_48/0.9)]"
         >
           THALASSA
         </Link>
+        <LanguageSwitch tone="dark" />
       </header>
       <Suspense fallback={<PolisSkeleton />}>
         <PolisContent params={params} />
@@ -50,19 +57,30 @@ export default function PolisPage({ params }: PageProps<"/[lang]/polis/[id]">) {
 }
 
 async function PolisContent({ params }: Pick<PageProps<"/[lang]/polis/[id]">, "params">) {
-  const { id } = await params;
+  const [{ id }, { lang, t }] = await Promise.all([params, getI18n()]);
   const city = await getPublicCity(id);
   if (!city) notFound();
+  const resource = resourceLabel(city.resource, lang).toLowerCase();
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pt-6 pb-10 sm:gap-6 sm:px-6 sm:pt-12">
       <TrackView event="polis_view" />
       <section className="flex animate-rise flex-col gap-2">
-        <p className="font-display text-sm font-bold tracking-[0.3em] text-gold">{city.isCapital ? "CAPITAL" : "COLONIA"} DEL EGEO</p>
+        <p className="font-display text-sm font-bold tracking-[0.3em] text-gold">
+          {city.isCapital ? t({ en: "AEGEAN CAPITAL", es: "CAPITAL DEL EGEO" }) : t({ en: "AEGEAN COLONY", es: "COLONIA DEL EGEO" })}
+        </p>
         <h1 className="font-display text-4xl leading-tight font-black text-marble [text-shadow:0_2px_12px_rgb(6_26_48/0.9)] sm:text-6xl">
           {city.name}
         </h1>
         <p className="text-lg text-foam sm:text-xl">
-          Polis de <b>{city.ownerName}</b> en {city.islandName}, isla de {RESOURCE_LABEL[city.resource]}.
+          {lang === "en" ? (
+            <>
+              <b>{city.ownerName}</b>&apos;s polis on {city.islandName}, a {resource} island.
+            </>
+          ) : (
+            <>
+              Polis de <b>{city.ownerName}</b> en {city.islandName}, isla de {resource}.
+            </>
+          )}
         </p>
         <Stats city={city} />
       </section>
@@ -70,7 +88,7 @@ async function PolisContent({ params }: Pick<PageProps<"/[lang]/polis/[id]">, "p
       {city.topBuildings.length > 0 && (
         <section aria-labelledby="polis-buildings" className="flex flex-col gap-2.5">
           <h2 id="polis-buildings" className="font-display text-sm font-bold tracking-[0.3em] text-gold">
-            LO QUE YA LEVANTÓ
+            {t({ en: "ALREADY BUILT", es: "LO QUE YA LEVANTÓ" })}
           </h2>
           <ul className="grid grid-cols-4 gap-2 sm:gap-3">
             {city.topBuildings.map((b, i) => (
@@ -78,11 +96,11 @@ async function PolisContent({ params }: Pick<PageProps<"/[lang]/polis/[id]">, "p
                 <span className="relative">
                   <Image src={`/assets/b-${b.type}.webp`} alt="" width={96} height={96} loading="eager" className="sprite size-14 sm:size-24" />
                   <span className="tabular absolute -right-1 bottom-0 grid size-6 place-items-center rounded-full bg-sea-900 text-xs font-bold text-foam ring-2 ring-parchment sm:size-7 sm:text-sm">
-                    <span className="sr-only">Nivel </span>
+                    <span className="sr-only">{t({ en: "Level ", es: "Nivel " })}</span>
                     {b.level}
                   </span>
                 </span>
-                <span className="w-full truncate text-[13px] leading-tight font-bold text-ink sm:font-display sm:text-base">{b.name}</span>
+                <span className="w-full truncate text-[13px] leading-tight font-bold text-ink sm:font-display sm:text-base">{buildingName(b.type, lang)}</span>
               </li>
             ))}
           </ul>
@@ -91,24 +109,23 @@ async function PolisContent({ params }: Pick<PageProps<"/[lang]/polis/[id]">, "p
 
       <section aria-labelledby="polis-cta" className="panel-dark flex flex-col items-start gap-3 p-5 sm:p-6">
         <h2 id="polis-cta" className="font-display text-2xl leading-tight font-bold text-foam">
-          Hay lugar en la isla de al lado.
+          {t({ en: "There's room on the next island.", es: "Hay lugar en la isla de al lado." })}
         </h2>
-        <p className="text-[15px] text-foam/90">Gratis, en el navegador. Sin mail ni contraseña.</p>
+        <p className="text-[15px] text-foam/90">{t({ en: "Free, in your browser. No email, no password.", es: "Gratis, en el navegador. Sin mail ni contraseña." })}</p>
         <a href={`/r/${city.ownerCode}`} data-track="polis_cta_click" className={buttonClass("primary", "lg", "h-14 min-w-60 px-8 text-lg")}>
-          Fundá tu polis
+          {t({ en: "Found your polis", es: "Fundá tu polis" })}
         </a>
       </section>
     </div>
   );
 }
 
-const dateFmt = new Intl.DateTimeFormat("es-AR", { month: "short", year: "numeric" });
-
-function Stats({ city }: { city: PublicCity }) {
+async function Stats({ city }: { city: PublicCity }) {
+  const { t, fmt, fmtDate } = await getI18n();
   const items = [
-    { label: "Puntos", value: fmt(city.score) },
-    { label: "Edificios", value: fmt(city.buildingCount) },
-    { label: "Fundada", value: dateFmt.format(new Date(city.foundedAt)) },
+    { label: t({ en: "Points", es: "Puntos" }), value: fmt(city.score) },
+    { label: t({ en: "Buildings", es: "Edificios" }), value: fmt(city.buildingCount) },
+    { label: t({ en: "Founded", es: "Fundada" }), value: fmtDate(city.foundedAt, { month: "short", year: "numeric" }) },
   ];
   return (
     <dl className="mt-1 flex flex-wrap gap-2">

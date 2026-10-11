@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { getI18n } from "@/i18n/server";
 import { buttonClass } from "@/components/ui/button";
 
-export default function NotFound() {
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Page not found", es: "Página no encontrada" }), robots: { index: false } };
+}
+
+export default async function NotFound() {
+  const { t } = await getI18n();
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center px-4 py-16 text-center">
       <div className="panel rise-in w-full overflow-hidden px-6 py-8">
@@ -23,10 +31,17 @@ export default function NotFound() {
           </div>
           <span className="font-display text-2xl font-black text-bronze-dark">404</span>
         </div>
-        <h1 className="font-display text-2xl font-bold">Esta isla no figura en las cartas</h1>
-        <p className="mt-2 text-ink-soft">La ruta está mal escrita o esa ciudad ya no existe.</p>
+        <h1 className="font-display text-2xl font-bold">
+          {t({ en: "This island isn't on the charts", es: "Esta isla no figura en las cartas" })}
+        </h1>
+        <p className="mt-2 text-ink-soft">
+          {t({
+            en: "The link may be mistyped, or that city no longer exists.",
+            es: "La ruta está mal escrita o esa ciudad ya no existe.",
+          })}
+        </p>
         <Link href="/ciudad" className={buttonClass("primary", "md", "mt-6")}>
-          Volver a mi polis
+          {t({ en: "Back to my polis", es: "Volver a mi polis" })}
         </Link>
       </div>
     </div>

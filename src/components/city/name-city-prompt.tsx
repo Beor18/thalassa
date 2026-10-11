@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { reportResult } from "@/components/ui/action-button";
 import { buttonClass } from "@/components/ui/button";
+import { useI18n } from "@/i18n/client";
 import { renameCityAction } from "@/server/actions";
 import { IconPencil } from "./icons";
 
@@ -11,6 +12,7 @@ import { IconPencil } from "./icons";
  * A small invitation that opens an inline field; it never blocks play and disappears once named.
  */
 export function NameCityPrompt({ cityId, name }: { cityId: string; name: string }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export function NameCityPrompt({ cityId, name }: { cityId: string; name: string 
         className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-full bg-gold/15 px-2.5 text-xs font-bold text-gold-light ring-1 ring-gold/50 transition-colors duration-100 hover:bg-gold/25 max-md:min-h-10"
       >
         <IconPencil size={13} />
-        Ponele nombre a tu ciudad
+        {t({ en: "Name your city", es: "Ponele nombre a tu ciudad" })}
       </button>
     );
   }
@@ -41,7 +43,7 @@ export function NameCityPrompt({ cityId, name }: { cityId: string; name: string 
       onSubmit={(e) => {
         e.preventDefault();
         if (clean.length < 3 || clean.length > 24) {
-          setError("Entre 3 y 24 letras.");
+          setError(t({ en: "3 to 24 letters.", es: "Entre 3 y 24 letras." }));
           return;
         }
         setError(null);
@@ -54,7 +56,7 @@ export function NameCityPrompt({ cityId, name }: { cityId: string; name: string 
     >
       <div className="flex items-center gap-1.5">
         <label htmlFor="plaque-city-name" className="sr-only">
-          Nombre de la ciudad
+          {t({ en: "City name", es: "Nombre de la ciudad" })}
         </label>
         <input
           ref={inputRef}
@@ -78,12 +80,12 @@ export function NameCityPrompt({ cityId, name }: { cityId: string; name: string 
           className="h-10 w-44 min-w-0 rounded-lg border border-sea-300/40 bg-sea-950/70 px-2.5 text-[15px] text-foam placeholder:text-foam/40 focus-visible:border-gold sm:w-52"
         />
         <button type="submit" disabled={pending || clean.length === 0} aria-busy={pending} className={buttonClass("primary", "md", "px-3")}>
-          {pending ? "Guardando…" : "Guardar"}
+          {pending ? t({ en: "Saving…", es: "Guardando…" }) : t({ en: "Save", es: "Guardar" })}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          aria-label="Ahora no"
+          aria-label={t({ en: "Not now", es: "Ahora no" })}
           className="grid size-10 shrink-0 place-items-center rounded-full text-xl leading-none text-foam/70 hover:bg-foam/10 hover:text-foam"
         >
           <span aria-hidden>×</span>

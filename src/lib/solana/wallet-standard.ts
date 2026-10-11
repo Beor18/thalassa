@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import { getWalletFeature, useWallets, type UiWallet, type UiWalletAccount } from "@wallet-standard/react";
 import { SOLANA_CHAIN } from "./config";
+import { FriendlyError } from "./errors";
 
 /** Shape of a raw Wallet Standard account (what wallet features expect as input). */
 interface RawWalletAccount {
@@ -64,10 +65,12 @@ export async function connectAndSignMessage(
 ): Promise<{ address: string; message: string; signature: Uint8Array }> {
   const accounts = await connectWallet(wallet);
   const account = accounts.find((a) => a.chains.includes(SOLANA_CHAIN)) ?? accounts.find((a) => a.chains.some((c) => c.startsWith("solana:")));
-  if (!account) throw new Error("La billetera no compartió ninguna cuenta de Solana.");
+  if (!account) {
+    throw new FriendlyError({ en: "Your wallet didn't share a Solana account.", es: "La billetera no compartió ninguna cuenta de Solana." });
+  }
   const message = await getMessage(account.address);
   const feature = getWalletFeature(wallet, "solana:signMessage") as SignMessageFeature;
   const [out] = await feature.signMessage({ account, message: new TextEncoder().encode(message) });
-  if (!out) throw new Error("La billetera no devolvió la firma.");
+  if (!out) throw new FriendlyError({ en: "Your wallet didn't return a signature.", es: "La billetera no devolvió la firma." });
   return { address: account.address, message, signature: out.signature };
 }

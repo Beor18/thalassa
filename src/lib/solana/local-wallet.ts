@@ -29,7 +29,10 @@ function storage(): Storage {
     s.removeItem(probe);
     return s;
   } catch {
-    throw new FriendlyError("Tu navegador no deja guardar la llave de juego. Probá entrar con tu billetera.");
+    throw new FriendlyError({
+      en: "Your browser won't let us save your game key. Try signing in with your wallet.",
+      es: "Tu navegador no deja guardar la llave de juego. Probá entrar con tu billetera.",
+    });
   }
 }
 
@@ -62,7 +65,7 @@ function readStoredBytes(): Uint8Array | null {
     if (!Array.isArray(arr) || arr.length !== 64 || arr.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) throw new Error();
     return Uint8Array.from(arr);
   } catch {
-    throw new FriendlyError("La llave de juego guardada en este navegador está dañada.");
+    throw new FriendlyError({ en: "The game key saved in this browser is damaged.", es: "La llave de juego guardada en este navegador está dañada." });
   }
 }
 
@@ -125,9 +128,15 @@ export async function requestDevnetSol(owner: Address, sol = BigInt(1)): Promise
   } catch (err) {
     const text = collectMessages(err);
     if (/429|rate|limit|too many|faucet has run dry|airdrop/i.test(text) || /internal error/i.test(text)) {
-      throw new FriendlyError(`La canilla de SOL de prueba está saturada. Pedilo a mano en ${FAUCET_URL} con tu dirección.`);
+      throw new FriendlyError({
+        en: `Free test SOL is busy right now. Ask for it at ${FAUCET_URL} with your address.`,
+        es: `La canilla de SOL de prueba está saturada. Pedilo a mano en ${FAUCET_URL} con tu dirección.`,
+      });
     }
-    throw new FriendlyError(`No pudimos conseguir SOL de prueba. Probá en ${FAUCET_URL} con tu dirección.`);
+    throw new FriendlyError({
+      en: `We couldn't get test SOL. Try ${FAUCET_URL} with your address.`,
+      es: `No pudimos conseguir SOL de prueba. Probá en ${FAUCET_URL} con tu dirección.`,
+    });
   }
 }
 

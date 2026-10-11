@@ -2,11 +2,14 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
-import { RESOURCES, UNITS, UNIT_TYPES, type Resource, type UnitBag } from "@/game/data";
+import { RESOURCES, UNIT_TYPES, type Resource, type UnitBag } from "@/game/data";
 import { SHIP_IMAGE } from "@/game/layout";
+import { buildingName, unitName } from "@/game/names";
+import type { Locale } from "@/i18n/config";
+import { makeI18n, type I18n } from "@/i18n/i18n";
+import { reportText, reportTitle } from "@/server/report-text";
 import { buttonClass } from "@/components/ui/button";
 import { ResIcon } from "@/components/ui/res";
-import { fmt } from "@/lib/format";
 import { IconScroll, IconSwords, IconTemple } from "@/components/island/icons";
 import { UnitPortrait } from "@/components/military/units";
 import { LaurelIcon } from "@/components/game/icons";
@@ -21,7 +24,12 @@ export interface ReportRow {
   createdAt: Date;
 }
 
-// Shapes written by src/server/missions.ts and src/server/world.ts
+/*
+  Shapes written by src/server/missions.ts, src/server/world.ts and src/server/growth/referrals.ts.
+  Since the game speaks English and Spanish, every report also stores `body.title` (Text) and system
+  reports `body.text` (Text). Older rows only have the Spanish `title` column and a string `body.text`:
+  src/server/report-text.ts rebuilds them in English when it can, otherwise they show as stored.
+*/
 interface Side {
   name: string;
   city?: string;
@@ -58,6 +66,12 @@ interface ColonyBody {
   ok?: boolean;
 }
 
+/** The title in the player's language; older rows that can't be rebuilt keep their Spanish title. */
+function titleOf(report: ReportRow, i: I18n) {
+  const title = reportTitle(report.kind, report.title, report.body);
+  return title ? i.t(title) : report.title;
+}
+
 const sum = (bag: UnitBag | undefined) => UNIT_TYPES.reduce((s, t) => s + (bag?.[t] ?? 0), 0);
 const cleanBag = (bag: Partial<Record<Resource, number>> | undefined) => {
   const out: Partial<Record<Resource, number>> = {};
@@ -68,40 +82,42 @@ const cleanBag = (bag: Partial<Record<Resource, number>> | undefined) => {
   return out;
 };
 
-function relTime(at: Date, now: number) {
+function relTime(i: I18n, at: Date, now: number) {
   const s = Math.max(0, Math.round((now - at.getTime()) / 1000));
-  if (s < 60) return "recién";
+  if (s < 60) return i.t({ en: "just now", es: "recién" });
   const m = Math.floor(s / 60);
-  if (m < 60) return `hace ${m} min`;
+  if (m < 60) return i.t({ en: `${m} min ago`, es: `hace ${m} min` });
   const h = Math.floor(m / 60);
-  if (h < 24) return `hace ${h} h`;
+  if (h < 24) return i.t({ en: `${h} h ago`, es: `hace ${h} h` });
   const d = Math.floor(h / 24);
-  return d === 1 ? "ayer" : `hace ${d} días`;
+  return d === 1 ? i.t({ en: "yesterday", es: "ayer" }) : i.t({ en: `${d} days ago`, es: `hace ${d} días` });
 }
 
-const absolute = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" });
-
-function When({ at, now, className }: { at: Date; now: number; className?: string }) {
+function When({ i, at, now, className }: { i: I18n; at: Date; now: number; className?: string }) {
   return (
-    <time dateTime={at.toISOString()} title={absolute.format(at)} className={clsx("tabular shrink-0 text-xs whitespace-nowrap text-ink-soft", className)}>
-      {relTime(at, now)}
+    <time
+      dateTime={at.toISOString()}
+      title={i.fmtDate(at, { dateStyle: "medium", timeStyle: "short" })}
+      className={clsx("tabular shrink-0 text-xs whitespace-nowrap text-ink-soft", className)}
+    >
+      {relTime(i, at, now)}
     </time>
   );
 }
 
-/** Resources with a sign: "+420 madera" for loot that came in, "−120 vino" for what was taken. */
-function Haul({ bag, sign, index }: { bag: Partial<Record<Resource, number>>; sign: "+" | "−"; index: number }) {
+/** Resources with a sign: "+420 wood" for loot that came in, "−120 wine" for what was taken. */
+function Haul({ i, bag, sign, index }: { i: I18n; bag: Partial<Record<Resource, number>>; sign: "+" | "−"; index: number }) {
   const entries = Object.entries(bag) as [Resource, number][];
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-      {entries.map(([r, n], i) => (
+      {entries.map(([r, n], k) => (
         <span
           key={r}
           className={clsx("pop-in inline-flex items-center gap-1 text-sm font-bold tabular", sign === "+" ? "text-success" : "text-danger")}
-          style={{ "--d": `${Math.min(index, 6) * 70 + 300 + i * 80}ms` } as CSSProperties}
+          style={{ "--d": `${Math.min(index, 6) * 70 + 300 + k * 80}ms` } as CSSProperties}
         >
           {sign}
-          {fmt(n)}
+          {i.fmt(n)}
           <ResIcon kind={r} size={18} />
         </span>
       ))}
@@ -109,10 +125,14 @@ function Haul({ bag, sign, index }: { bag: Partial<Record<Resource, number>>; si
   );
 }
 
-/** `index` is the card's place in the list: the first ones animate in, one after another. */
-export function ReportCard({ report, now, index = 0 }: { report: ReportRow; now: number; index?: number }) {
-  if (report.kind === "battle") return <BattleReport report={report} now={now} index={index} />;
-  return <SimpleReport report={report} now={now} index={index} />;
+/**
+ * `index` is the card's place in the list: the first ones animate in, one after another.
+ * `lang` is the page's language (getI18n() in the Informes page).
+ */
+export function ReportCard({ report, now, index = 0, lang }: { report: ReportRow; now: number; index?: number; lang: Locale }) {
+  const i = makeI18n(lang);
+  if (report.kind === "battle") return <BattleReport i={i} report={report} now={now} index={index} />;
+  return <SimpleReport i={i} report={report} now={now} index={index} />;
 }
 
 const delayOf = (index: number, extra = 0) => ({ "--d": `${Math.min(index, 6) * 70 + extra}ms` }) as CSSProperties;
@@ -133,6 +153,7 @@ const STRIPE: Record<Tone, string> = {
 
 /** Row layout shared by every report: badge, title with a one-line outcome, extras and time. */
 function Row({
+  i,
   tone,
   badge,
   title,
@@ -144,6 +165,7 @@ function Row({
   chevron,
   index,
 }: {
+  i: I18n;
   tone: Tone;
   badge: ReactNode;
   title: string;
@@ -171,7 +193,7 @@ function Row({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline gap-2">
           <h3 className="min-w-0 flex-1 leading-tight font-bold sm:truncate">{title}</h3>
-          <When at={at} now={now} className="sm:hidden" />
+          <When i={i} at={at} now={now} className="sm:hidden" />
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
           <NewTag unread={unread} />
@@ -180,7 +202,7 @@ function Row({
         {extra && <div className="sm:hidden">{extra}</div>}
       </div>
       {extra && <div className="hidden shrink-0 sm:block">{extra}</div>}
-      <When at={at} now={now} className="hidden sm:block" />
+      <When i={i} at={at} now={now} className="hidden sm:block" />
       {chevron && (
         <svg
           viewBox="0 0 16 16"
@@ -203,32 +225,35 @@ function Row({
 // Battle
 // ---------------------------------------------------------------------------
 
-function BattleReport({ report, now, index }: { report: ReportRow; now: number; index: number }) {
+function BattleReport({ i, report, now, index }: { i: I18n; report: ReportRow; now: number; index: number }) {
+  const { t, fmt } = i;
   const b = report.body as BattleBody;
   const role = b.role ?? "attacker";
   const target = b.target;
   const unread = !report.read;
-  const where =
-    target?.kind === "barbarians"
-      ? `Bárbaros de ${target.islandName}${target.level ? ` (nivel ${target.level})` : ""}`
-      : target
-        ? `${target.name}, ${target.islandName}`
-        : "";
+  const barbarians = target?.kind === "barbarians";
+  const level = target?.level ? t({ en: ` (level ${target.level})`, es: ` (nivel ${target.level})` }) : "";
+  const where = barbarians
+    ? t({ en: `Barbarians on ${target.islandName}`, es: `Bárbaros de ${target.islandName}` }) + level
+    : target
+      ? `${target.name}, ${target.islandName}`
+      : "";
 
   if (b.empty || !b.attacker || !b.defender) {
     return (
       <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
         <Row
+          i={i}
           tone="calm"
           badge={<IconSwords size={18} />}
-          title={report.title}
+          title={titleOf(report, i)}
           unread={unread}
           index={index}
           at={report.createdAt} now={now}
           line={
             <>
-              <strong className="text-sea-700">Sin combate</strong>
-              <span>No había nadie. Volvieron sin pelear.</span>
+              <strong className="text-sea-700">{t({ en: "No fight", es: "Sin combate" })}</strong>
+              <span>{t({ en: "Nobody was there. Your troops came back without a fight.", es: "No había nadie. Volvieron sin pelear." })}</span>
             </>
           }
         />
@@ -237,7 +262,8 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
   }
 
   const attacker = b.attacker;
-  const defender = b.defender;
+  // Barbarians were stored with a Spanish name; name them in the player's language.
+  const defender = barbarians ? { ...b.defender, name: t({ en: "Barbarians", es: "Bárbaros" }) } : b.defender;
   const won = role === "attacker" ? Boolean(b.attackerWins) : !b.attackerWins;
   const loot = cleanBag(b.loot);
   const hasLoot = Object.keys(loot).length > 0;
@@ -251,9 +277,10 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
     <details className="group panel rise-in overflow-hidden" style={delayOf(index)}>
       <summary className="cursor-pointer list-none rounded-[14px] transition-colors hover:bg-marble/50 [&::-webkit-details-marker]:hidden">
         <Row
+          i={i}
           tone={won ? "win" : "loss"}
           badge={won ? <LaurelIcon className="w-7" /> : <IconSwords size={18} />}
-          title={report.title}
+          title={titleOf(report, i)}
           unread={unread}
           index={index}
           at={report.createdAt} now={now}
@@ -261,15 +288,25 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
           line={
             <>
               <strong className={won ? "text-bronze-dark" : "text-danger"}>
-                {won ? (role === "attacker" ? "Victoria" : "Resististe") : role === "attacker" ? "Derrota" : "Te saquearon"}
+                {t(
+                  won
+                    ? role === "attacker"
+                      ? { en: "Victory", es: "Victoria" }
+                      : { en: "You held", es: "Resististe" }
+                    : role === "attacker"
+                      ? { en: "Defeat", es: "Derrota" }
+                      : { en: "You were raided", es: "Te saquearon" },
+                )}
               </strong>
               {where && <span className="truncate">{where}</span>}
               <span className={clsx("tabular", myLosses > 0 && "font-bold text-danger")}>
-                {myLosses > 0 ? `−${fmt(myLosses)} ${myLosses === 1 ? "baja" : "bajas"}` : "Sin bajas"}
+                {myLosses > 0
+                  ? t({ en: `−${fmt(myLosses)} ${myLosses === 1 ? "loss" : "losses"}`, es: `−${fmt(myLosses)} ${myLosses === 1 ? "baja" : "bajas"}` })
+                  : t({ en: "No losses", es: "Sin bajas" })}
               </span>
             </>
           }
-          extra={hasLoot ? <Haul bag={loot} sign={role === "attacker" ? "+" : "−"} index={index} /> : undefined}
+          extra={hasLoot ? <Haul i={i} bag={loot} sign={role === "attacker" ? "+" : "−"} index={index} /> : undefined}
         />
       </summary>
 
@@ -277,20 +314,27 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
         <div className="-mx-1 overflow-x-auto px-1">
           <table className="w-full min-w-[18rem] border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
-              Tropas y bajas de cada lado. {attacker.name} atacó, {defender.name} defendió.
+              {t({
+                en: `Troops and losses on each side. ${attacker.name} attacked; ${barbarians ? "the barbarians" : defender.name} defended.`,
+                es: `Tropas y bajas de cada lado. ${attacker.name} atacó, ${barbarians ? "los bárbaros defendieron" : `${defender.name} defendió`}.`,
+              })}
             </caption>
             <thead>
               <tr className="text-left">
                 <th scope="col" className="border-b border-parchment-3 pr-2 pb-1.5 font-bold text-ink-soft">
-                  Tropa
+                  {t({ en: "Unit", es: "Tropa" })}
                 </th>
                 <th scope="col" className="border-b border-parchment-3 px-2 pb-1.5 text-right">
                   <span className="block truncate font-bold">{attacker.name}</span>
-                  <span className="block text-xs font-normal text-ink-soft">ataca{attacker.city ? ` desde ${attacker.city}` : ""}</span>
+                  <span className="block text-xs font-normal text-ink-soft">
+                    {attacker.city
+                      ? t({ en: `attacks from ${attacker.city}`, es: `ataca desde ${attacker.city}` })
+                      : t({ en: "attacks", es: "ataca" })}
+                  </span>
                 </th>
                 <th scope="col" className="border-b border-parchment-3 pb-1.5 pl-2 text-right">
                   <span className="block truncate font-bold">{defender.name}</span>
-                  <span className="block text-xs font-normal text-ink-soft">defiende</span>
+                  <span className="block text-xs font-normal text-ink-soft">{t({ en: "defends", es: "defiende" })}</span>
                 </th>
               </tr>
             </thead>
@@ -298,39 +342,43 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
               {types.length === 0 && (
                 <tr>
                   <td colSpan={3} className="py-2 text-ink-soft">
-                    No hubo tropas en el campo.
+                    {t({ en: "No troops took the field.", es: "No hubo tropas en el campo." })}
                   </td>
                 </tr>
               )}
-              {types.map((t) => (
-                <tr key={t}>
+              {types.map((u) => (
+                <tr key={u}>
                   <th scope="row" className="border-b border-parchment-3/70 py-1 pr-2 text-left font-normal">
                     <span className="flex items-center gap-2">
-                      <UnitPortrait unit={t} size={26} className="bg-transparent" />
-                      <span className="font-bold">{UNITS[t].name}</span>
+                      <UnitPortrait unit={u} size={26} className="bg-transparent" />
+                      <span className="font-bold">{unitName(u, i.lang)}</span>
                     </span>
                   </th>
-                  <Cell sent={attacker.units[t]} lost={attacker.losses[t]} />
-                  <Cell sent={defender.units[t]} lost={defender.losses[t]} />
+                  <Cell i={i} sent={attacker.units[u]} lost={attacker.losses[u]} />
+                  <Cell i={i} sent={defender.units[u]} lost={defender.losses[u]} />
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
                 <th scope="row" className="border-b border-parchment-3/70 py-1.5 pr-2 text-left font-bold">
-                  Muralla
+                  {buildingName("wall", i.lang)}
                 </th>
                 <td className="border-b border-parchment-3/70 px-2 py-1.5 text-right text-ink-soft">
                   <span aria-hidden>·</span>
-                  <span className="sr-only">No aplica</span>
+                  <span className="sr-only">{t({ en: "Not applicable", es: "No aplica" })}</span>
                 </td>
                 <td className="tabular border-b border-parchment-3/70 py-1.5 pl-2 text-right">
-                  {wall === 0 ? "Sin muralla" : effective < wall ? `Nivel ${wall} → ${effective}` : `Nivel ${wall}`}
+                  {wall === 0
+                    ? t({ en: "No wall", es: "Sin muralla" })
+                    : effective < wall
+                      ? t({ en: `Level ${wall} → ${effective}`, es: `Nivel ${wall} → ${effective}` })
+                      : t({ en: `Level ${wall}`, es: `Nivel ${wall}` })}
                 </td>
               </tr>
               <tr>
                 <th scope="row" className="py-1.5 pr-2 text-left font-bold">
-                  Poder
+                  {t({ en: "Power", es: "Poder" })}
                 </th>
                 <td className={clsx("tabular px-2 py-1.5 text-right", b.attackerWins ? "font-extrabold" : "text-ink-soft")}>
                   {fmt(b.attackPower ?? 0)}
@@ -343,26 +391,30 @@ function BattleReport({ report, now, index }: { report: ReportRow; now: number; 
           </table>
         </div>
         {!hasLoot && (
-          <p className="text-sm text-ink-soft">{role === "attacker" ? "Esta vez no hubo botín." : "No se llevaron nada."}</p>
+          <p className="text-sm text-ink-soft">
+            {role === "attacker"
+              ? t({ en: "No loot this time.", es: "Esta vez no hubo botín." })
+              : t({ en: "They took nothing.", es: "No se llevaron nada." })}
+          </p>
         )}
       </div>
     </details>
   );
 }
 
-function Cell({ sent, lost }: { sent?: number; lost?: number }) {
+function Cell({ i, sent, lost }: { i: I18n; sent?: number; lost?: number }) {
   if (!sent) {
     return (
       <td className="border-b border-parchment-3/70 px-2 py-1 text-right text-ink-soft">
         <span aria-hidden>·</span>
-        <span className="sr-only">Ninguna</span>
+        <span className="sr-only">{i.t({ en: "None", es: "Ninguna" })}</span>
       </td>
     );
   }
   return (
     <td className="tabular border-b border-parchment-3/70 px-2 py-1 text-right whitespace-nowrap">
-      <span className="font-bold">{fmt(sent)}</span>
-      {lost ? <span className="ml-1.5 text-danger">−{fmt(lost)}</span> : null}
+      <span className="font-bold">{i.fmt(sent)}</span>
+      {lost ? <span className="ml-1.5 text-danger">−{i.fmt(lost)}</span> : null}
     </td>
   );
 }
@@ -371,7 +423,8 @@ function Cell({ sent, lost }: { sent?: number; lost?: number }) {
 // Transport, colony, system
 // ---------------------------------------------------------------------------
 
-function SimpleReport({ report, now, index }: { report: ReportRow; now: number; index: number }) {
+function SimpleReport({ i, report, now, index }: { i: I18n; report: ReportRow; now: number; index: number }) {
+  const { t } = i;
   const unread = !report.read;
   let tone: Tone = "info";
   let badge: ReactNode;
@@ -383,31 +436,48 @@ function SimpleReport({ report, now, index }: { report: ReportRow; now: number; 
     const cargo = cleanBag(t.cargo);
     badge = <Image src={SHIP_IMAGE} alt="" width={34} height={34} className="sprite size-8" />;
     line = t.from && t.to ? <span className="truncate">{`${t.from.name} → ${t.to.name} (${t.to.playerName})`}</span> : null;
-    extra = Object.keys(cargo).length > 0 ? <Haul bag={cargo} sign="+" index={index} /> : undefined;
+    extra = Object.keys(cargo).length > 0 ? <Haul i={i} bag={cargo} sign="+" index={index} /> : undefined;
   } else if (report.kind === "colony") {
     const c = report.body as ColonyBody;
     tone = c.ok ? "win" : "info";
     badge = <IconTemple size={20} />;
     line = c.ok ? (
-      <span>Nueva ciudad en {c.islandName}.</span>
+      <span>{t({ en: `New city on ${c.islandName}.`, es: `Nueva ciudad en ${c.islandName}.` })}</span>
     ) : (
-      <span>Alguien llegó antes a {c.islandName}. Te devolvimos todo.</span>
+      <span>
+        {t({
+          en: `Someone reached ${c.islandName} first. You got everything back.`,
+          es: `Alguien llegó antes a ${c.islandName}. Te devolvimos todo.`,
+        })}
+      </span>
     );
     extra =
       c.ok && c.cityId ? (
         <Link href={`/ciudad/${c.cityId}`} className={buttonClass("secondary", "sm", "h-10")}>
-          Ir a {c.cityName}
+          {t({ en: `Go to ${c.cityName}`, es: `Ir a ${c.cityName}` })}
         </Link>
       ) : undefined;
   } else {
-    const text = typeof report.body.text === "string" ? report.body.text : "";
+    const stored = reportText(report.body);
+    const text = stored ? t(stored) : "";
     badge = <IconScroll size={20} />;
     line = text ? <span className="line-clamp-2">{text}</span> : null;
   }
 
   return (
     <article className="panel rise-in overflow-hidden" style={delayOf(index)}>
-      <Row tone={tone} badge={badge} title={report.title} unread={unread} index={index} at={report.createdAt} now={now} line={line} extra={extra} />
+      <Row
+        i={i}
+        tone={tone}
+        badge={badge}
+        title={titleOf(report, i)}
+        unread={unread}
+        index={index}
+        at={report.createdAt}
+        now={now}
+        line={line}
+        extra={extra}
+      />
     </article>
   );
 }

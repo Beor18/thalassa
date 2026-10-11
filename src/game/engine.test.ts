@@ -102,15 +102,15 @@ describe("commands", () => {
 
   it("enforces slot kinds and requirements", () => {
     const p = makePlayer();
-    expect(() => startConstruction(p, "c1", 12, "academy", T0, 1)).toThrow(/no va en este lugar/);
-    expect(() => startConstruction(p, "c1", 1, "tavern", T0, 1)).toThrow(/Intendencia nivel 2/);
-    expect(() => startConstruction(p, "c1", 1, "palace", T0, 1)).toThrow(/Expansión/);
+    expect(() => startConstruction(p, "c1", 12, "academy", T0, 1)).toThrow(/doesn't go here/);
+    expect(() => startConstruction(p, "c1", 1, "tavern", T0, 1)).toThrow(/Town Hall level 2/);
+    expect(() => startConstruction(p, "c1", 1, "palace", T0, 1)).toThrow(/Expansion/);
   });
 
   it("validates worker assignments against caps and citizens", () => {
     const p = makePlayer();
     expect(() => setWorkers(p, "c1", { woodWorkers: 41 })).toThrow(GameError);
-    expect(() => setWorkers(p, "c1", { luxWorkers: 1 })).toThrow(/Riqueza/);
+    expect(() => setWorkers(p, "c1", { luxWorkers: 1 })).toThrow(/Wealth/);
     setWorkers(p, "c1", { woodWorkers: 30 });
     expect(cityRates(p, p.cities[0], 1).freeCitizens).toBe(10);
   });
@@ -138,7 +138,7 @@ describe("commands", () => {
   it("requires prerequisites and points for research", () => {
     const p = makePlayer();
     p.research = 500;
-    expect(() => research(p, "pulley")).toThrow(/Conservación/);
+    expect(() => research(p, "pulley")).toThrow(/Conservation/);
     research(p, "conservation");
     research(p, "pulley");
     expect(p.techs).toEqual(["conservation", "pulley"]);

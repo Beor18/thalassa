@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import clsx from "clsx";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n/client";
 import { beacon } from "@/lib/growth/beacon";
 
 const noopSubscribe = () => () => {};
@@ -23,6 +24,7 @@ function CopyGlyph() {
  * Link and button sit on one line from `sm` up.
  */
 export function InviteLink({ path, fallbackOrigin, tone = "light" }: { path: string; fallbackOrigin: string; tone?: "light" | "dark" }) {
+  const { t } = useI18n();
   const origin = useSyncExternalStore(noopSubscribe, originNow, () => fallbackOrigin);
   const canShare = useSyncExternalStore(noopSubscribe, canShareNow, () => false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
@@ -32,10 +34,16 @@ export function InviteLink({ path, fallbackOrigin, tone = "light" }: { path: str
   async function copy() {
     try {
       await navigator.clipboard.writeText(url);
-      setNote({ ok: true, text: "Link copiado. Pegalo donde está tu gente." });
+      setNote({ ok: true, text: t({ en: "Link copied. Send it to your friends.", es: "Link copiado. Pegalo donde está tu gente." }) });
       beacon("invite_copy");
     } catch {
-      setNote({ ok: false, text: "No pudimos copiarlo. Mantené apretado el link y copialo a mano." });
+      setNote({
+        ok: false,
+        text: t({
+          en: "Couldn't copy it. Press and hold the link to copy it by hand.",
+          es: "No pudimos copiarlo. Mantené apretado el link y copialo a mano.",
+        }),
+      });
     }
   }
 
@@ -43,7 +51,11 @@ export function InviteLink({ path, fallbackOrigin, tone = "light" }: { path: str
     try {
       await navigator.share({
         title: "Thalassa",
-        text: "Te guardo un lugar en el Egeo. Fundá tu polis con este link y crecemos juntos.",
+        // Goes to other apps next to the link, in the player's language.
+        text: t({
+          en: "I saved you a spot in the Aegean. Found your polis with this link and let's grow together.",
+          es: "Te guardo un lugar en el Egeo. Fundá tu polis con este link y crecemos juntos.",
+        }),
         url,
       });
       beacon("invite_share");
@@ -56,7 +68,7 @@ export function InviteLink({ path, fallbackOrigin, tone = "light" }: { path: str
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-col gap-2 sm:flex-row">
         <label className="min-w-0 flex-1">
-          <span className="sr-only">Tu link de invitación</span>
+          <span className="sr-only">{t({ en: "Your invite link", es: "Tu link de invitación" })}</span>
           <input
             readOnly
             value={url}
@@ -67,10 +79,17 @@ export function InviteLink({ path, fallbackOrigin, tone = "light" }: { path: str
         <div className="flex items-center gap-2">
           <Button size="lg" onClick={canShare ? share : copy} className="flex-1 sm:min-w-44 sm:flex-none">
             {!canShare && <CopyGlyph />}
-            {canShare ? "Compartir link" : "Copiar link"}
+            {canShare ? t({ en: "Share link", es: "Compartir link" }) : t({ en: "Copy link", es: "Copiar link" })}
           </Button>
           {canShare && (
-            <Button size="lg" variant="secondary" onClick={copy} aria-label="Copiar link" title="Copiar link" className="w-12 px-0">
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={copy}
+              aria-label={t({ en: "Copy link", es: "Copiar link" })}
+              title={t({ en: "Copy link", es: "Copiar link" })}
+              className="w-12 px-0"
+            >
               <CopyGlyph />
             </Button>
           )}

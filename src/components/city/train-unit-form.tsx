@@ -7,10 +7,11 @@ import clsx from "clsx";
 import type { ResourceBag, UnitType } from "@/game/data";
 import { ActionButton } from "@/components/ui/action-button";
 import { CostList, ResIcon } from "@/components/ui/res";
-import { fmt, fmtDuration, fmtSigned } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { trainAction } from "@/server/actions";
 import { AmountInput } from "./amount-input";
-import { Duration, jumpLink } from "./bits";
+import { jumpLink } from "./bits";
+import { Duration } from "./duration";
 import { IconChevron, IconLock, IconShield, IconSword } from "./icons";
 import { missingText, unitCount, unitPlural } from "./lib";
 
@@ -54,12 +55,13 @@ export function TrainingPicker({
   /** tax a free citizen pays per hour (every recruit stops paying it), game speed included */
   taxPerCitizen: number;
 }) {
+  const { t, lang, fmt } = useI18n();
   const [picked, setPicked] = useState<UnitType>(() => (units.find((u) => !u.lock) ?? units[0]).unit);
   const u = units.find((x) => x.unit === picked) ?? units[0];
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label="Tropa" className="grid grid-cols-3 gap-1.5">
+      <div role="radiogroup" aria-label={t({ en: "Unit", es: "Tropa" })} className="grid grid-cols-3 gap-1.5">
         {units.map((o) => (
           <label key={o.unit} className="relative cursor-pointer">
             <input
@@ -94,8 +96,10 @@ export function TrainingPicker({
             </span>
             <span className="sr-only">
               {o.name}
-              {o.home > 0 ? `, ${unitCount(o.unit, o.home)} en la ciudad` : ""}
-              {o.lock ? ", bloqueado" : ""}
+              {o.home > 0
+                ? t({ en: `, ${unitCount(o.unit, o.home, lang)} in the city`, es: `, ${unitCount(o.unit, o.home, lang)} en la ciudad` })
+                : ""}
+              {o.lock ? t({ en: ", locked", es: ", bloqueado" }) : ""}
             </span>
           </label>
         ))}
@@ -121,6 +125,7 @@ function UnitDetail({
   goldPerHour: number;
   taxPerCitizen: number;
 }) {
+  const { t, lang, fmt, fmtDuration, fmtSigned } = useI18n();
   const affordable = Object.entries(u.cost).reduce(
     (m, [r, c]) => (c && c > 0 ? Math.min(m, Math.floor(res[r as keyof ResourceBag] / c)) : m),
     1000,
@@ -130,7 +135,9 @@ function UnitDetail({
   const n = Math.max(0, Math.min(count, max));
   const total = Object.fromEntries(Object.entries(u.cost).map(([r, c]) => [r, (c ?? 0) * Math.max(1, n)])) as Partial<ResourceBag>;
   const seconds = Math.max(3, Math.round(u.secondsPerUnit * Math.max(1, n)));
-  const reason = freeCitizens === 0 ? "No hay ciudadanos libres para reclutar." : missingText(total, res);
+  const reason =
+    freeCitizens === 0 ? t({ en: "No idle citizens to recruit.", es: "No hay ciudadanos libres para reclutar." }) : missingText(total, res, lang);
+  const plural = unitPlural(u.unit, lang);
   const inputId = `train-${u.unit}`;
   const goldAfter = goldPerHour - Math.max(1, n) * (u.upkeep + taxPerCitizen);
   const goesNegative = goldAfter < 0;
@@ -140,24 +147,24 @@ function UnitDetail({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h4 className="font-display text-base leading-tight font-bold">{u.name}</h4>
         <dl className="flex items-center gap-2.5 text-sm font-bold text-ink tabular">
-          <div className="inline-flex items-center gap-0.5" title="Ataque">
+          <div className="inline-flex items-center gap-0.5" title={t({ en: "Attack", es: "Ataque" })}>
             <dt>
               <IconSword size={15} className="text-terracotta" />
-              <span className="sr-only">Ataque</span>
+              <span className="sr-only">{t({ en: "Attack", es: "Ataque" })}</span>
             </dt>
             <dd>{u.attack}</dd>
           </div>
-          <div className="inline-flex items-center gap-0.5" title="Defensa">
+          <div className="inline-flex items-center gap-0.5" title={t({ en: "Defense", es: "Defensa" })}>
             <dt>
               <IconShield size={15} className="text-sea-700" />
-              <span className="sr-only">Defensa</span>
+              <span className="sr-only">{t({ en: "Defense", es: "Defensa" })}</span>
             </dt>
             <dd>{u.defense}</dd>
           </div>
-          <div className="inline-flex items-center gap-0.5" title="Sueldo por hora">
+          <div className="inline-flex items-center gap-0.5" title={t({ en: "Wage per hour", es: "Sueldo por hora" })}>
             <dt>
               <ResIcon kind="gold" size={15} />
-              <span className="sr-only">Sueldo</span>
+              <span className="sr-only">{t({ en: "Wage", es: "Sueldo" })}</span>
             </dt>
             <dd>{fmt(u.upkeep)}/h</dd>
           </div>
@@ -181,7 +188,7 @@ function UnitDetail({
         <>
           <div className="flex items-center gap-2">
             <label htmlFor={inputId} className="sr-only">
-              Cantidad de {unitPlural(u.unit)}
+              {t({ en: `Number of ${plural}`, es: `Cantidad de ${plural}` })}
             </label>
             <AmountInput
               id={inputId}
@@ -190,12 +197,12 @@ function UnitDetail({
               onChange={setCount}
               describedBy={`${inputId}-hint`}
               className="w-40 shrink-0"
-              maxLabel={`Entrenar el máximo de ${unitPlural(u.unit)}`}
+              maxLabel={t({ en: `Train the most ${plural} you can`, es: `Entrenar el máximo de ${plural}` })}
             />
             <span className="min-w-0 text-xs leading-tight text-ink-soft">
-              <span className="font-bold text-ink tabular">{fmt(freeCitizens)}</span> libres
+              <span className="font-bold text-ink tabular">{fmt(freeCitizens)}</span> {t({ en: "idle", es: "libres" })}
               <br />
-              cada uno: <CostList cost={u.cost} className="gap-x-2 text-xs" />
+              {t({ en: "each:", es: "cada uno:" })} <CostList cost={u.cost} className="gap-x-2 text-xs" />
             </span>
           </div>
           <div id={`${inputId}-hint`} className="flex flex-col gap-1.5">
@@ -210,21 +217,23 @@ function UnitDetail({
               )}
             >
               <ResIcon kind="gold" size={16} />
-              <span className="sr-only">Tu oro por hora pasa de</span>
+              <span className="sr-only">{t({ en: "Your gold per hour goes from", es: "Tu oro por hora pasa de" })}</span>
               <span>{fmtSigned(Math.round(goldPerHour))}/h</span>
               <span aria-hidden>→</span>
-              <span className="sr-only">a</span>
+              <span className="sr-only">{t({ en: "to", es: "a" })}</span>
               <strong className={goesNegative ? undefined : "text-ink"}>{fmtSigned(Math.round(goldAfter))}/h</strong>
-              {goesNegative && <span>· vas a perder oro</span>}
+              {goesNegative && <span>{t({ en: "· you'll lose gold", es: "· vas a perder oro" })}</span>}
             </p>
           </div>
           <ActionButton
             className="w-full"
             disabled={n < 1 || reason != null}
-            pendingLabel="Reclutando…"
+            pendingLabel={t({ en: "Recruiting…", es: "Reclutando…" })}
             action={() => trainAction({ cityId, unit: u.unit, count: n })}
           >
-            {n >= 1 ? `Entrenar ${unitCount(u.unit, n)}` : `Entrenar ${unitPlural(u.unit)}`}
+            {n >= 1
+              ? t({ en: `Train ${unitCount(u.unit, n, lang)}`, es: `Entrenar ${unitCount(u.unit, n, lang)}` })
+              : t({ en: `Train ${plural}`, es: `Entrenar ${plural}` })}
           </ActionButton>
           {reason && <p className="-mt-1 text-sm font-bold text-danger">{reason}</p>}
         </>

@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, between, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ambrosiaLedger, cities, players, referrals, reports } from "@/db/schema";
+import { REPORT_TEXTS, REPORT_TITLES } from "../report-text";
 import { track } from "./analytics";
 import { referralIdRange } from "./referral-code";
 
@@ -107,21 +108,24 @@ export async function settleReferral(inviteeId: string): Promise<number> {
         { playerId: inviteeId, delta: REFERRAL_REWARD, reason: "referral", ref: `invited_by:${row.referrerId}` },
         { playerId: row.referrerId, delta: REFERRAL_REWARD, reason: "referral", ref: `invitee:${inviteeId}` },
       ]);
+      // Reports speak every language: body.title / body.text hold Text; the title column keeps the Spanish line.
       await tx.insert(reports).values([
         {
           playerId: inviteeId,
           kind: "system",
-          title: "Regalo de bienvenida",
+          title: REPORT_TITLES.referralGift.es,
           body: {
-            text: `Llegaste a Intendencia ${REFERRAL_TOWN_HALL}. Como te invitó ${nameOf.get(row.referrerId) ?? "otro arconte"}, sumaron ${REFERRAL_REWARD} de néctar cada uno.`,
+            title: REPORT_TITLES.referralGift,
+            text: REPORT_TEXTS.referralGift(nameOf.get(row.referrerId) ?? null, REFERRAL_TOWN_HALL, REFERRAL_REWARD),
           },
         },
         {
           playerId: row.referrerId,
           kind: "system",
-          title: "Tu invitado creció",
+          title: REPORT_TITLES.referralPaidOff.es,
           body: {
-            text: `${nameOf.get(inviteeId) ?? "Tu invitado"} llegó a Intendencia ${REFERRAL_TOWN_HALL}. Te sumamos ${REFERRAL_REWARD} de néctar. Seguí invitando desde la sección Invitar.`,
+            title: REPORT_TITLES.referralPaidOff,
+            text: REPORT_TEXTS.referralPaidOff(nameOf.get(inviteeId) ?? null, REFERRAL_TOWN_HALL, REFERRAL_REWARD),
           },
         },
       ]);

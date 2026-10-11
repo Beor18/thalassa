@@ -11,12 +11,14 @@ import {
 import { z } from "zod";
 import { db } from "@/db";
 import { authNonces, cities } from "@/db/schema";
+import type { Text } from "@/i18n/config";
+import { getRequestI18n } from "@/i18n/request";
 import { createSession } from "@/server/session";
 import { findOrCreatePlayer } from "@/server/world";
 import { onLogin } from "@/server/growth/login";
 
 const Body = z.object({
-  wallet: z.string().trim().refine(isAddress, "Dirección de Solana inválida."),
+  wallet: z.string().trim().refine(isAddress, "Invalid Solana address."),
   /** base58 or base64 encoding of the 64-byte Ed25519 signature */
   signature: z.string().trim().min(64).max(128),
   /** the exact message that was signed (optional: falls back to the wallet's latest challenge) */
@@ -37,16 +39,17 @@ function signatureCandidates(sig: string): Uint8Array[] {
   return out;
 }
 
-const fail = (error: string, status = 400) => Response.json({ ok: false, error }, { status });
-
 /** POST { wallet, signature, message? } -> sets the session cookie and returns { ok, redirect }. */
 export async function POST(request: Request) {
+  const { t } = await getRequestI18n();
+  const fail = (error: Text, status = 400) => Response.json({ ok: false, error: t(error) }, { status });
+
   const parsed = Body.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return fail("Faltan datos para entrar.");
+  if (!parsed.success) return fail({ en: "Some sign-in details are missing.", es: "Faltan datos para entrar." });
   const { wallet, signature, message } = parsed.data;
 
   const candidates = signatureCandidates(signature);
-  if (!candidates.length) return fail("La firma no tiene el formato esperado.");
+  if (!candidates.length) return fail({ en: "The signature isn't in the expected format.", es: "La firma no tiene el formato esperado." });
 
   const now = new Date();
   const rows = await db
@@ -61,7 +64,7 @@ export async function POST(request: Request) {
     )
     .orderBy(desc(authNonces.expiresAt))
     .limit(5);
-  if (!rows.length) return fail("El código para entrar venció. Probá de nuevo.", 401);
+  if (!rows.length) return fail({ en: "Your sign-in code expired. Try again.", es: "El código para entrar venció. Probá de nuevo." }, 401);
 
   const publicKey = await getPublicKeyFromAddress(address(wallet));
   let matched: (typeof rows)[number] | null = null;
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
       }
     }
   }
-  if (!matched) return fail("La firma no coincide con esta cuenta.", 401);
+  if (!matched) return fail({ en: "The signature doesn't match this account.", es: "La firma no coincide con esta cuenta." }, 401);
 
   // Single use: burn every pending challenge for this wallet.
   await db.delete(authNonces).where(eq(authNonces.wallet, wallet));
@@ -90,6 +93,6 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, redirect, created: player.created }, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     console.error("[thalassa] login failed", err);
-    return fail("No pudimos abrir tu polis. Probá de nuevo en un momento.", 500);
+    return fail({ en: "We couldn't open your polis. Try again in a moment.", es: "No pudimos abrir tu polis. Probá de nuevo en un momento." }, 500);
   }
 }

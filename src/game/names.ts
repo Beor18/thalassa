@@ -39,7 +39,7 @@ const EN_BUILDINGS: Record<BuildingType, { name: string; description: string }> 
   barracks: { name: "Barracks", description: "Train troops to defend your polis or to go raiding." },
   port: { name: "Port", description: "Buy merchant ships: they carry goods, colonists and troops." },
   wall: { name: "Town Wall", description: "Each level adds 10% defense to the troops guarding the city." },
-  carpenter: { name: "Carpenter", description: "Saves 2% wood per level on every construction in the city." },
+  carpenter: { name: "Carpenter", description: "Cuts wood costs by 2% per level for every building in this city." },
   stonemason: { name: "Stonemason", description: "Its masters add 3% to the island's luxury resource production per level." },
   palace: { name: "Palace", description: "Seat of government. Each level lets you found one more colony." },
 };
@@ -64,11 +64,11 @@ const ES_UNIT_PLURALS: Record<UnitType, string> = {
 
 const EN_TECHS: Record<TechId, { name: string; effect: string }> = {
   conservation: { name: "Conservation", effect: "+20% warehouse capacity." },
-  pulley: { name: "Pulley", effect: "−10% wood on every construction." },
+  pulley: { name: "Pulley", effect: "−10% wood cost for all buildings." },
   wealth: { name: "Wealth", effect: "Unlocks workers in the island's luxury mine and the Stonemason." },
   wine_culture: { name: "Wine Culture", effect: "Taverns use 20% less wine." },
-  geometry: { name: "Geometry", effect: "−10% marble on every construction." },
-  architecture: { name: "Architecture", effect: "Constructions finish 10% faster." },
+  geometry: { name: "Geometry", effect: "−10% marble cost for all buildings." },
+  architecture: { name: "Architecture", effect: "Buildings finish 10% faster." },
   wisdom: { name: "Wisdom", effect: "+10% research." },
   paper: { name: "Papyrus", effect: "+15% research." },
   expansion: { name: "Expansion", effect: "Unlocks the Palace and founding colonies." },

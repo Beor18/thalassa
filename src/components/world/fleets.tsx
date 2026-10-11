@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RESOURCE_INFO, type Resource } from "@/game/data";
-import { fmt, fmtDuration } from "@/lib/format";
+import type { Locale, Text } from "@/i18n/config";
+import { useI18n } from "@/i18n/client";
 import { useServerClock } from "@/lib/use-server-clock";
 import { whenVisible } from "@/lib/when-visible";
 import { clamp, curvePath, pointOnCurve, pointOnLoop, routeCurve, type Curve, type Pt } from "./geometry";
@@ -17,10 +18,22 @@ export const FLEET_COLOR: Record<FleetKind, string> = {
   colonize: "#e3b341",
 };
 
-export const FLEET_KIND_LABEL: Record<FleetKind, string> = {
-  transport: "Transporte",
-  attack: "Ataque",
-  colonize: "Colonia",
+export const FLEET_KIND_LABEL: Record<FleetKind, Text> = {
+  transport: { en: "Transport", es: "Transporte" },
+  attack: { en: "Attack", es: "Ataque" },
+  colonize: { en: "Colony", es: "Colonia" },
+};
+
+/** "Attack on Kasos", "Transport to Naxos": what a fleet on its way out is doing. */
+export function fleetTitle(kind: FleetKind, target: string, lang: Locale) {
+  if (lang === "es") return `${FLEET_KIND_LABEL[kind].es} a ${target}`;
+  return kind === "attack" ? `Attack on ${target}` : `${FLEET_KIND_LABEL[kind].en} to ${target}`;
+}
+
+const RETURN_TITLE: Record<FleetKind, Text> = {
+  attack: { en: "Back from the attack", es: "Regreso del ataque" },
+  transport: { en: "Back from the delivery", es: "Regreso del transporte" },
+  colonize: { en: "Back from settling", es: "Regreso de la colonia" },
 };
 
 interface Route {
@@ -100,6 +113,7 @@ export function Fleets({
   onSelectIsland: (id: number) => void;
 }) {
   const router = useRouter();
+  const { t, fmt, fmtDuration } = useI18n();
   const now = useServerClock(serverNow, 1000);
   const nodes = useRef(new Map<string, { root: HTMLDivElement; rotor: HTMLDivElement; hull: HTMLDivElement }>());
   const refreshed = useRef(new Set<string>());
@@ -171,11 +185,16 @@ export function Fleets({
     const back = f.status === "returning";
     const goods = hasGoods(f.cargo);
     const loot = back && f.kind === "attack" && goods;
-    const destination = back ? `Vuelve a ${f.originName}` : `Va a ${f.targetLabel}`;
+    const destination = back
+      ? t({ en: `Back to ${f.originName}`, es: `Vuelve a ${f.originName}` })
+      : t({ en: `Heading to ${f.targetLabel}`, es: `Va a ${f.targetLabel}` });
     const left = pose.endsAt - now;
-    const when = left > 0 ? `llega en ${fmtDuration(left)}` : "llegando";
-    const title = back ? `Regreso ${f.kind === "attack" ? "del ataque" : f.kind === "transport" ? "del transporte" : "de la colonia"}` : FLEET_KIND_LABEL[f.kind];
-    const label = `${title}. ${destination}, ${when}. ${f.ships} ${f.ships === 1 ? "barco" : "barcos"}${loot ? ", con botín" : ""}.`;
+    const when = left > 0 ? t({ en: `lands in ${fmtDuration(left)}`, es: `llega en ${fmtDuration(left)}` }) : t({ en: "arriving", es: "llegando" });
+    const title = t(back ? RETURN_TITLE[f.kind] : FLEET_KIND_LABEL[f.kind]);
+    const label = t({
+      en: `${title}. ${destination}, ${when}. ${fmt(f.ships)} ${f.ships === 1 ? "ship" : "ships"}${loot ? ", with loot" : ""}.`,
+      es: `${title}. ${destination}, ${when}. ${fmt(f.ships)} ${f.ships === 1 ? "barco" : "barcos"}${loot ? ", con botín" : ""}.`,
+    });
     const angle = fx.shipTopDown ? first.angle : Math.cos(first.angle) > 0 ? first.angle : first.angle + Math.PI;
 
     return (
@@ -246,7 +265,7 @@ export function Fleets({
             </span>
             {goods && (
               <span className="flex items-center gap-2 text-[13px] text-foam/90">
-                {loot ? "Botín" : back ? "Trae" : "Lleva"}
+                {loot ? t({ en: "Loot", es: "Botín" }) : back ? t({ en: "Bringing", es: "Trae" }) : t({ en: "Carrying", es: "Lleva" })}
                 {(Object.entries(f.cargo) as [Resource, number][])
                   .filter(([, v]) => v > 0)
                   .map(([k, v]) => (

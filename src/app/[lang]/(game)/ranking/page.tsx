@@ -6,11 +6,15 @@ import { LaurelIcon } from "@/components/game/icons";
 import { stagger } from "@/components/motion/reveal";
 import { RenameForm } from "@/components/ranking/rename-form";
 import { HowItWorks, SECTION_NARROW } from "@/components/tesoro/section-ui";
-import { fmt } from "@/lib/format";
+import type { Locale } from "@/i18n/config";
+import { getI18n } from "@/i18n/server";
 import { getGame } from "@/server/game-context";
 import { getRanking, type RankingRow } from "@/server/queries";
 
-export const metadata: Metadata = { title: "Ranking" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Rankings", es: "Ranking" }) };
+}
 
 const TOP = 100;
 const MEDAL = ["bg-gold text-ink", "bg-[#cfd6dd] text-ink", "bg-[#c98a4b] text-ink"] as const;
@@ -23,10 +27,18 @@ export default function RankingPage() {
   );
 }
 
-const puntos = (n: number) => `${fmt(n)} ${Math.floor(n) === 1 ? "punto" : "puntos"}`;
+/** "1st", "2nd", "23rd" in English; "1º" in Spanish. */
+function ordinal(n: number, lang: Locale) {
+  if (lang === "es") return `${n}º`;
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+  return `${n}${suffix}`;
+}
 
 async function Content() {
-  const [game, ranking] = await Promise.all([getGame(), getRanking()]);
+  const [game, ranking, { t, lang, fmt }] = await Promise.all([getGame(), getRanking(), getI18n()]);
+  const points = (n: number) =>
+    Math.floor(n) === 1 ? t({ en: "1 point", es: "1 punto" }) : t({ en: `${fmt(n)} points`, es: `${fmt(n)} puntos` });
   const me = game.snapshot.player.id;
   const myIndex = ranking.findIndex((r) => r.playerId === me);
   const mine = myIndex >= 0 ? ranking[myIndex] : null;
@@ -40,11 +52,17 @@ async function Content() {
     ? null
     : ahead
       ? ahead.score - mine.score < 1
-        ? `Empatás con ${ahead.name}`
-        : `Te faltan ${puntos(Math.ceil(ahead.score - mine.score))} para el ${myIndex}º`
+        ? t({ en: `Tied with ${ahead.name}`, es: `Empatás con ${ahead.name}` })
+        : t({
+            en: `${points(Math.ceil(ahead.score - mine.score))} to reach ${ordinal(myIndex, lang)}`,
+            es: `Te faltan ${points(Math.ceil(ahead.score - mine.score))} para el ${ordinal(myIndex, lang)}`,
+          })
       : behind
-        ? `Le sacás ${puntos(Math.floor(mine.score - behind.score))} a ${behind.name}`
-        : "Sos el único arconte del Egeo";
+        ? t({
+            en: `${points(Math.floor(mine.score - behind.score))} ahead of ${behind.name}`,
+            es: `Le sacás ${points(Math.floor(mine.score - behind.score))} a ${behind.name}`,
+          })
+        : t({ en: "You're the only archon in the Aegean", es: "Sos el único arconte del Egeo" });
 
   return (
     <GameShell game={game}>
@@ -53,7 +71,7 @@ async function Content() {
           <section aria-labelledby="ranking-title" className="panel-dark rise-in relative flex flex-col gap-3 overflow-hidden p-3 sm:p-4">
             <span aria-hidden className="pointer-events-none absolute -top-16 -left-12 size-52 rounded-full bg-gold/15 blur-3xl" />
             <h1 id="ranking-title" className="relative font-display text-xs font-bold tracking-[0.25em] text-sea-300 uppercase">
-              Ranking del Egeo
+              {t({ en: "Aegean rankings", es: "Ranking del Egeo" })}
             </h1>
             {mine ? (
               <div className="relative flex items-center gap-3">
@@ -65,25 +83,28 @@ async function Content() {
                     myIndex === 0 && "shine",
                   )}
                 >
-                  {myIndex + 1}º
+                  {ordinal(myIndex + 1, lang)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate font-display text-xl leading-tight font-bold text-gold">{mine.name}</p>
                   <p className="text-sm text-foam/80 tabular">
-                    <b className="text-foam">{puntos(mine.score)}</b> · de {fmt(ranking.length)} {ranking.length === 1 ? "arconte" : "arcontes"}
+                    <b className="text-foam">{points(mine.score)}</b> ·{" "}
+                    {ranking.length === 1
+                      ? t({ en: "of 1 archon", es: "de 1 arconte" })
+                      : t({ en: `of ${fmt(ranking.length)} archons`, es: `de ${fmt(ranking.length)} arcontes` })}
                   </p>
                   {race && <p className="mt-0.5 text-sm font-bold text-sea-300">{race}</p>}
                 </div>
               </div>
             ) : (
-              <p className="relative text-foam/85">Todavía no figurás en el ranking.</p>
+              <p className="relative text-foam/85">{t({ en: "You're not on the board yet.", es: "Todavía no figurás en el ranking." })}</p>
             )}
             <details className="group relative mt-auto">
               <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg text-sm font-bold text-sea-300 select-none hover:text-foam [&::-webkit-details-marker]:hidden">
                 <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10.5 2.5l3 3L6 13H3v-3z" />
                 </svg>
-                Cambiar nombre
+                {t({ en: "Change name", es: "Cambiar nombre" })}
               </summary>
               <div className="rise-in pt-1">
                 <RenameForm currentName={game.snapshot.player.name} />
@@ -91,29 +112,41 @@ async function Content() {
             </details>
           </section>
 
-          {ranking.length > 0 && <Podium rows={ranking.slice(0, 3)} me={me} />}
+          {ranking.length > 0 && <Podium rows={ranking.slice(0, 3)} me={me} lang={lang} />}
         </div>
 
         <section aria-labelledby="ranking-table-title" className="panel rise-in overflow-hidden" style={stagger(2, 80, 4, 120)}>
           <h2 id="ranking-table-title" className="sr-only">
-            Tabla de posiciones
+            {t({ en: "Standings", es: "Tabla de posiciones" })}
           </h2>
           {shown.length === 0 ? (
-            <p className="p-5 text-ink-soft">Todavía no hay arcontes en el Egeo.</p>
+            <p className="p-5 text-ink-soft">{t({ en: "No archons in the Aegean yet.", es: "Todavía no hay arcontes en el Egeo." })}</p>
           ) : (
             <table className="w-full border-collapse text-left text-[15px]">
               <thead className="border-b border-parchment-3 bg-parchment-2/70 font-display text-xs tracking-wider text-ink-soft uppercase">
                 <tr>
                   <th scope="col" className="w-14 py-2 pl-3 sm:pl-4">
-                    <span className="sr-only">Posición</span>
+                    <span className="sr-only">{t({ en: "Rank", es: "Posición" })}</span>
                     <span aria-hidden>#</span>
                   </th>
-                  <th scope="col" className="py-2 pr-2">Arconte</th>
-                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">Ciudades</th>
-                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">Edificios</th>
-                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">Militar</th>
-                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">Ciencia</th>
-                  <th scope="col" className="py-2 pr-3 text-right sm:pr-4">Puntos</th>
+                  <th scope="col" className="py-2 pr-2">
+                    {t({ en: "Archon", es: "Arconte" })}
+                  </th>
+                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">
+                    {t({ en: "Cities", es: "Ciudades" })}
+                  </th>
+                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">
+                    {t({ en: "Buildings", es: "Edificios" })}
+                  </th>
+                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">
+                    {t({ en: "Military", es: "Militar" })}
+                  </th>
+                  <th scope="col" className="hidden py-2 pr-3 text-right md:table-cell">
+                    {t({ en: "Science", es: "Ciencia" })}
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right sm:pr-4">
+                    {t({ en: "Points", es: "Puntos" })}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -132,16 +165,19 @@ async function Content() {
           )}
         </section>
 
-        <HowItWorks className="rise-in bg-parchment/90 sm:self-start" title="¿Cómo se calculan los puntos?">
+        <HowItWorks className="rise-in bg-parchment/90 sm:self-start" title={t({ en: "How are points counted?", es: "¿Cómo se calculan los puntos?" })}>
           <ul className="flex flex-col gap-1">
             <li>
-              <b className="text-ink">Edificios:</b> 10 por cada nivel construido, más 1 por habitante.
+              <b className="text-ink">{t({ en: "Buildings:", es: "Edificios:" })}</b>{" "}
+              {t({ en: "10 per level built, plus 1 per citizen.", es: "10 por cada nivel construido, más 1 por habitante." })}
             </li>
             <li>
-              <b className="text-ink">Militar:</b> un cuarto del poder de tus tropas en casa.
+              <b className="text-ink">{t({ en: "Military:", es: "Militar:" })}</b>{" "}
+              {t({ en: "a quarter of the power of your troops at home.", es: "un cuarto del poder de tus tropas en casa." })}
             </li>
             <li>
-              <b className="text-ink">Ciencia:</b> 40 por cada investigación.
+              <b className="text-ink">{t({ en: "Science:", es: "Ciencia:" })}</b>{" "}
+              {t({ en: "40 per research.", es: "40 por cada investigación." })}
             </li>
           </ul>
         </HowItWorks>
@@ -150,7 +186,8 @@ async function Content() {
   );
 }
 
-function Row({ row, position, mine, gapBefore, index }: { row: RankingRow; position: number; mine: boolean; gapBefore: boolean; index: number }) {
+async function Row({ row, position, mine, gapBefore, index }: { row: RankingRow; position: number; mine: boolean; gapBefore: boolean; index: number }) {
+  const { t, fmt } = await getI18n();
   return (
     <tr
       id={mine ? "ranking-me" : undefined}
@@ -174,9 +211,13 @@ function Row({ row, position, mine, gapBefore, index }: { row: RankingRow; posit
       </td>
       <td className="py-2 pr-2 align-middle">
         <span className="font-bold break-words">{row.name}</span>
-        {mine && <span className="ml-1.5 rounded-full bg-bronze px-1.5 py-0.5 text-xs font-bold text-marble">vos</span>}
+        {mine && <span className="ml-1.5 rounded-full bg-bronze px-1.5 py-0.5 text-xs font-bold text-marble">{t({ en: "you", es: "vos" })}</span>}
         <span className={clsx("text-xs text-ink-soft tabular md:hidden", mine ? "block" : "hidden")}>
-          {row.cities} {row.cities === 1 ? "ciudad" : "ciudades"} · {fmt(row.buildings)} edif. · {fmt(row.military)} mil. · {fmt(row.research)} cien.
+          {row.cities === 1 ? t({ en: "1 city", es: "1 ciudad" }) : t({ en: `${fmt(row.cities)} cities`, es: `${fmt(row.cities)} ciudades` })} ·{" "}
+          {t({
+            en: `${fmt(row.buildings)} bldg. · ${fmt(row.military)} mil. · ${fmt(row.research)} sci.`,
+            es: `${fmt(row.buildings)} edif. · ${fmt(row.military)} mil. · ${fmt(row.research)} cien.`,
+          })}
         </span>
       </td>
       <td className="hidden py-2 pr-3 text-right align-middle tabular md:table-cell">{fmt(row.cities)}</td>
@@ -195,10 +236,15 @@ const PODIUM = [
 ] as const;
 
 /** The three best arcontes on marble pedestals; the champion gets the laurel. */
-function Podium({ rows, me }: { rows: RankingRow[]; me: string }) {
+async function Podium({ rows, me, lang }: { rows: RankingRow[]; me: string; lang: Locale }) {
+  const { t, fmt } = await getI18n();
   return (
     // Phones skip the podium: the table right below already crowns the top three.
-    <section aria-label="Podio" className="panel-dark rise-in relative hidden flex-col justify-end overflow-hidden px-3 pt-5 sm:flex sm:px-6" style={stagger(1, 80, 4, 60)}>
+    <section
+      aria-label={t({ en: "Podium", es: "Podio" })}
+      className="panel-dark rise-in relative hidden flex-col justify-end overflow-hidden px-3 pt-5 sm:flex sm:px-6"
+      style={stagger(1, 80, 4, 60)}
+    >
       <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 mx-auto h-48 w-2/3 rounded-full bg-gold/15 blur-3xl" />
       <ol className="relative mx-auto grid w-full max-w-xl grid-cols-3 items-end gap-2 sm:gap-4">
         {PODIUM.map(({ place, height, medal, order }, i) => {
@@ -217,8 +263,8 @@ function Podium({ rows, me }: { rows: RankingRow[]; me: string }) {
                       place === 1 && "shine",
                     )}
                   >
-                    {place}
-                    <span className="sr-only">º puesto</span>
+                    <span aria-hidden>{place}</span>
+                    <span className="sr-only">{t({ en: `${ordinal(place, lang)} place`, es: `${place}º puesto` })}</span>
                   </span>
                 </span>
                 <span

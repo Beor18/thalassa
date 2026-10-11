@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
+import { useI18n } from "@/i18n/client";
 
 /**
  * Scrollable frame for wide painted maps. On first mount it centers the element marked
@@ -10,6 +11,7 @@ import clsx from "clsx";
  * first pan) and a mouse can drag it like a touch screen. A drag never ends as a click on a spot.
  */
 export function ScrollFrame({ className, children, label }: { className?: string; children: ReactNode; label?: string }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const centered = useRef(false);
   const [overflow, setOverflow] = useState(false);
@@ -122,7 +124,9 @@ export function ScrollFrame({ className, children, label }: { className?: string
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M4 12h16" />
           </svg>
-          {coarse ? "Deslizá para ver toda la isla" : "Arrastrá para ver toda la isla"}
+          {coarse
+            ? t({ en: "Swipe to see the whole island", es: "Deslizá para ver toda la isla" })
+            : t({ en: "Drag to see the whole island", es: "Arrastrá para ver toda la isla" })}
         </p>
       )}
     </div>

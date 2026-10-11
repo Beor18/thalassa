@@ -13,7 +13,9 @@ import {
   type Rpc,
   type TransactionSigner,
 } from "@solana/kit";
+import type { Text } from "@/i18n/config";
 import { PROGRAM_ID } from "./config";
+import { FriendlyError } from "./errors";
 
 export const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 
@@ -23,6 +25,11 @@ const CONFIG_DISCRIMINATOR = [155, 12, 170, 224, 30, 250, 204, 130];
 const CITIZEN_DISCRIMINATOR = [46, 45, 63, 201, 241, 115, 110, 93];
 
 export const MAX_PACKS_PER_PURCHASE = 100;
+
+const PACKS_RANGE: Text = {
+  en: `You can buy 1 to ${MAX_PACKS_PER_PURCHASE} packs at a time.`,
+  es: `Podés comprar entre 1 y ${MAX_PACKS_PER_PURCHASE} packs por vez.`,
+};
 
 /** Program address, or null while NEXT_PUBLIC_THALASSA_PROGRAM_ID is empty. */
 export function programAddress(): Address | null {
@@ -36,7 +43,7 @@ export function programAddress(): Address | null {
 
 function requireProgram(): Address {
   const program = programAddress();
-  if (!program) throw new Error("El programa de Thalassa todavía no está configurado.");
+  if (!program) throw new FriendlyError({ en: "The Nectar shop isn't set up yet.", es: "El programa de Thalassa todavía no está configurado." });
   return program;
 }
 
@@ -89,7 +96,7 @@ function hasDiscriminator(data: Uint8Array, disc: number[]) {
 /** Config: disc | authority(32) | price u64 | ambrosia_per_pack u64 | total_packs_sold u64 | bump u8 | treasury_bump u8 */
 export function decodeConfig(data: Uint8Array): ThalassaConfig {
   if (data.length < 66 || !hasDiscriminator(data, CONFIG_DISCRIMINATOR)) {
-    throw new Error("La configuración de la tienda tiene un formato inesperado.");
+    throw new FriendlyError({ en: "The shop's settings look wrong. Try again later.", es: "La configuración de la tienda tiene un formato inesperado." });
   }
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   return {
@@ -105,7 +112,7 @@ export function decodeConfig(data: Uint8Array): ThalassaConfig {
 /** Citizen: disc | owner(32) | ambrosia_total u64 | lamports_spent u64 | purchases u32 | created_at i64 | bump u8 */
 export function decodeCitizen(data: Uint8Array): CitizenAccount {
   if (data.length < 69 || !hasDiscriminator(data, CITIZEN_DISCRIMINATOR)) {
-    throw new Error("Tu cuenta en la red tiene un formato inesperado.");
+    throw new FriendlyError({ en: "Your purchase record looks wrong. Try again later.", es: "Tu cuenta en la red tiene un formato inesperado." });
   }
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   return {
@@ -124,7 +131,9 @@ type AccountRpc = Rpc<GetAccountInfoApi>;
 export async function fetchConfig(rpc: AccountRpc): Promise<ThalassaConfig | null> {
   const account = await fetchEncodedAccount(rpc, await findConfigPda(), { commitment: "confirmed" });
   if (!account.exists) return null;
-  if (account.programAddress !== requireProgram()) throw new Error("La configuración de la tienda no pertenece al juego.");
+  if (account.programAddress !== requireProgram()) {
+    throw new FriendlyError({ en: "The shop's settings don't belong to the game.", es: "La configuración de la tienda no pertenece al juego." });
+  }
   return decodeConfig(account.data as Uint8Array);
 }
 
@@ -145,7 +154,7 @@ export async function fetchCitizen(rpc: AccountRpc, owner: string): Promise<Citi
  */
 export async function buyAmbrosiaInstruction(buyer: TransactionSigner, packs: number): Promise<Instruction> {
   if (!Number.isInteger(packs) || packs < 1 || packs > MAX_PACKS_PER_PURCHASE) {
-    throw new Error(`Podés comprar entre 1 y ${MAX_PACKS_PER_PURCHASE} packs por vez.`);
+    throw new FriendlyError(PACKS_RANGE);
   }
   const [citizen, config, treasury] = await Promise.all([findCitizenPda(buyer.address), findConfigPda(), findTreasuryPda()]);
   const data = new Uint8Array(10);
@@ -164,14 +173,17 @@ export async function buyAmbrosiaInstruction(buyer: TransactionSigner, packs: nu
   } as Instruction;
 }
 
-/** Friendly text for the program's custom error codes (IDL `errors`). */
-export const PROGRAM_ERRORS: Record<number, string> = {
-  6000: `Podés comprar entre 1 y ${MAX_PACKS_PER_PURCHASE} packs por vez.`,
-  6001: "La cuenta dio un número demasiado grande. Probá con menos packs.",
-  6002: "Esa operación es solo para la administración del juego.",
-  6003: "La tesorería no tiene fondos suficientes.",
-  6004: "La cantidad tiene que ser mayor que cero.",
-  6005: "El precio del pack no es válido.",
-  6006: "La cantidad de néctar por pack no es válida.",
-  6007: "La tesorería tiene que quedar vacía o por encima del mínimo de la red.",
+/** Friendly text for the program's custom error codes (IDL `errors`), in every language. */
+export const PROGRAM_ERRORS: Record<number, Text> = {
+  6000: PACKS_RANGE,
+  6001: { en: "That number is too big. Try fewer packs.", es: "La cuenta dio un número demasiado grande. Probá con menos packs." },
+  6002: { en: "Only the game's admins can do that.", es: "Esa operación es solo para la administración del juego." },
+  6003: { en: "The treasury doesn't have enough funds.", es: "La tesorería no tiene fondos suficientes." },
+  6004: { en: "The amount has to be more than zero.", es: "La cantidad tiene que ser mayor que cero." },
+  6005: { en: "The pack price isn't valid.", es: "El precio del pack no es válido." },
+  6006: { en: "The Nectar per pack isn't valid.", es: "La cantidad de néctar por pack no es válida." },
+  6007: {
+    en: "The treasury has to stay empty or above the network minimum.",
+    es: "La tesorería tiene que quedar vacía o por encima del mínimo de la red.",
+  },
 };

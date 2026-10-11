@@ -11,9 +11,11 @@ import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { ResIcon } from "@/components/ui/res";
 import { toast } from "@/components/ui/toaster";
-import { fmt, shortAddress } from "@/lib/format";
-import { FriendlyError, friendlySolanaError, getRpc, getSolBalance, isUserRejection, sendInstructions } from "@/lib/solana/client";
-import { FAUCET_URL, SOLANA_CHAIN, explorerTx, fmtSol } from "@/lib/solana/config";
+import type { Text } from "@/i18n/config";
+import { useI18n } from "@/i18n/client";
+import { shortAddress } from "@/lib/format";
+import { FriendlyError, friendlySolanaText, getRpc, getSolBalance, isUserRejection, sendInstructions } from "@/lib/solana/client";
+import { FAUCET_URL, LAMPORTS_PER_SOL, SOLANA_CHAIN, explorerTx } from "@/lib/solana/config";
 import { getWalletKind, loadLocalWallet, localWalletAddressSync, requestDevnetSol } from "@/lib/solana/local-wallet";
 import { buyAmbrosiaInstruction, fetchCitizen, fetchConfig, type CitizenAccount, type ThalassaConfig } from "@/lib/solana/program";
 import { canSignDevnetTransactions, connectWallet, useSolanaWallets } from "@/lib/solana/wallet-standard";
@@ -26,9 +28,15 @@ const PACK_OPTIONS = [1, 5, 10] as const;
 const CITIZEN_RENT_LAMPORTS = BigInt(1_371_120);
 const FEE_LAMPORTS = BigInt(5_000);
 
+/** SOL amounts in the player's number style: "0.05" (en), "0,05" (es); up to 4 decimals. */
+function useSol() {
+  const { fmtDecimal } = useI18n();
+  return (lamports: bigint | number) => fmtDecimal(Number(lamports) / Number(LAMPORTS_PER_SOL), 4);
+}
+
 type ChainState =
   | { status: "loading" }
-  | { status: "error"; message: string }
+  | { status: "error"; message: Text }
   | { status: "ready"; config: ThalassaConfig | null; citizen: CitizenAccount | null; balance: bigint };
 
 /** Live price, purchase record and SOL balance for the logged-in wallet. */
@@ -49,7 +57,7 @@ function useChainData(owner: string) {
       (err) => {
         if (!alive) return;
         console.warn("[thalassa] chain read failed", err);
-        setState({ status: "error", message: friendlySolanaError(err) });
+        setState({ status: "error", message: friendlySolanaText(err) });
         setRefreshing(false);
       },
     );
@@ -86,6 +94,7 @@ async function resolveMode(sessionWallet: string): Promise<Mode> {
 }
 
 export function AmbrosiaShop({ sessionWallet, citizenPda }: { sessionWallet: string; citizenPda: string }) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>({ kind: "loading" });
   const chain = useChainData(sessionWallet);
 
@@ -97,6 +106,7 @@ export function AmbrosiaShop({ sessionWallet, citizenPda }: { sessionWallet: str
     };
   }, [sessionWallet]);
 
+  const gameKey = t({ en: "Game key", es: "Llave de juego" });
   const body = (signer: TransactionSigner | null, walletLabel: string, blocker?: ReactNode) => (
     <ShopBody
       sessionWallet={sessionWallet}
@@ -112,10 +122,11 @@ export function AmbrosiaShop({ sessionWallet, citizenPda }: { sessionWallet: str
   return (
     <section aria-labelledby="shop-title" className="panel flex flex-col gap-3 p-3 sm:p-4">
       <h2 id="shop-title" className="font-display text-xl font-bold">
-        Comprar néctar
+        {t({ en: "Buy Nectar", es: "Comprar néctar" })}
       </h2>
-      {mode.kind === "loading" && body(null, "Llave de juego", <p className="text-sm text-ink-soft">Buscando tu cuenta…</p>)}
-      {mode.kind === "local" && body(mode.signer, "Llave de juego")}
+      {mode.kind === "loading" &&
+        body(null, gameKey, <p className="text-sm text-ink-soft">{t({ en: "Looking for your account…", es: "Buscando tu cuenta…" })}</p>)}
+      {mode.kind === "local" && body(mode.signer, gameKey)}
       {mode.kind === "extension" && (
         <ExtensionGate mode={mode} sessionWallet={sessionWallet}>
           {(signer, label, blocker) => body(signer, label, blocker)}
@@ -138,6 +149,7 @@ function ExtensionGate({
   sessionWallet: string;
   children: (signer: TransactionSigner | null, walletLabel: string, blocker?: ReactNode) => ReactNode;
 }) {
+  const { t } = useI18n();
   const wallets = useSolanaWallets();
   const candidates = useMemo(
     () => (mode.walletName ? wallets.filter((w) => w.name === mode.walletName) : wallets),
@@ -169,21 +181,36 @@ function ExtensionGate({
       return children(
         null,
         match.wallet.name,
-        <Notice tone="warn">{match.wallet.name} no acepta pagos con SOL de prueba. Probá con Phantom o Solflare.</Notice>,
+        <Notice tone="warn">
+          {t({
+            en: `${match.wallet.name} can't pay with test SOL. Try Phantom or Solflare.`,
+            es: `${match.wallet.name} no acepta pagos con SOL de prueba. Probá con Phantom o Solflare.`,
+          })}
+        </Notice>,
       );
     }
     return <ExtensionSigner account={match.account} label={match.wallet.name} render={children} />;
   }
 
-  const label = mode.walletName ?? "Tu cuenta";
+  const label = mode.walletName ?? t({ en: "Your account", es: "Tu cuenta" });
   const blocker = (
     <div className="flex flex-col gap-2">
       {mode.lostLocalKey ? (
-        <Notice tone="warn">Tu llave de juego está en otro navegador. Para comprar, abrí Thalassa donde empezaste a jugar.</Notice>
+        <Notice tone="warn">
+          {t({
+            en: "Your game key is in another browser. To buy, open Thalassa where you started playing.",
+            es: "Tu llave de juego está en otro navegador. Para comprar, abrí Thalassa donde empezaste a jugar.",
+          })}
+        </Notice>
       ) : null}
       {candidates.length > 0 ? (
         <>
-          <p className="text-sm text-ink-soft">Para comprar, conectá la cuenta con la que entraste ({shortAddress(sessionWallet)}).</p>
+          <p className="text-sm text-ink-soft">
+            {t({
+              en: `To buy, connect the account you signed in with (${shortAddress(sessionWallet)}).`,
+              es: `Para comprar, conectá la cuenta con la que entraste (${shortAddress(sessionWallet)}).`,
+            })}
+          </p>
           <div className="flex flex-wrap gap-2">
             {candidates.map((w) => (
               <ConnectWalletButton
@@ -199,20 +226,28 @@ function ExtensionGate({
           </div>
         </>
       ) : !settled ? (
-        <p className="text-sm text-ink-soft">Buscando tu cuenta…</p>
+        <p className="text-sm text-ink-soft">{t({ en: "Looking for your account…", es: "Buscando tu cuenta…" })}</p>
       ) : mode.walletName ? (
         <Notice tone="warn">
-          No encontramos {mode.walletName} en este navegador. Abrí Thalassa donde la tengas instalada.
+          {t({
+            en: `We can't find ${mode.walletName} in this browser. Open Thalassa where it's installed.`,
+            es: `No encontramos ${mode.walletName} en este navegador. Abrí Thalassa donde la tengas instalada.`,
+          })}
         </Notice>
       ) : !mode.lostLocalKey ? (
         <Notice tone="warn">
-          No encontramos tu cuenta ({shortAddress(sessionWallet)}) en este navegador. Abrí Thalassa donde empezaste a jugar.
+          {t({
+            en: `We can't find your account (${shortAddress(sessionWallet)}) in this browser. Open Thalassa where you started playing.`,
+            es: `No encontramos tu cuenta (${shortAddress(sessionWallet)}) en este navegador. Abrí Thalassa donde empezaste a jugar.`,
+          })}
         </Notice>
       ) : null}
       {mismatch && (
         <Notice tone="warn">
-          {mismatch.wallet} está conectada con otra cuenta{mismatch.address ? ` (${shortAddress(mismatch.address)})` : ""}. Cambiá a{" "}
-          {shortAddress(sessionWallet)} en {mismatch.wallet} y volvé a conectar.
+          {t({
+            en: `${mismatch.wallet} is connected to another account${mismatch.address ? ` (${shortAddress(mismatch.address)})` : ""}. Switch to ${shortAddress(sessionWallet)} in ${mismatch.wallet} and connect again.`,
+            es: `${mismatch.wallet} está conectada con otra cuenta${mismatch.address ? ` (${shortAddress(mismatch.address)})` : ""}. Cambiá a ${shortAddress(sessionWallet)} en ${mismatch.wallet} y volvé a conectar.`,
+          })}
         </Notice>
       )}
     </div>
@@ -234,6 +269,7 @@ function ExtensionSigner({
 }
 
 function ConnectWalletButton({ wallet, onConnected }: { wallet: UiWallet; onConnected: (accounts: readonly UiWalletAccount[]) => void }) {
+  const { t } = useI18n();
   const [connecting, connect] = useConnect(wallet);
   const [pending, setPending] = useState(false);
   return (
@@ -245,7 +281,7 @@ function ConnectWalletButton({ wallet, onConnected }: { wallet: UiWallet; onConn
         try {
           onConnected(await connect());
         } catch (err) {
-          if (!isUserRejection(err)) toast(`No pudimos conectar ${wallet.name}.`, "error");
+          if (!isUserRejection(err)) toast(t({ en: `Couldn't connect ${wallet.name}.`, es: `No pudimos conectar ${wallet.name}.` }), "error");
         } finally {
           setPending(false);
         }
@@ -253,7 +289,9 @@ function ConnectWalletButton({ wallet, onConnected }: { wallet: UiWallet; onConn
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- wallet icons are data URIs */}
       <img src={wallet.icon} alt="" width={20} height={20} className="size-5 rounded" />
-      {connecting || pending ? "Conectando…" : `Conectar ${wallet.name}`}
+      {connecting || pending
+        ? t({ en: "Connecting…", es: "Conectando…" })
+        : t({ en: `Connect ${wallet.name}`, es: `Conectar ${wallet.name}` })}
     </Button>
   );
 }
@@ -262,15 +300,16 @@ function ConnectWalletButton({ wallet, onConnected }: { wallet: UiWallet; onConn
 // ---------------------------------------------------------------------------
 // Balance strip + packs + purchase
 // ---------------------------------------------------------------------------
-
 type Stage = "idle" | "preparing" | "signing" | "confirming" | "crediting";
-const stageLabel = (stage: Exclude<Stage, "idle">, walletLabel: string) =>
+const stageLabel = (stage: Exclude<Stage, "idle">, walletLabel: string): Text =>
   ({
-    preparing: "Preparando la compra…",
-    signing: `Confirmá en ${walletLabel}…`,
-    confirming: "Confirmando la compra…",
-    crediting: "Sumando tu néctar…",
+    preparing: { en: "Preparing your purchase…", es: "Preparando la compra…" },
+    signing: { en: `Confirm in ${walletLabel}…`, es: `Confirmá en ${walletLabel}…` },
+    confirming: { en: "Confirming purchase…", es: "Confirmando la compra…" },
+    crediting: { en: "Adding your Nectar…", es: "Sumando tu néctar…" },
   })[stage];
+
+const packsLabel = (n: number): Text => (n === 1 ? { en: "1 pack", es: "1 pack" } : { en: `${n} packs`, es: `${n} packs` });
 
 function ShopBody({
   sessionWallet,
@@ -289,9 +328,11 @@ function ShopBody({
   isLocal: boolean;
   blocker?: ReactNode;
 }) {
+  const { t, fmt } = useI18n();
+  const sol = useSol();
   const [packs, setPacks] = useState<number>(1);
   const [stage, setStage] = useState<Stage>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Text | null>(null);
   const [receipt, setReceipt] = useState<{ signature: string; packs: number; credited: number | null } | null>(null);
   const buyRef = useRef<HTMLButtonElement>(null);
   const { state, reload, refreshing } = chain;
@@ -314,14 +355,21 @@ function ShopBody({
       const credited = await creditWithRetry();
       setReceipt({ signature, packs, credited });
       celebrate(buyRef.current, { tone: "ambrosia", count: 24, spread: 140 });
-      toast(credited && credited > 0 ? `Sumaste ${fmt(credited)} de néctar.` : "La compra se confirmó. Si no ves el néctar, tocá Sincronizar.");
+      toast(
+        credited && credited > 0
+          ? t({ en: `You got ${fmt(credited)} Nectar.`, es: `Sumaste ${fmt(credited)} de néctar.` })
+          : t({
+              en: "Purchase confirmed. If you don't see your Nectar, tap Sync.",
+              es: "La compra se confirmó. Si no ves el néctar, tocá Sincronizar.",
+            }),
+      );
       reload();
     } catch (err) {
       if (isUserRejection(err)) {
-        toast("Cancelaste la compra. No se movió nada.");
+        toast(t({ en: "Purchase canceled. Nothing was spent.", es: "Cancelaste la compra. No se movió nada." }));
       } else {
         console.warn("[thalassa] purchase failed", err);
-        setError(friendlySolanaError(err));
+        setError(friendlySolanaText(err));
       }
     } finally {
       setStage("idle");
@@ -333,7 +381,7 @@ function ShopBody({
       <BalanceStrip sessionWallet={sessionWallet} chain={chain} lowBalance={!!short} />
 
       <fieldset disabled={busy} className="flex flex-col">
-        <legend className="sr-only">Elegí cuántos packs</legend>
+        <legend className="sr-only">{t({ en: "Choose how many packs", es: "Elegí cuántos packs" })}</legend>
         <div className="grid grid-cols-3 gap-2">
           {PACK_OPTIONS.map((n) => (
             <label key={n} className="group relative cursor-pointer">
@@ -348,7 +396,7 @@ function ShopBody({
               >
                 <span className="flex h-full flex-col items-center gap-0.5 px-1 py-2.5 text-center">
                   <span className="text-xs font-extrabold tracking-wide whitespace-nowrap text-ink-soft uppercase">
-                    {n} {n === 1 ? "pack" : "packs"}
+                    {t(packsLabel(n))}
                   </span>
                   {config ? (
                     <>
@@ -357,7 +405,7 @@ function ShopBody({
                         {fmt(Number(config.ambrosiaPerPack) * n)}
                       </span>
                       <span className="text-xs whitespace-nowrap text-ink-soft tabular-nums lining-nums">
-                        {fmtSol(config.priceLamportsPerPack * BigInt(n))} SOL
+                        {sol(config.priceLamportsPerPack * BigInt(n))} SOL
                       </span>
                     </>
                   ) : (
@@ -375,13 +423,15 @@ function ShopBody({
 
       {state.status === "error" && (
         <Notice tone="error">
-          {state.message}{" "}
+          {t(state.message)}{" "}
           <button type="button" onClick={reload} className="min-h-10 font-bold underline underline-offset-4">
-            Reintentar
+            {t({ en: "Retry", es: "Reintentar" })}
           </button>
         </Notice>
       )}
-      {ready && !config && <Notice tone="warn">La tienda todavía no abrió. Volvé en un rato.</Notice>}
+      {ready && !config && (
+        <Notice tone="warn">{t({ en: "The shop isn't open yet. Check back soon.", es: "La tienda todavía no abrió. Volvé en un rato." })}</Notice>
+      )}
 
       {blocker ?? (
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
@@ -394,27 +444,37 @@ function ShopBody({
             disabled={!signer || !config || !!short || refreshing}
             className="w-full sm:w-auto"
           >
-            {busy ? stageLabel(stage as Exclude<Stage, "idle">, walletLabel) : `Comprar ${packs} ${packs === 1 ? "pack" : "packs"}`}
+            {busy
+              ? t(stageLabel(stage as Exclude<Stage, "idle">, walletLabel))
+              : t({ en: `Buy ${t(packsLabel(packs))}`, es: `Comprar ${t(packsLabel(packs))}` })}
           </Button>
           {needed !== null && (
             <p className={clsx("text-sm tabular-nums lining-nums", short ? "font-bold text-danger" : "text-ink-soft")}>
-              {short ? "Te falta SOL de prueba. Pedilo arriba." : `Total ≈ ${fmtSol(needed)} SOL de prueba`}
+              {short
+                ? t({ en: "Not enough test SOL. Get some above.", es: "Te falta SOL de prueba. Pedilo arriba." })
+                : t({ en: `Total ≈ ${sol(needed)} test SOL`, es: `Total ≈ ${sol(needed)} SOL de prueba` })}
             </p>
           )}
         </div>
       )}
 
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="error">{t(error)}</Notice>}
 
       {receipt && (
         <div role="status" className="pop-in flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-olive/15 px-3 py-1.5 text-[15px] ring-1 ring-olive/30">
           <span className="font-bold text-success">
-            Compra confirmada: {receipt.packs} {receipt.packs === 1 ? "pack" : "packs"}
-            {receipt.credited ? ` · +${fmt(receipt.credited)} de néctar` : ""}
+            {t({ en: `Purchase confirmed: ${t(packsLabel(receipt.packs))}`, es: `Compra confirmada: ${t(packsLabel(receipt.packs))}` })}
+            {receipt.credited ? t({ en: ` · +${fmt(receipt.credited)} Nectar`, es: ` · +${fmt(receipt.credited)} de néctar` }) : ""}
           </span>
           {!receipt.credited && (
-            <ActionButton action={syncAmbrosiaAction} variant="secondary" size="sm" pendingLabel="Sincronizando…" className="h-10">
-              Sincronizar
+            <ActionButton
+              action={syncAmbrosiaAction}
+              variant="secondary"
+              size="sm"
+              pendingLabel={t({ en: "Syncing…", es: "Sincronizando…" })}
+              className="h-10"
+            >
+              {t({ en: "Sync", es: "Sincronizar" })}
             </ActionButton>
           )}
           <a
@@ -423,52 +483,68 @@ function ShopBody({
             rel="noreferrer"
             className="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-sea-700 underline-offset-4 hover:underline"
           >
-            Ver comprobante <ExternalIcon />
-            <span className="sr-only"> (se abre en otra pestaña)</span>
+            {t({ en: "View receipt", es: "Ver comprobante" })} <ExternalIcon />
+            <span className="sr-only">{t({ en: " (opens in a new tab)", es: " (se abre en otra pestaña)" })}</span>
           </a>
         </div>
       )}
 
-      <HowItWorks>
-        <p>El néctar termina obras al instante y paga al mercader.</p>
+      <HowItWorks title={t({ en: "How does it work?", es: "¿Cómo funciona?" })}>
+        <p>{t({ en: "Nectar finishes builds instantly and pays the merchant.", es: "El néctar termina obras al instante y paga al mercader." })}</p>
         <p>
-          Se compra con SOL de prueba, que no vale plata real. Si te falta, pedilo arriba: una vez cada 12 horas, alcanza para un
-          pack.
+          {t({
+            en: "You buy it with test SOL, which isn't real money. Short on it? Get some above: once every 12 hours, enough for one pack.",
+            es: "Se compra con SOL de prueba, que no vale plata real. Si te falta, pedilo arriba: una vez cada 12 horas, alcanza para un pack.",
+          })}
         </p>
         {config && (
           <p className="tabular-nums lining-nums">
-            Cada pack son {fmt(Number(config.ambrosiaPerPack))} de néctar por {fmtSol(config.priceLamportsPerPack)} SOL de prueba. Se
-            suma el costo de red y, en tu primera compra, un depósito único de {fmtSol(CITIZEN_RENT_LAMPORTS)} para tu registro de
-            compras.
+            {t({
+              en: `Each pack is ${fmt(Number(config.ambrosiaPerPack))} Nectar for ${sol(config.priceLamportsPerPack)} test SOL. The network fee is added and, on your first purchase, a one-time deposit of ${sol(CITIZEN_RENT_LAMPORTS)} SOL for your purchase record.`,
+              es: `Cada pack son ${fmt(Number(config.ambrosiaPerPack))} de néctar por ${sol(config.priceLamportsPerPack)} SOL de prueba. Se suma el costo de red y, en tu primera compra, un depósito único de ${sol(CITIZEN_RENT_LAMPORTS)} SOL para tu registro de compras.`,
+            })}
           </p>
         )}
         <dl className="flex flex-col gap-1 border-t border-parchment-3 pt-2">
           <div className="flex flex-wrap items-center gap-x-2">
             <dt>{walletLabel}:</dt>
             <dd>
-              <AddressChip address={sessionWallet} label="tu cuenta" />
+              <AddressChip address={sessionWallet} label={t({ en: "your account", es: "tu cuenta" })} />
             </dd>
           </div>
           <div className="flex flex-wrap items-center gap-x-2">
-            <dt>Registro de compras:</dt>
+            <dt>{t({ en: "Purchase record:", es: "Registro de compras:" })}</dt>
             <dd>
-              <AddressChip address={citizenPda} label="el registro de compras" />
+              <AddressChip address={citizenPda} label={t({ en: "the purchase record", es: "el registro de compras" })} />
             </dd>
           </div>
           {ready?.citizen && (
             <div className="tabular-nums lining-nums">
-              <dt className="inline">Registradas: </dt>
+              <dt className="inline">{t({ en: "On record: ", es: "Registradas: " })}</dt>
               <dd className="inline">
-                {fmt(Number(ready.citizen.ambrosiaTotal))} de néctar en {ready.citizen.purchases}{" "}
-                {ready.citizen.purchases === 1 ? "compra" : "compras"}
+                {ready.citizen.purchases === 1
+                  ? t({
+                      en: `${fmt(Number(ready.citizen.ambrosiaTotal))} Nectar in 1 purchase`,
+                      es: `${fmt(Number(ready.citizen.ambrosiaTotal))} de néctar en 1 compra`,
+                    })
+                  : t({
+                      en: `${fmt(Number(ready.citizen.ambrosiaTotal))} Nectar in ${fmt(ready.citizen.purchases)} purchases`,
+                      es: `${fmt(Number(ready.citizen.ambrosiaTotal))} de néctar en ${fmt(ready.citizen.purchases)} compras`,
+                    })}
               </dd>
             </div>
           )}
         </dl>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-parchment-3 pt-2">
-          <p>¿Compraste y no ves el néctar?</p>
-          <ActionButton action={syncAmbrosiaAction} variant="secondary" size="sm" pendingLabel="Sincronizando…" className="h-10">
-            Sincronizar compras
+          <p>{t({ en: "Bought Nectar but don't see it?", es: "¿Compraste y no ves el néctar?" })}</p>
+          <ActionButton
+            action={syncAmbrosiaAction}
+            variant="secondary"
+            size="sm"
+            pendingLabel={t({ en: "Syncing…", es: "Sincronizando…" })}
+            className="h-10"
+          >
+            {t({ en: "Sync purchases", es: "Sincronizar compras" })}
           </ActionButton>
         </div>
       </HowItWorks>
@@ -508,7 +584,7 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
-/** SOL de prueba balance and the faucet. When the balance is short, the faucet is the action. */
+/** Test SOL balance and the faucet. When the balance is short, the faucet is the action. */
 function BalanceStrip({
   sessionWallet,
   chain,
@@ -518,6 +594,8 @@ function BalanceStrip({
   chain: ReturnType<typeof useChainData>;
   lowBalance: boolean;
 }) {
+  const { t } = useI18n();
+  const sol = useSol();
   const { state, reload, refreshing } = chain;
   const [pending, setPending] = useState<"faucet" | "airdrop" | null>(null);
   const [faucetError, setFaucetError] = useState<string | null>(null);
@@ -530,12 +608,12 @@ function BalanceStrip({
     try {
       const result = await claimFaucetAction();
       if (result.ok) {
-        toast(result.message ?? "Te mandamos SOL de prueba.");
+        toast(result.message ?? t({ en: "Test SOL is on its way.", es: "Te mandamos SOL de prueba." }));
         setLastSignature(result.data?.signature ?? null);
         reload();
       } else setFaucetError(result.error);
     } catch {
-      setFaucetError("No pudimos pedir SOL de prueba. Probá de nuevo.");
+      setFaucetError(t({ en: "Couldn't get test SOL. Try again.", es: "No pudimos pedir SOL de prueba. Probá de nuevo." }));
     } finally {
       setPending(null);
     }
@@ -546,12 +624,16 @@ function BalanceStrip({
     setPending("airdrop");
     try {
       const signature = await requestDevnetSol(address(sessionWallet));
-      toast("Llegó 1 SOL de prueba de la canilla pública.");
+      toast(t({ en: "1 test SOL arrived from the public faucet.", es: "Llegó 1 SOL de prueba de la canilla pública." }));
       setLastSignature(signature);
       setFaucetError(null);
       reload();
     } catch (err) {
-      setFaucetError(err instanceof FriendlyError ? err.message : "La canilla pública tampoco respondió.");
+      setFaucetError(
+        err instanceof FriendlyError
+          ? t(err.text)
+          : t({ en: "The public faucet didn't answer either.", es: "La canilla pública tampoco respondió." }),
+      );
     } finally {
       setPending(null);
     }
@@ -562,23 +644,23 @@ function BalanceStrip({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex flex-1 items-center gap-1">
           <div className="leading-none whitespace-nowrap">
-            <p className="text-[11px] font-bold tracking-wider text-sea-300 uppercase">Tu saldo</p>
+            <p className="text-[11px] font-bold tracking-wider text-sea-300 uppercase">{t({ en: "Your balance", es: "Tu saldo" })}</p>
             {state.status === "ready" ? (
               <p className={clsx("mt-1 font-display text-xl font-bold tabular-nums lining-nums", lowBalance ? "text-danger-soft" : "text-foam")}>
-                {fmtSol(state.balance)} <span className="font-body text-sm font-normal text-foam/70">SOL de prueba</span>
+                {sol(state.balance)} <span className="font-body text-sm font-normal text-foam/70">{t({ en: "test SOL", es: "SOL de prueba" })}</span>
               </p>
             ) : state.status === "loading" ? (
               <span className="mt-1 inline-block h-6 w-28 animate-pulse rounded bg-foam/15" />
             ) : (
-              <p className="mt-1 text-sm text-foam/70">Sin datos</p>
+              <p className="mt-1 text-sm text-foam/70">{t({ en: "No data", es: "Sin datos" })}</p>
             )}
           </div>
           <button
             type="button"
             onClick={reload}
             disabled={refreshing || state.status === "loading"}
-            aria-label="Actualizar saldo"
-            title="Actualizar saldo"
+            aria-label={t({ en: "Refresh balance", es: "Actualizar saldo" })}
+            title={t({ en: "Refresh balance", es: "Actualizar saldo" })}
             className="grid size-10 shrink-0 place-items-center rounded-lg text-sea-300 transition hover:bg-foam/10 hover:text-foam disabled:opacity-50"
           >
             <RefreshIcon spinning={refreshing} />
@@ -591,9 +673,9 @@ function BalanceStrip({
           disabled={!!pending}
           loading={pending === "faucet"}
           className={clsx(!lowBalance && "h-10 text-sea-300 hover:bg-foam/10 hover:text-foam")}
-          title="Una vez cada 12 horas. Alcanza para un pack."
+          title={t({ en: "Once every 12 hours. Enough for one pack.", es: "Una vez cada 12 horas. Alcanza para un pack." })}
         >
-          {pending === "faucet" ? "Pidiendo SOL…" : "Pedir SOL de prueba"}
+          {pending === "faucet" ? t({ en: "Getting SOL…", es: "Pidiendo SOL…" }) : t({ en: "Get test SOL", es: "Pedir SOL de prueba" })}
         </Button>
       </div>
       {lastSignature && !faucetError && (
@@ -603,8 +685,8 @@ function BalanceStrip({
           rel="noreferrer"
           className="inline-flex min-h-10 items-center gap-1 self-start text-sm font-bold text-sea-300 underline-offset-4 hover:underline"
         >
-          Ver comprobante del envío <ExternalIcon />
-          <span className="sr-only"> (se abre en otra pestaña)</span>
+          {t({ en: "View transfer receipt", es: "Ver comprobante del envío" })} <ExternalIcon />
+          <span className="sr-only">{t({ en: " (opens in a new tab)", es: " (se abre en otra pestaña)" })}</span>
         </a>
       )}
       {faucetError && (
@@ -617,11 +699,13 @@ function BalanceStrip({
               disabled={!!pending}
               className="min-h-10 font-bold text-foam underline underline-offset-4 disabled:opacity-50"
             >
-              {pending === "airdrop" ? "Probando la canilla pública…" : "Probar la canilla pública"}
+              {pending === "airdrop"
+                ? t({ en: "Trying the public faucet…", es: "Probando la canilla pública…" })
+                : t({ en: "Try the public faucet", es: "Probar la canilla pública" })}
             </button>
             <a href={FAUCET_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1 font-bold text-foam underline underline-offset-4">
-              Otra canilla <ExternalIcon />
-              <span className="sr-only"> (se abre en otra pestaña)</span>
+              {t({ en: "Another faucet", es: "Otra canilla" })} <ExternalIcon />
+              <span className="sr-only">{t({ en: " (opens in a new tab)", es: " (se abre en otra pestaña)" })}</span>
             </a>
           </p>
         </div>

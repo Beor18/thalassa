@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, use, useCallback, useEffect, useId, useRef, type ComponentProps, type ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import clsx from "clsx";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { fx } from "@/components/fx/classes";
+import { useI18n, usePagePathname } from "@/i18n/client";
 import { SHEET_QUERY, useHydrated, useMediaQuery, useSheetDialog } from "@/components/fx/hooks";
 import { IconCross } from "./icons";
 
@@ -29,7 +30,7 @@ function usePanels() {
   return ctx;
 }
 
-/** Closes the open panel (or sheet), e.g. from a "Listo" button after an action worked. */
+/** Closes the open panel (or sheet), e.g. from a "Back to the island" button after an action worked. */
 export function useClosePanel() {
   return usePanels().close;
 }
@@ -120,7 +121,8 @@ const SPRING = { type: "spring", stiffness: 420, damping: 40, mass: 0.9 } as con
  */
 export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef>; summary: ReactNode }) {
   const { current, close } = usePanels();
-  const pathname = usePathname();
+  const { t } = useI18n();
+  const pathname = usePagePathname();
   const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -153,7 +155,7 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
   const hidden = isSheet ? { y: "104%" } : { opacity: 0, x: 28 };
 
   return (
-    <aside aria-label={panel ? undefined : "Resumen de la isla"} className="min-w-0 lg:relative lg:self-stretch">
+    <aside aria-label={panel ? undefined : t({ en: "Island overview", es: "Resumen de la isla" })} className="min-w-0 lg:relative lg:self-stretch">
       <div inert={panel ? true : undefined} className={clsx("transition-opacity duration-150", panel && "lg:opacity-0")}>
         {summary}
       </div>
@@ -163,7 +165,7 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
             key="backdrop"
             type="button"
             tabIndex={-1}
-            aria-label="Cerrar panel"
+            aria-label={t({ en: "Close panel", es: "Cerrar panel" })}
             onClick={close}
             className="fixed inset-0 z-[70] cursor-default bg-sea-950/60 lg:hidden"
             initial={{ opacity: 0 }}
@@ -240,8 +242,8 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
                     e.preventDefault();
                     close();
                   }}
-                  aria-label="Cerrar panel"
-                  title="Cerrar (Esc)"
+                  aria-label={t({ en: "Close panel", es: "Cerrar panel" })}
+                  title={t({ en: "Close (Esc)", es: "Cerrar (Esc)" })}
                   className="-mr-1.5 grid size-10 shrink-0 place-items-center rounded-lg text-ink-soft transition hover:bg-ink/5 hover:text-ink focus-visible:ring-2 focus-visible:ring-bronze-dark"
                 >
                   <IconCross size={20} />

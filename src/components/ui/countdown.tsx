@@ -4,13 +4,14 @@ import { useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { fmtDuration } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { useServerClock } from "@/lib/use-server-clock";
 import { whenVisible } from "@/lib/when-visible";
 
 /** Live "time left" label. Refreshes server data once when it reaches zero. */
-export function Countdown({ endsAt, serverNow, doneLabel = "Listo" }: { endsAt: number; serverNow: number; doneLabel?: string }) {
+export function Countdown({ endsAt, serverNow, doneLabel }: { endsAt: number; serverNow: number; doneLabel?: string }) {
   const router = useRouter();
+  const { t, fmtDuration } = useI18n();
   const now = useServerClock(serverNow);
   const left = endsAt - now;
   const done = left <= 0;
@@ -28,7 +29,7 @@ export function Countdown({ endsAt, serverNow, doneLabel = "Listo" }: { endsAt: 
 
   return (
     <span className="tabular" suppressHydrationWarning>
-      {left > 0 ? fmtDuration(left) : doneLabel}
+      {left > 0 ? fmtDuration(left) : (doneLabel ?? t({ en: "Done", es: "Listo" }))}
     </span>
   );
 }

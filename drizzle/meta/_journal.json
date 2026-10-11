@@ -29,6 +29,13 @@
       "when": 1791745197341,
       "tag": "0003_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791759391814,
+      "tag": "0004_archon_default_names",
+      "breakpoints": true
     }
   ]
 }

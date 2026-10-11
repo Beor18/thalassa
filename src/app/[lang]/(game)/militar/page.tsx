@@ -5,16 +5,19 @@ import clsx from "clsx";
 import { countUnits, militaryPower, unitUpkeep } from "@/game/engine";
 import { getGame } from "@/server/game-context";
 import { getIsland } from "@/server/queries";
+import { getI18n } from "@/i18n/server";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { IconSwords } from "@/components/island/icons";
 import { ResIcon } from "@/components/ui/res";
-import { fmt } from "@/lib/format";
 import { stagger } from "@/components/motion/reveal";
 import { CityForces, ForcesStepCard, MissionCard, missionEventAt, nextForcesStep } from "@/components/military/forces";
 import { ShipPortrait, UnitPortrait } from "@/components/military/units";
 import { HeroStat, SECTION_WIDE } from "@/components/tesoro/section-ui";
 
-export const metadata: Metadata = { title: "Flota y tropas" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Fleet & troops", es: "Flota y tropas" }) };
+}
 
 export default function Page() {
   return (
@@ -25,7 +28,7 @@ export default function Page() {
 }
 
 async function MilitaryContent() {
-  const game = await getGame();
+  const [game, { t, lang, fmt }] = await Promise.all([getGame(), getI18n()]);
   const { snapshot, city } = game;
   const missions = [...snapshot.missions].sort((a, b) => missionEventAt(a) - missionEventAt(b));
   const home = snapshot.cities.reduce((s, c) => s + countUnits(c.units), 0);
@@ -45,6 +48,7 @@ async function MilitaryContent() {
     soldiersAway: awayFrom(city.id),
     missions,
     campRearmsAt: island?.barbarians.rebuildingUntil ?? null,
+    lang,
   });
   const many = snapshot.cities.length > 1;
 
@@ -61,10 +65,13 @@ async function MilitaryContent() {
               <Image src="/assets/u-hoplite.webp" alt="" width={56} height={56} loading="eager" className="sprite size-12 shrink-0 sm:size-14" />
               <div className="leading-none">
                 <h1 id="forces-title" className="font-display text-xs font-bold tracking-[0.25em] text-sea-300 uppercase">
-                  Flota y tropas
+                  {t({ en: "Fleet & troops", es: "Flota y tropas" })}
                 </h1>
-                <p className="mt-1 font-display text-3xl font-black text-foam sm:text-4xl" title="Poder de las tropas que están en casa">
-                  {fmt(power)} <span className="text-sm font-bold text-foam/70">de poder</span>
+                <p
+                  className="mt-1 font-display text-3xl font-black text-foam sm:text-4xl"
+                  title={t({ en: "Power of the troops at home", es: "Poder de las tropas que están en casa" })}
+                >
+                  {fmt(power)} <span className="text-sm font-bold text-foam/70">{t({ en: "power", es: "de poder" })}</span>
                 </p>
               </div>
             </div>
@@ -72,25 +79,49 @@ async function MilitaryContent() {
               <HeroStat
                 icon={<UnitPortrait unit="spearman" size={30} className="bg-transparent" />}
                 value={fmt(home)}
-                label="En casa"
-                hint={`${fmt(home)} ${home === 1 ? "soldado" : "soldados"} en casa`}
+                label={t({ en: "At home", es: "En casa" })}
+                hint={
+                  home === 1
+                    ? t({ en: "1 soldier at home", es: "1 soldado en casa" })
+                    : t({ en: `${fmt(home)} soldiers at home`, es: `${fmt(home)} soldados en casa` })
+                }
               />
               {away > 0 && (
                 <HeroStat
                   icon={<UnitPortrait unit="spearman" size={30} className="bg-transparent opacity-70" />}
                   value={fmt(away)}
-                  label="En el mar"
-                  hint={`${fmt(away)} ${away === 1 ? "soldado navegando" : "soldados navegando"}`}
+                  label={t({ en: "At sea", es: "En el mar" })}
+                  hint={
+                    away === 1
+                      ? t({ en: "1 soldier sailing", es: "1 soldado navegando" })
+                      : t({ en: `${fmt(away)} soldiers sailing`, es: `${fmt(away)} soldados navegando` })
+                  }
                 />
               )}
               <HeroStat
                 icon={<ShipPortrait size={30} />}
                 value={fmt(docked)}
-                label="En puerto"
-                hint={`${fmt(docked)} ${docked === 1 ? "barco" : "barcos"} en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`}
+                label={t({ en: "In port", es: "En puerto" })}
+                hint={
+                  docked === 1
+                    ? t({ en: `1 ship in port${atSea > 0 ? ` and ${fmt(atSea)} at sea` : ""}`, es: `1 barco en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}` })
+                    : t({
+                        en: `${fmt(docked)} ships in port${atSea > 0 ? ` and ${fmt(atSea)} at sea` : ""}`,
+                        es: `${fmt(docked)} barcos en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`,
+                      })
+                }
               />
               {training > 0 && (
-                <HeroStat icon={<IconSwords size={20} className="text-gold" />} value={fmt(training)} label="Entrenando" hint={`${fmt(training)} soldados entrenando`} />
+                <HeroStat
+                  icon={<IconSwords size={20} className="text-gold" />}
+                  value={fmt(training)}
+                  label={t({ en: "Training", es: "Entrenando" })}
+                  hint={
+                    training === 1
+                      ? t({ en: "1 soldier training", es: "1 soldado entrenando" })
+                      : t({ en: `${fmt(training)} soldiers training`, es: `${fmt(training)} soldados entrenando` })
+                  }
+                />
               )}
               <HeroStat
                 icon={<ResIcon kind="gold" size={24} />}
@@ -100,8 +131,8 @@ async function MilitaryContent() {
                     <span className="font-body text-xs font-bold">/h</span>
                   </>
                 }
-                label="Sueldos"
-                hint="Oro por hora que cobran tus tropas"
+                label={t({ en: "Wages", es: "Sueldos" })}
+                hint={t({ en: "Gold your troops are paid per hour", es: "Oro por hora que cobran tus tropas" })}
                 tone={upkeep > 0 ? "bad" : "default"}
               />
             </div>
@@ -112,7 +143,7 @@ async function MilitaryContent() {
         <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] 2xl:grid-cols-[minmax(0,1fr)_30rem]">
           <section aria-labelledby="cities-title" className="rise-in flex min-w-0 flex-col gap-2" style={stagger(1, 80, 3, 40)}>
             <h2 id="cities-title" className="font-display text-lg font-bold text-foam drop-shadow">
-              {many ? "Tus ciudades" : "Tu ciudad"}
+              {many ? t({ en: "Your cities", es: "Tus ciudades" }) : t({ en: "Your city", es: "Tu ciudad" })}
             </h2>
             <div className={clsx("grid items-start gap-3", many && "lg:grid-cols-2")}>
               {snapshot.cities.map((c) => (
@@ -123,7 +154,7 @@ async function MilitaryContent() {
 
           <section aria-labelledby="sea-title" className="rise-in flex min-w-0 flex-col gap-2" style={stagger(2, 80, 3, 40)}>
             <h2 id="sea-title" className="flex items-baseline gap-2 font-display text-lg font-bold text-foam drop-shadow">
-              En el mar
+              {t({ en: "At sea", es: "En el mar" })}
               {missions.length > 0 && <span className="font-body text-sm font-bold text-foam/70 tabular">{missions.length}</span>}
             </h2>
             {missions.length ? (
@@ -135,7 +166,7 @@ async function MilitaryContent() {
             ) : (
               <div className="panel-glass flex items-center gap-3 px-3 py-2.5 text-sm text-foam/85">
                 <ShipPortrait size={40} className="opacity-80" />
-                Ningún barco navegando.
+                {t({ en: "No ships at sea.", es: "Ningún barco navegando." })}
               </div>
             )}
           </section>

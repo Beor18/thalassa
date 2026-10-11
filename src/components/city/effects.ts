@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, RESOURCES, RESOURCE_INFO, UNITS, UNIT_TYPES, emptyBag, type BuildingType, type ResourceBag } from "@/game/data";
+import { BALANCE, BUILDINGS, RESOURCES, UNITS, UNIT_TYPES, emptyBag, type BuildingType, type ResourceBag } from "@/game/data";
 import {
   buildingCost,
   buildingLevel,
@@ -13,8 +13,10 @@ import {
   type CityState,
   type PlayerState,
 } from "@/game/engine";
-import { fmt } from "@/lib/format";
-import { missingText } from "./lib";
+import { resourceLabel, unitName } from "@/game/names";
+import type { Locale } from "@/i18n/config";
+import { getFormat } from "@/i18n/format";
+import { joinList, missingText, shortfall } from "./lib";
 
 /*
   Read-only previews for the city panels: what the next level gives, when the city can pay a cost
@@ -34,50 +36,62 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 const barracksCut = (level: number) => Math.min(0.4, level * 0.02);
 const woodCut = (p: PlayerState, carpenter: number) => Math.min(0.5, carpenter * 0.02 + (hasTech(p, "pulley") ? 0.1 : 0));
 
-/** Short phrases for what `level` adds over the level before it ("+55 viviendas"). Empty when nothing measurable changes. */
-export function levelGain(p: PlayerState, city: CityState, slot: number, type: BuildingType, level: number): string[] {
+/** Short phrases for what `level` adds over the level before it ("+55 housing"). Empty when nothing measurable changes. */
+export function levelGain(p: PlayerState, city: CityState, slot: number, type: BuildingType, level: number, lang: Locale): string[] {
   const before = withLevel(city, slot, type, level - 1);
   const after = withLevel(city, slot, type, level);
+  const { fmt } = getFormat(lang);
+  const en = lang === "en";
   const out: string[] = [];
   switch (type) {
     case "town_hall":
-      out.push(`+${fmt(housing(after) - housing(before))} viviendas`);
+      out.push(`+${fmt(housing(after) - housing(before))} ${en ? "housing" : "viviendas"}`);
       break;
     case "academy":
-      out.push(`+${fmt(maxScientists(after) - maxScientists(before))} pupitres`);
+      out.push(`+${fmt(maxScientists(after) - maxScientists(before))} ${en ? "desks" : "pupitres"}`);
       break;
-    case "warehouse":
-      out.push(`+${fmt(storageCap(p, after) - storageCap(p, before))} de capacidad`, `+${fmt(safeAmount(after) - safeAmount(before))} a salvo`);
+    case "warehouse": {
+      const cap = fmt(storageCap(p, after) - storageCap(p, before));
+      const safe = fmt(safeAmount(after) - safeAmount(before));
+      out.push(en ? `+${cap} capacity` : `+${cap} de capacidad`, en ? `+${safe} safe` : `+${safe} a salvo`);
       break;
+    }
     case "tavern":
-      out.push(`+${BALANCE.tavernHappinessPerLevel} satisfacción`, `vino hasta nivel ${level}`);
+      out.push(
+        `+${BALANCE.tavernHappinessPerLevel} ${en ? "satisfaction" : "satisfacción"}`,
+        en ? `wine up to level ${level}` : `vino hasta nivel ${level}`,
+      );
       break;
     case "museum":
-      out.push(`+${BALANCE.museumHappinessPerLevel} satisfacción`);
+      out.push(`+${BALANCE.museumHappinessPerLevel} ${en ? "satisfaction" : "satisfacción"}`);
       break;
     case "barracks": {
       const faster = barracksCut(buildingLevel(after, "barracks")) - barracksCut(buildingLevel(before, "barracks"));
-      if (faster > 0) out.push(`entrena ${pct(faster)} más rápido`);
-      const unlocked = UNIT_TYPES.filter((u) => UNITS[u].requires.barracks === level).map((u) => UNITS[u].name);
-      if (unlocked.length) out.push(`habilita ${unlocked.join(" y ")}`);
+      if (faster > 0) out.push(en ? `trains ${pct(faster)} faster` : `entrena ${pct(faster)} más rápido`);
+      const unlocked = UNIT_TYPES.filter((u) => UNITS[u].requires.barracks === level).map((u) => unitName(u, lang, en ? 2 : 1));
+      if (unlocked.length) out.push(`${en ? "unlocks" : "habilita"} ${joinList(unlocked, lang)}`);
       break;
     }
-    case "port":
-      out.push(`+${fmt(maxShips(after) - maxShips(before))} amarras`);
+    case "port": {
+      const berths = maxShips(after) - maxShips(before);
+      out.push(`+${fmt(berths)} ${en ? (berths === 1 ? "berth" : "berths") : "amarras"}`);
       break;
+    }
     case "wall":
-      out.push("+10% defensa");
+      out.push(en ? "+10% defense" : "+10% defensa");
       break;
     case "carpenter": {
       const saved = woodCut(p, buildingLevel(after, "carpenter")) - woodCut(p, buildingLevel(before, "carpenter"));
-      if (saved > 0.0001) out.push(`−${pct(saved)} de madera en obras`);
+      if (saved > 0.0001) out.push(en ? `−${pct(saved)} wood on builds` : `−${pct(saved)} de madera en obras`);
       break;
     }
-    case "stonemason":
-      out.push(`+3% de ${RESOURCE_INFO[city.island.resource].label.toLowerCase()}`);
+    case "stonemason": {
+      const lux = resourceLabel(city.island.resource, lang).toLowerCase();
+      out.push(en ? `+3% ${lux}` : `+3% de ${lux}`);
       break;
+    }
     case "palace":
-      out.push("+1 colonia");
+      out.push(en ? "+1 colony" : "+1 colonia");
       break;
   }
   return out;
@@ -93,7 +107,7 @@ export function netRates(rates: CityRates): ResourceBag {
 }
 
 export interface Affordability {
-  /** "Te falta 120 de madera." or null when the city can pay. */
+  /** "You need 120 more wood." or null when the city can pay. */
   missing: string | null;
   /** How long until production covers what's missing; null when it can pay now or never will at today's rates. */
   etaMs: number | null;
@@ -101,8 +115,8 @@ export interface Affordability {
   tooBig: boolean;
 }
 
-export function affordability(cost: Partial<ResourceBag>, city: { res: ResourceBag; rates: CityRates }): Affordability {
-  const missing = missingText(cost, city.res);
+export function affordability(cost: Partial<ResourceBag>, city: { res: ResourceBag; rates: CityRates }, lang: Locale): Affordability {
+  const missing = missingText(cost, city.res, lang);
   const tooBig = RESOURCES.some((r) => (cost[r] ?? 0) > city.rates.storage);
   if (!missing || tooBig) return { missing, etaMs: null, tooBig };
   const rates = netRates(city.rates);
@@ -136,6 +150,7 @@ export function readyUpgrades(p: PlayerState, city: CityState & { rates: CityRat
       cost: buildingCost(p, city, b.type, b.level + 1),
       seconds: buildingSeconds(p, b.type, b.level + 1, speed),
     }))
-    .filter((o) => missingText(o.cost, city.res) == null)
+    .filter((o) => shortfall(o.cost, city.res).length === 0)
     .sort((a, b) => a.slot - b.slot);
 }
+

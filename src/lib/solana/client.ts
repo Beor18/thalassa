@@ -24,8 +24,12 @@ import {
   type Signature,
   type TransactionSigner,
 } from "@solana/kit";
+import type { Locale, Text } from "@/i18n/config";
 import { SOLANA_RPC_URL, SOLANA_WS_URL } from "./config";
+import { FriendlyError } from "./errors";
 import { PROGRAM_ERRORS } from "./program";
+
+export { FriendlyError };
 
 let rpcSingleton: ReturnType<typeof makeRpc> | null = null;
 let subsSingleton: ReturnType<typeof makeSubs> | null = null;
@@ -38,14 +42,6 @@ export function getRpc() {
 
 export function getRpcSubscriptions() {
   return (subsSingleton ??= makeSubs());
-}
-
-/** An error whose message is safe to show to the player as-is. */
-export class FriendlyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "FriendlyError";
-  }
 }
 
 export async function getSolBalance(owner: Address): Promise<bigint> {
@@ -97,13 +93,19 @@ export function isUserRejection(err: unknown): boolean {
   return false;
 }
 
-/** Turns anything thrown by kit, the RPC or a wallet into one short Spanish sentence. */
-export function friendlySolanaError(err: unknown): string {
-  if (err instanceof FriendlyError) return err.message;
+const NOT_ENOUGH_SOL: Text = {
+  en: "You don't have enough test SOL. Get more and try again.",
+  es: "No te alcanza el SOL de prueba. Pedí más y volvé a intentar.",
+};
+
+/** Turns anything thrown by kit, the RPC or a wallet into one short sentence in every language. */
+export function friendlySolanaText(err: unknown): Text {
+  if (err instanceof FriendlyError) return err.text;
   const seen = new Set<unknown>();
   let e: unknown = err;
   while (e && typeof e === "object" && !seen.has(e)) {
     seen.add(e);
+    if (e instanceof FriendlyError) return e.text;
     if (isSolanaError(e, SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM)) {
       const code = Number((e.context as { code?: number }).code);
       if (PROGRAM_ERRORS[code]) return PROGRAM_ERRORS[code];
@@ -113,25 +115,33 @@ export function friendlySolanaError(err: unknown): string {
       isSolanaError(e, SOLANA_ERROR__TRANSACTION_ERROR__INSUFFICIENT_FUNDS_FOR_RENT) ||
       isSolanaError(e, SOLANA_ERROR__INSTRUCTION_ERROR__INSUFFICIENT_FUNDS)
     ) {
-      return "No te alcanza el SOL de prueba. Pedí más y volvé a intentar.";
+      return NOT_ENOUGH_SOL;
     }
     if (isSolanaError(e, SOLANA_ERROR__TRANSACTION_ERROR__PROGRAM_ACCOUNT_NOT_FOUND)) {
-      return "El programa del juego no está en la red de prueba todavía.";
+      return { en: "The Nectar shop isn't on the test network yet.", es: "El programa del juego no está en la red de prueba todavía." };
     }
     if (isSolanaError(e, SOLANA_ERROR__BLOCK_HEIGHT_EXCEEDED)) {
-      return "La red tardó demasiado en confirmar. Probá de nuevo.";
+      return { en: "The network took too long to confirm. Try again.", es: "La red tardó demasiado en confirmar. Probá de nuevo." };
     }
     const message = (e as { message?: string }).message ?? "";
     if (/insufficient (funds|lamports)|0x1\b|debit an account/i.test(message)) {
-      return "No te alcanza el SOL de prueba. Pedí más y volvé a intentar.";
+      return NOT_ENOUGH_SOL;
     }
     if (/429|too many requests|rate limit/i.test(message)) {
-      return "La red de prueba está saturada. Esperá unos segundos y probá de nuevo.";
+      return {
+        en: "The test network is busy. Wait a few seconds and try again.",
+        es: "La red de prueba está saturada. Esperá unos segundos y probá de nuevo.",
+      };
     }
     if (/failed to fetch|network ?error|load failed/i.test(message)) {
-      return "No pudimos hablar con la red de prueba. Revisá tu conexión.";
+      return { en: "We couldn't reach the test network. Check your connection.", es: "No pudimos hablar con la red de prueba. Revisá tu conexión." };
     }
     e = (e as { cause?: unknown }).cause;
   }
-  return "La red de prueba devolvió un error. Probá de nuevo en un rato.";
+  return { en: "The test network returned an error. Try again in a little while.", es: "La red de prueba devolvió un error. Probá de nuevo en un rato." };
+}
+
+/** friendlySolanaText in one language (Spanish unless told otherwise, as before). */
+export function friendlySolanaError(err: unknown, lang: Locale = "es"): string {
+  return friendlySolanaText(err)[lang];
 }

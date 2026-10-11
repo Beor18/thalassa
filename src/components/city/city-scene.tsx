@@ -3,12 +3,15 @@ import Link from "next/link";
 import clsx from "clsx";
 import type { CSSProperties, ReactNode } from "react";
 import { BUILDINGS, CITY_SLOTS, type BuildingType, type SlotKind } from "@/game/data";
+import { buildingName } from "@/game/names";
 import { CITY_PLOTS, CITY_SPRITE_WIDTH, CONSTRUCTION_IMAGE, SHIP_IMAGE } from "@/game/layout";
 import { Countdown } from "@/components/ui/countdown";
 import { CloudShadows, Gulls, HammerSparks, Ripples, Smoke, SunGlint, Twinkles, Vignette, SeaShimmer } from "@/components/fx/ambient";
 import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { fx as scene } from "@/components/fx/classes";
+import type { I18n } from "@/i18n/i18n";
+import { getI18n } from "@/i18n/server";
 import type { GameCity } from "@/server/game-context";
 import { IconColumns, IconUp } from "./icons";
 import { NameCityPrompt } from "./name-city-prompt";
@@ -28,7 +31,7 @@ const SCAFFOLD = "/assets/fx/scaffold.webp";
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
 
-export function CityScene({
+export async function CityScene({
   city,
   serverNow,
   selected,
@@ -43,6 +46,8 @@ export function CityScene({
   /** the city still has its automatic name: invite the player to name it */
   nameIt?: boolean;
 }) {
+  const i18n = await getI18n();
+  const { t } = i18n;
   const docked = Math.min(city.ships, MOORINGS.length);
   const focusX = selected != null ? CITY_PLOTS[selected].x : CITY_PLOTS[0].x;
   const snapshot: CitySnapshot = {
@@ -65,16 +70,18 @@ export function CityScene({
           <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-foam/85">
             {city.isCapital && <IconColumns size={15} className="shrink-0 text-gold" />}
             <span className="truncate">
-              {city.isCapital ? "Capital" : "Colonia"} en {city.island.name}
+              {city.isCapital
+                ? t({ en: `Capital on ${city.island.name}`, es: `Capital en ${city.island.name}` })
+                : t({ en: `Colony on ${city.island.name}`, es: `Colonia en ${city.island.name}` })}
             </span>
           </p>
           {nameIt && <NameCityPrompt cityId={city.id} name={city.name} />}
         </div>
       </div>
 
-      <SceneFrame focusX={focusX} hint="Deslizá para ver toda la ciudad">
+      <SceneFrame focusX={focusX} hint={t({ en: "Swipe to see the whole city", es: "Deslizá para ver toda la ciudad" })}>
         <ParallaxScene className="relative aspect-[3/2] w-full min-w-[720px] overflow-clip md:min-w-0">
-          <nav aria-label="Lugares de la ciudad" data-depth="1" data-oversize="1.016" className="absolute inset-0">
+          <nav aria-label={t({ en: "City plots", es: "Lugares de la ciudad" })} data-depth="1" data-oversize="1.016" className="absolute inset-0">
             <Image
               src="/assets/scene-city.webp"
               alt=""
@@ -121,6 +128,7 @@ export function CityScene({
                   selected={selected === slot}
                   canUpgrade={ready.includes(slot)}
                   serverNow={serverNow}
+                  i18n={i18n}
                 />
               ))}
             </SceneEvents>
@@ -195,6 +203,7 @@ function Plot({
   selected,
   canUpgrade,
   serverNow,
+  i18n: { t, lang },
 }: {
   city: GameCity;
   slot: number;
@@ -202,6 +211,7 @@ function Plot({
   selected: boolean;
   canUpgrade: boolean;
   serverNow: number;
+  i18n: I18n;
 }) {
   const pos = CITY_PLOTS[slot];
   const building = city.buildings.find((b) => b.slot === slot);
@@ -215,11 +225,18 @@ function Plot({
     const def = BUILDINGS[type];
     const upgrading = Boolean(building && work);
     const sprite = building ? def.image : CONSTRUCTION_IMAGE;
+    const name = buildingName(type, lang);
     const label = work
       ? building
-        ? `${def.name}, nivel ${building.level}, mejorando a nivel ${work.targetLevel}`
-        : `${def.name}, en obra hacia nivel ${work.targetLevel}`
-      : `${def.name}, nivel ${building!.level}${canUpgrade ? ". Podés mejorarlo" : ""}`;
+        ? t({
+            en: `${name}, level ${building.level}, upgrading to level ${work.targetLevel}`,
+            es: `${name}, nivel ${building.level}, mejorando a nivel ${work.targetLevel}`,
+          })
+        : t({ en: `${name}, under construction, level ${work.targetLevel}`, es: `${name}, en obra hacia nivel ${work.targetLevel}` })
+      : t({
+          en: `${name}, level ${building!.level}${canUpgrade ? ". Ready to upgrade" : ""}`,
+          es: `${name}, nivel ${building!.level}${canUpgrade ? ". Podés mejorarlo" : ""}`,
+        });
     return (
       <Link
         id={plotId(slot)}
@@ -284,7 +301,7 @@ function Plot({
 
         {work ? (
           <span className="absolute top-[64%] left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-sea-950/90 px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-gold shadow-md ring-1 ring-gold/50 sm:text-xs">
-            <span aria-hidden>Nv {work.targetLevel} ·</span>
+            <span aria-hidden>{t({ en: `Lv ${work.targetLevel} ·`, es: `Nv ${work.targetLevel} ·` })}</span>
             <Countdown endsAt={work.endsAt} serverNow={serverNow} />
           </span>
         ) : (
@@ -303,18 +320,29 @@ function Plot({
             )}
           </span>
         )}
-        <SceneRibbon title={def.name} sub={work ? undefined : canUpgrade ? `Nivel ${building!.level} · se puede mejorar` : `Nivel ${building!.level}`} top={84} reveal />
+        <SceneRibbon
+          title={name}
+          sub={
+            work
+              ? undefined
+              : canUpgrade
+                ? t({ en: `Level ${building!.level} · can upgrade`, es: `Nivel ${building!.level} · se puede mejorar` })
+                : t({ en: `Level ${building!.level}`, es: `Nivel ${building!.level}` })
+          }
+          top={84}
+          reveal
+        />
       </Link>
     );
   }
 
-  const label = emptySlotLabel(kind);
+  const label = t(emptySlotLabel(kind));
   return (
     <Link
       id={plotId(slot)}
       href={href}
       scroll={false}
-      aria-label={`${label}. Elegí qué construir`}
+      aria-label={t({ en: `${label}. Choose what to build`, es: `${label}. Elegí qué construir` })}
       aria-current={selected ? "location" : undefined}
       className="group absolute z-(--z) grid aspect-[2/1] min-h-12 w-[10%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full hover:z-50 focus-visible:z-50"
       style={zStyle}

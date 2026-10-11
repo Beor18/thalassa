@@ -147,6 +147,15 @@ export const IconLeave: HudIcon = ({ className }) => (
   </Line>
 );
 
+/** Globe: the language the game speaks. */
+export const IconLanguage: HudIcon = ({ className }) => (
+  <Line className={className}>
+    <circle cx="12" cy="12" r="8.8" />
+    <path d="M3.5 9.2h17M3.5 14.8h17" />
+    <path d="M12 3.2c2.3 2.4 3.5 5.3 3.5 8.8s-1.2 6.4-3.5 8.8c-2.3-2.4-3.5-5.3-3.5-8.8s1.2-6.4 3.5-8.8Z" />
+  </Line>
+);
+
 /** Shield: what raiders can't take. */
 export const IconShield: HudIcon = ({ className }) => (
   <Line className={className}>

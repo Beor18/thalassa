@@ -6,12 +6,18 @@ import { generateKeyPairSigner } from "@solana/kit";
 process.loadEnvFile(".env.local");
 
 const { db } = await import("../src/db");
-const { cities, missions, players, reports } = await import("../src/db/schema");
-const { eq, inArray } = await import("drizzle-orm");
+const { cities, islands, missions, players, reports } = await import("../src/db/schema");
+const { and, eq, inArray } = await import("drizzle-orm");
 const { findOrCreatePlayer } = await import("../src/server/world");
 const cmd = await import("../src/server/commands");
 const { processDueMissions } = await import("../src/server/missions");
 const { getSnapshot, getIsland, getRanking } = await import("../src/server/queries");
+
+/** A GameError's message in both languages: `message` is English, `text` carries every language. */
+const said = (e: unknown) => {
+  const err = e as Error & { text?: { en: string; es: string } };
+  return { en: err.message, es: err.text?.es ?? "" };
+};
 
 const check = (cond: unknown, label: string) => {
   if (!cond) {
@@ -23,6 +29,8 @@ const check = (cond: unknown, label: string) => {
 const a = await findOrCreatePlayer((await generateKeyPairSigner()).address);
 const b = await findOrCreatePlayer((await generateKeyPairSigner()).address);
 const ids = [a.id, b.id];
+// The barbarian raid below levels up a shared island: put it back as it was when done.
+let restoreIsland: (() => Promise<unknown>) | null = null;
 
 try {
   const [cityA] = await db.select().from(cities).where(eq(cities.playerId, a.id));
@@ -42,9 +50,15 @@ try {
     })
     .where(eq(cities.id, cityA.id));
   await db.update(players).set({ techs: ["expansion", "wisdom"] }).where(eq(players.id, a.id));
+  const [camp] = await db
+    .select({ level: islands.barbarianLevel, defeatedAt: islands.barbarianDefeatedAt })
+    .from(islands)
+    .where(eq(islands.id, cityA.islandId));
+  restoreIsland = () =>
+    db.update(islands).set({ barbarianLevel: camp.level, barbarianDefeatedAt: camp.defeatedAt }).where(eq(islands.id, cityA.islandId));
   // B is fresh and protected; an old account can be raided.
-  const protectedErr = await cmd.sendAttack(a.id, cityA.id, { cityId: cityB.id }, { spearman: 1 }).catch((e: Error) => e.message);
-  check(typeof protectedErr === "string" && protectedErr.includes("protección"), "newbie protection blocks raids");
+  const protectedErr = await cmd.sendAttack(a.id, cityA.id, { cityId: cityB.id }, { spearman: 1 }).then(() => null, said);
+  check(protectedErr?.en.includes("under protection") && protectedErr.es.includes("protección"), "newbie protection blocks raids");
   await db.update(players).set({ createdAt: new Date(Date.now() - 30 * 24 * 3_600_000) }).where(eq(players.id, b.id));
 
   await cmd.assignWorkers(a.id, cityA.id, { woodWorkers: 20 });
@@ -70,8 +84,9 @@ try {
 
   const repA = await db.select().from(reports).where(eq(reports.playerId, a.id));
   const repB = await db.select().from(reports).where(eq(reports.playerId, b.id));
-  console.log("     reports A:", repA.map((r) => r.title).join(" | "));
-  console.log("     reports B:", repB.map((r) => r.title).join(" | "));
+  const enTitle = (r: (typeof repA)[number]) => (r.body.title as { en?: string } | undefined)?.en ?? `(es) ${r.title}`;
+  console.log("     reports A:", repA.map(enTitle).join(" | "));
+  console.log("     reports B:", repB.map(enTitle).join(" | "));
   check(repA.some((r) => r.kind === "battle") && repB.some((r) => r.kind === "battle"), "battle reports for both sides");
   check(repB.some((r) => r.kind === "transport"), "receiver got a transport report");
 
@@ -86,12 +101,12 @@ try {
   await db.update(players).set({ ambrosia: 1000 }).where(eq(players.id, a.id));
   await db.update(cities).set({ crystal: 0 }).where(eq(cities.id, cityA.id)); // room for 3 deliveries
   for (let i = 0; i < 3; i++) await cmd.tradeAmbrosia(a.id, cityA.id, "crystal");
-  const fourth = await cmd.tradeAmbrosia(a.id, cityA.id, "crystal").catch((e: Error) => e.message);
-  check(typeof fourth === "string" && fourth.includes("3 veces"), "merchant capped at 3 per city per day");
+  const fourth = await cmd.tradeAmbrosia(a.id, cityA.id, "crystal").then(() => null, said);
+  check(fourth?.en.includes("3 times a day") && fourth.es.includes("3 veces"), "merchant capped at 3 per city per day");
   const { ambrosiaLedger } = await import("../src/db/schema");
   await db.insert(ambrosiaLedger).values({ playerId: a.id, delta: -299, reason: "finish:construction" });
-  const capped = await cmd.finishNow(a.id, cityA.id, "construction").catch((e: Error) => e.message);
-  check(typeof capped === "string" && capped.includes("tope diario"), "instant finish capped at 300 per day");
+  const capped = await cmd.finishNow(a.id, cityA.id, "construction").then(() => null, said);
+  check(capped?.en.includes("Daily limit") && capped.es.includes("tope diario"), "instant finish capped at 300 per day");
 
   const island = await getIsland(cityA.islandId, a.id);
   check(island && island.barbarians.level >= 1, "island view loads");
@@ -116,7 +131,8 @@ try {
   const islandB = await getIsland(cityB.islandId, a.id);
   const freeSlot = [0, 1, 2, 3, 4, 5, 6, 7].find((s) => !islandB!.cities.some((c) => c.slot === s))!;
   await cmd.sendColonists(a.id, cityA.id, cityB.islandId, freeSlot, "Nueva Atenas");
-  await db.update(missions).set({ arrivesAt: past }).where(eq(missions.kind, "colonize"));
+  // Only this run's players: never fast-forward anyone else's colonists.
+  await db.update(missions).set({ arrivesAt: past }).where(and(eq(missions.kind, "colonize"), inArray(missions.playerId, ids)));
   await processDueMissions();
   const colonies = await db.select().from(cities).where(eq(cities.playerId, a.id));
   check(colonies.length === 2, "colony founded");
@@ -127,5 +143,6 @@ try {
   // Clean up the throwaway players (cascades to cities, missions, reports).
   await db.delete(missions).where(inArray(missions.playerId, ids));
   await db.delete(players).where(inArray(players.id, ids));
+  await restoreIsland?.();
   process.exit(process.exitCode ?? 0);
 }

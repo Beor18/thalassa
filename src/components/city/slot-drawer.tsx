@@ -8,6 +8,7 @@ import clsx from "clsx";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { fx } from "@/components/fx/classes";
 import { useHydrated, useMediaQuery, useSheetDialog } from "@/components/fx/hooks";
+import { useI18n } from "@/i18n/client";
 import { IconInfo } from "./icons";
 import { CITY_SHEET_QUERY, plotId } from "./lib";
 
@@ -61,6 +62,7 @@ export function SlotDrawer({
   info?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const panelRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -217,8 +219,8 @@ export function SlotDrawer({
                   type="button"
                   aria-expanded={infoOpen}
                   aria-controls={infoId}
-                  aria-label="Cómo funciona"
-                  title="Cómo funciona"
+                  aria-label={t({ en: "How it works", es: "Cómo funciona" })}
+                  title={t({ en: "How it works", es: "Cómo funciona" })}
                   onClick={() => setInfoFor(infoOpen ? null : slot)}
                   className={clsx(
                     "grid size-10 shrink-0 place-items-center rounded-full transition-colors duration-100",
@@ -232,7 +234,7 @@ export function SlotDrawer({
                 href={closeHref}
                 replace
                 scroll={false}
-                aria-label="Cerrar panel"
+                aria-label={t({ en: "Close panel", es: "Cerrar panel" })}
                 onClick={() => setClosing(true)}
                 className="grid size-10 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
               >

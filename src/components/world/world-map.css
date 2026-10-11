@@ -338,7 +338,7 @@
   opacity: 1;
 }
 
-/* "Estás acá" chip over the current island */
+/* "You're here" chip over the current island */
 .wm-here {
   position: absolute;
   left: 50%;

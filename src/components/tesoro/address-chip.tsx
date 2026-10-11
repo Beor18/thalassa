@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
+import { useI18n } from "@/i18n/client";
 import { explorerAddress } from "@/lib/solana/config";
 import { shortAddress } from "@/lib/format";
 
@@ -22,8 +23,13 @@ function CopyIcon() {
   );
 }
 
-/** Short address with a copy button and a separate "Ver" link to the public explorer (test network). */
-export function AddressChip({ address, label = "dirección", tone = "light" }: { address: string; label?: string; tone?: "light" | "dark" }) {
+/**
+ * Short address with a copy button and a separate "View" link to the public explorer (test network).
+ * `label` names the address for screen readers, already translated ("your account").
+ */
+export function AddressChip({ address, label, tone = "light" }: { address: string; label?: string; tone?: "light" | "dark" }) {
+  const { t } = useI18n();
+  const name = label ?? t({ en: "address", es: "dirección" });
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -43,13 +49,13 @@ export function AddressChip({ address, label = "dirección", tone = "light" }: {
       <button
         type="button"
         onClick={copy}
-        aria-label={`Copiar ${label}`}
+        aria-label={t({ en: `Copy ${name}`, es: `Copiar ${name}` })}
         className={clsx(
           "inline-grid size-10 place-items-center rounded-lg transition",
           dark ? "text-foam/80 hover:bg-foam/10 hover:text-foam" : "text-ink-soft hover:bg-ink/5 hover:text-ink",
         )}
       >
-        {copied ? <span className="text-xs font-bold">Copiada</span> : <CopyIcon />}
+        {copied ? <span className="text-xs font-bold">{t({ en: "Copied", es: "Copiada" })}</span> : <CopyIcon />}
       </button>
       <a
         href={explorerAddress(address)}
@@ -60,12 +66,12 @@ export function AddressChip({ address, label = "dirección", tone = "light" }: {
           dark ? "text-sea-300" : "text-sea-700",
         )}
       >
-        Ver
+        {t({ en: "View", es: "Ver" })}
         <ExternalIcon />
-        <span className="sr-only"> {label} (se abre en otra pestaña)</span>
+        <span className="sr-only">{t({ en: ` ${name} (opens in a new tab)`, es: ` ${name} (se abre en otra pestaña)` })}</span>
       </a>
       <span aria-live="polite" className="sr-only">
-        {copied ? "Dirección copiada" : ""}
+        {copied ? t({ en: "Address copied", es: "Dirección copiada" }) : ""}
       </span>
     </span>
   );

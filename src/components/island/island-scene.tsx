@@ -9,9 +9,10 @@ import { ResIcon } from "@/components/ui/res";
 import { CloudShadows, Fire, Gulls, IslandBoats, Smoke, SunGlint, Twinkles, Vignette, SeaShimmer } from "@/components/fx/ambient";
 import { fx } from "@/components/fx/classes";
 import { ParallaxScene } from "@/components/fx/parallax";
+import { getI18n } from "@/i18n/server";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { IconFlag, IconSwords, IconTemple } from "./icons";
-import { MINE_NAME } from "./names";
+import { mineName } from "./names";
 import { LevelMedal, ResGlyph } from "./ui";
 import { Fleets, type FleetPath } from "./fleets";
 import { PanelLink } from "./panel-host";
@@ -148,7 +149,7 @@ function MineLife({ resource }: { resource: LuxuryResource }) {
   }
 }
 
-export function IslandScene({
+export async function IslandScene({
   island,
   activeCityId,
   now,
@@ -162,14 +163,18 @@ export function IslandScene({
   /** the player's city is here and nobody works the sawmill: call them over */
   idleSawmill?: boolean;
 }) {
+  const { t, lang } = await getI18n();
   const rebuilding = island.barbarians.rebuildingUntil;
+  const mine = mineName(island.resource, lang);
+  const sawmill = t({ en: "Sawmill", es: "Aserradero" });
+  const freePlot = t({ en: "Free plot", es: "Lugar libre" });
   const hasActive = island.cities.some((c) => c.id === activeCityId);
   const firstMine = island.cities.find((c) => c.isMine)?.id;
 
   return (
     <div className="panel-dark min-w-0 p-1.5">
       <ScrollFrame
-        label={`Mapa de ${island.name}`}
+        label={t({ en: `Map of ${island.name}`, es: `Mapa de ${island.name}` })}
         className="overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-[10px] [scrollbar-color:rgb(111_179_230/0.5)_transparent] [scrollbar-width:thin]"
       >
         {/* Fixed minimum width keeps labels legible: narrow screens pan inside the frame, the page never scrolls sideways. */}
@@ -190,12 +195,15 @@ export function IslandScene({
 
             <Spot
               panel="sawmill"
-              name={`Aserradero, nivel ${island.sawmill.level}${idleSawmill ? ", sin trabajadores" : ""}`}
+              name={t({
+                en: `Sawmill, level ${island.sawmill.level}${idleSawmill ? ", no workers" : ""}`,
+                es: `Aserradero, nivel ${island.sawmill.level}${idleSawmill ? ", sin trabajadores" : ""}`,
+              })}
               pos={ISLAND_FEATURES.sawmill}
               width={12}
               focus={idleSawmill}
               image={ISLAND_FEATURE_IMAGE.sawmill}
-              label={<Label tone="parchment" title="Aserradero" />}
+              label={<Label tone="parchment" title={sawmill} />}
               life={<Smoke x={58} y={40} size={20} dur={4.6} peak={0.42} rise={-120} tint="sepia(0.6) saturate(1.2)" puffs={2} />}
             >
               <Sprite
@@ -222,11 +230,11 @@ export function IslandScene({
 
             <Spot
               panel="mine"
-              name={`${MINE_NAME[island.resource]}, nivel ${island.mine.level}`}
+              name={t({ en: `${mine}, level ${island.mine.level}`, es: `${mine}, nivel ${island.mine.level}` })}
               pos={ISLAND_FEATURES.mine}
               width={12}
               image={ISLAND_FEATURE_IMAGE[island.resource]}
-              label={<Label tone="parchment" title={MINE_NAME[island.resource]} />}
+              label={<Label tone="parchment" title={mine} />}
               life={<MineLife resource={island.resource} />}
             >
               <Sprite
@@ -243,14 +251,17 @@ export function IslandScene({
 
             <Spot
               panel="camp"
-              name={`Campamento bárbaro, nivel ${island.barbarians.level}${rebuilding ? ", reconstruyendo" : ""}`}
+              name={t({
+                en: `Barbarian camp, level ${island.barbarians.level}${rebuilding ? ", rearming" : ""}`,
+                es: `Campamento bárbaro, nivel ${island.barbarians.level}${rebuilding ? ", reconstruyendo" : ""}`,
+              })}
               pos={ISLAND_FEATURES.barbarians}
               width={11}
               image={ISLAND_FEATURE_IMAGE.barbarians}
               label={
                 <Label
                   tone={rebuilding ? "dark" : "parchment"}
-                  title="Bárbaros"
+                  title={t({ en: "Barbarians", es: "Bárbaros" })}
                   sub={rebuilding ? <Countdown endsAt={rebuilding} serverNow={now} /> : undefined}
                 />
               }
@@ -320,8 +331,10 @@ export function IslandScene({
                         <IconFlag size={13} />
                       </span>
                     </span>
-                    <span className="sr-only">Lugar libre {slot + 1}</span>
-                    <SceneRibbon title="Lugar libre" sub="Fundá una colonia" top={80} reveal />
+                    <span className="sr-only">
+                      {freePlot} {slot + 1}
+                    </span>
+                    <SceneRibbon title={freePlot} sub={t({ en: "Found a colony", es: "Fundá una colonia" })} top={80} reveal />
                   </PanelLink>
                 );
               }
@@ -331,7 +344,13 @@ export function IslandScene({
                 <Spot
                   key={slot}
                   panel={`plot-${slot}`}
-                  name={`${c.name}, ${c.isMine ? (isActive ? "tu ciudad, estás acá" : "tu ciudad") : `ciudad de ${c.playerName}`}`}
+                  name={`${c.name}, ${
+                    c.isMine
+                      ? isActive
+                        ? t({ en: "your city, you're here", es: "tu ciudad, estás acá" })
+                        : t({ en: "your city", es: "tu ciudad" })
+                      : t({ en: `${c.playerName}'s city`, es: `ciudad de ${c.playerName}` })
+                  }`}
                   pos={pos}
                   width={CITY_WIDTH}
                   focus={focus}
@@ -341,7 +360,7 @@ export function IslandScene({
                       side={PLOT_LABEL_SIDE[slot]}
                       tone={c.isMine ? "gold" : "dark"}
                       title={c.name}
-                      sub={c.isMine ? (isActive ? "Estás acá" : undefined) : c.playerName}
+                      sub={c.isMine ? (isActive ? t({ en: "You're here", es: "Estás acá" }) : undefined) : c.playerName}
                     />
                   }
                 >

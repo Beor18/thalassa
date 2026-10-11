@@ -5,8 +5,9 @@ import Image from "next/image";
 import clsx from "clsx";
 import type { BuildingType, ResourceBag } from "@/game/data";
 import { CostList } from "@/components/ui/res";
-import { fmtDuration } from "@/lib/format";
-import { Duration } from "./bits";
+import { buildingName } from "@/game/names";
+import { useI18n } from "@/i18n/client";
+import { Duration } from "./duration";
 import { BuildButton } from "./build-button";
 import { fmtSoon } from "./lib";
 
@@ -17,9 +18,9 @@ export interface BuildOption {
   image: string;
   cost: ResourceBag;
   seconds: number;
-  /** what level 1 gives ("+8 pupitres") */
+  /** what level 1 gives ("+8 desks") */
   gains: string[];
-  /** "Te falta 120 de madera." */
+  /** "You need 120 more wood." */
   missing: string | null;
   /** when production covers what's missing */
   etaMs: number | null;
@@ -45,13 +46,14 @@ export function BuildPicker({
   /** another construction is running: nothing can start */
   busy: boolean;
 }) {
+  const { t, lang, fmtDuration } = useI18n();
   const [picked, setPicked] = useState<BuildingType>(() => (options.find((o) => !o.missing) ?? options[0]).type);
   const o = options.find((x) => x.type === picked) ?? options[0];
   const single = options.length === 1;
 
   return (
     <div className="flex flex-col gap-2.5">
-      <div role="radiogroup" aria-label="Qué construir" className="flex flex-col gap-1.5">
+      <div role="radiogroup" aria-label={t({ en: "What to build", es: "Qué construir" })} className="flex flex-col gap-1.5">
         {options.map((opt) => {
           const on = opt.type === o.type;
           return (
@@ -114,15 +116,24 @@ export function BuildPicker({
       {/* The action stays in reach while the list scrolls. */}
       <div className="sticky bottom-0 z-[5] -mx-4 flex flex-col gap-1.5 border-t border-parchment-3/70 bg-parchment/95 px-4 pt-2.5 pb-1 backdrop-blur-sm">
         <BuildButton cityId={cityId} slot={slot} type={o.type} className="w-full" disabled={busy || o.missing != null}>
-          Construir {o.name}
+          {t({ en: `Build ${o.name}`, es: `Construir ${o.name}` })}
         </BuildButton>
         {!busy &&
           (o.tooBig ? (
-            <p className="text-sm font-bold text-bronze-dark">No entra en tu depósito: ampliá el Depósito.</p>
+            <p className="text-sm font-bold text-bronze-dark">
+              {t({
+                en: `Too big for your storage: upgrade the ${buildingName("warehouse", lang)}.`,
+                es: `No entra en tu depósito: ampliá el ${buildingName("warehouse", lang)}.`,
+              })}
+            </p>
           ) : o.missing ? (
             <p className="text-sm">
               <span className="font-bold text-danger">{o.missing}</span>
-              {o.etaMs != null && <span className="text-ink-soft"> Lo juntás en {fmtSoon(o.etaMs)}.</span>}
+              {o.etaMs != null && (
+                <span className="text-ink-soft">
+                  {t({ en: ` You'll have it in ${fmtSoon(o.etaMs)}.`, es: ` Lo juntás en ${fmtSoon(o.etaMs)}.` })}
+                </span>
+              )}
             </p>
           ) : null)}
       </div>

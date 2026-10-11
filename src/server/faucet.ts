@@ -39,7 +39,7 @@ const rpcSubscriptions = createSolanaRpcSubscriptions(
 async function faucetSigner() {
   const inline = process.env.FAUCET_KEYPAIR;
   const file = process.env.FAUCET_KEYPAIR_PATH;
-  if (!inline && !file) throw new GameError("La canilla de SOL de prueba no está configurada.");
+  if (!inline && !file) throw new GameError({ en: "Free test SOL isn't set up on this server.", es: "La canilla de SOL de prueba no está configurada." });
   const bytes = JSON.parse(inline ?? (await readFile(path.resolve(file!), "utf8"))) as number[];
   return createKeyPairSignerFromBytes(new Uint8Array(bytes));
 }
@@ -56,9 +56,12 @@ export async function claimFaucet(playerId: string) {
       .from(players)
       .where(eq(players.id, playerId))
       .for("update");
-    if (!p) throw new GameError("Tu cuenta no existe.");
+    if (!p) throw new GameError({ en: "Your account doesn't exist.", es: "Tu cuenta no existe." });
     const next = (p.claimedAt?.getTime() ?? 0) + COOLDOWN_MS;
-    if (next > now) throw new GameError(`Ya te mandamos SOL de prueba. Volvé en ${fmtDuration(next - now)}.`);
+    if (next > now) {
+      const wait = fmtDuration(next - now);
+      throw new GameError({ en: `We already sent you test SOL. Come back in ${wait}.`, es: `Ya te mandamos SOL de prueba. Volvé en ${wait}.` });
+    }
     await tx.update(players).set({ faucetClaimedAt: new Date(now) }).where(eq(players.id, playerId));
     return p;
   });
@@ -66,7 +69,12 @@ export async function claimFaucet(playerId: string) {
   try {
     const faucet = await faucetSigner();
     const { value: balance } = await rpc.getBalance(faucet.address, { commitment: "confirmed" }).send();
-    if (balance < FAUCET_LAMPORTS + 10_000n) throw new GameError("La canilla del juego se quedó seca. Probá con faucet.solana.com.");
+    if (balance < FAUCET_LAMPORTS + 10_000n) {
+      throw new GameError({
+        en: "The game ran out of test SOL to give. Try faucet.solana.com.",
+        es: "La canilla del juego se quedó seca. Probá con faucet.solana.com.",
+      });
+    }
     const { value: blockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
     const message = pipe(
       createTransactionMessage({ version: 0 }),
@@ -87,6 +95,6 @@ export async function claimFaucet(playerId: string) {
     await db.update(players).set({ faucetClaimedAt: claim.claimedAt }).where(eq(players.id, playerId));
     if (err instanceof GameError) throw err;
     console.error("[thalassa] faucet failed", err);
-    throw new GameError("La red de prueba no respondió. Probá de nuevo en un rato.");
+    throw new GameError({ en: "The test network didn't respond. Try again in a little while.", es: "La red de prueba no respondió. Probá de nuevo en un rato." });
   }
 }

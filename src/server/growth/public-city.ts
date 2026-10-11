@@ -3,12 +3,12 @@ import { cacheLife } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { cities, islands, players } from "@/db/schema";
-import { BUILDINGS, type BuildingType, type LuxuryResource } from "@/game/data";
+import type { BuildingType, LuxuryResource } from "@/game/data";
 import { referralCode } from "./referral-code";
 
+/** Names are looked up per language where they're shown (buildingName in @/game/names). */
 export interface PublicBuilding {
   type: BuildingType;
-  name: string;
   level: number;
 }
 
@@ -29,13 +29,6 @@ export interface PublicCity {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export const RESOURCE_LABEL: Record<LuxuryResource, string> = {
-  wine: "vino",
-  marble: "mármol",
-  crystal: "cristal",
-  sulfur: "azufre",
-};
 
 /** Public view of a polis, cached for a few minutes so shared links cost almost nothing. */
 export async function getPublicCity(id: string): Promise<PublicCity | null> {
@@ -85,7 +78,7 @@ export async function getPublicCity(id: string): Promise<PublicCity | null> {
     topBuildings: [...buildings]
       .sort((a, b) => b.level - a.level || a.slot - b.slot)
       .slice(0, 4)
-      .map((b) => ({ type: b.type, name: BUILDINGS[b.type].name, level: b.level })),
+      .map((b) => ({ type: b.type, level: b.level })),
     foundedAt: row.createdAt.getTime(),
   };
 }

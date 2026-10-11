@@ -3,10 +3,11 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { RESOURCE_INFO } from "@/game/data";
-import { fmtDuration } from "@/lib/format";
+import type { Locale } from "@/i18n/config";
+import { useI18n } from "@/i18n/client";
 import { useServerClock } from "@/lib/use-server-clock";
 import type { MapIsland } from "./island-marker";
-import { FLEET_COLOR, FLEET_KIND_LABEL } from "./fleets";
+import { FLEET_COLOR, FLEET_KIND_LABEL, fleetTitle } from "./fleets";
 import type { FleetView } from "./types";
 
 const norm = (v: string) =>
@@ -31,6 +32,7 @@ export function IslandSearch({
   currentIslandId: number;
   onPick: (id: number, via: "pointer" | "keyboard") => void;
 }) {
+  const { t, fmtDuration } = useI18n();
   const id = useId();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -61,7 +63,7 @@ export function IslandSearch({
   return (
     <div data-hud className="relative w-full sm:w-72">
       <label htmlFor={`${id}-input`} className="sr-only">
-        Ir a isla
+        {t({ en: "Go to island", es: "Ir a isla" })}
       </label>
       <div className={clsx("flex h-11 items-center gap-2 rounded-xl pr-1 pl-3 focus-within:ring-2 focus-within:ring-gold", glass)}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden className="shrink-0 text-foam/70">
@@ -79,7 +81,7 @@ export function IslandSearch({
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="go"
-          placeholder="Ir a isla…"
+          placeholder={t({ en: "Find an island…", es: "Ir a isla…" })}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -116,7 +118,7 @@ export function IslandSearch({
         <ul
           id={listId}
           role="listbox"
-          aria-label="Islas"
+          aria-label={t({ en: "Islands", es: "Islas" })}
           className={clsx("absolute inset-x-0 top-full z-40 mt-2 max-h-80 overflow-y-auto overscroll-contain rounded-xl p-1", glass)}
         >
           {results.map((i, k) => (
@@ -135,14 +137,16 @@ export function IslandSearch({
               <span aria-hidden className="size-6 shrink-0 bg-contain bg-no-repeat" style={{ backgroundImage: `url(${RESOURCE_INFO[i.resource].icon})` }} />
               <span className="min-w-0 flex-1 truncate font-bold">{i.name}</span>
               <span className="tabular shrink-0 text-sm text-foam/75">
-                {i.id === currentIslandId ? "Estás acá" : fmtDuration((travel[i.id] ?? 0) * 1000)}
+                {i.id === currentIslandId ? t({ en: "You're here", es: "Estás acá" }) : fmtDuration((travel[i.id] ?? 0) * 1000)}
               </span>
             </li>
           ))}
         </ul>
       )}
       {open && results.length === 0 && (
-        <p className={clsx("absolute inset-x-0 top-full z-40 mt-2 rounded-xl px-3 py-2.5 text-sm", glass)}>Ninguna isla se llama así.</p>
+        <p className={clsx("absolute inset-x-0 top-full z-40 mt-2 rounded-xl px-3 py-2.5 text-sm", glass)}>
+          {t({ en: "No island by that name.", es: "Ninguna isla se llama así." })}
+        </p>
       )}
     </div>
   );
@@ -167,27 +171,29 @@ function ControlButton({ label, onClick, children, wide }: { label: string; onCl
 }
 
 export function MapControls({ onZoomIn, onZoomOut, onHome }: { onZoomIn: () => void; onZoomOut: () => void; onHome: () => void }) {
+  const { t } = useI18n();
+  const center = t({ en: "Center on my island", es: "Centrar en mi isla" });
   return (
     <div data-hud className="flex flex-col items-end gap-2">
       <div className="flex flex-col gap-2">
-        <ControlButton label="Acercar" onClick={onZoomIn}>
+        <ControlButton label={t({ en: "Zoom in", es: "Acercar" })} onClick={onZoomIn}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden>
             <path d="M12 5v14M5 12h14" />
           </svg>
         </ControlButton>
-        <ControlButton label="Alejar" onClick={onZoomOut}>
+        <ControlButton label={t({ en: "Zoom out", es: "Alejar" })} onClick={onZoomOut}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden>
             <path d="M5 12h14" />
           </svg>
         </ControlButton>
       </div>
-      <ControlButton label="Centrar en mi isla" onClick={onHome} wide>
+      <ControlButton label={center} onClick={onHome} wide>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden className="text-gold">
           <circle cx="12" cy="12" r="3.5" />
           <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" />
         </svg>
-        <span className="hidden text-sm sm:inline">Mi isla</span>
-        <span className="sr-only sm:hidden">Centrar en mi isla</span>
+        <span className="hidden text-sm sm:inline">{t({ en: "My island", es: "Mi isla" })}</span>
+        <span className="sr-only sm:hidden">{center}</span>
       </ControlButton>
     </div>
   );
@@ -214,13 +220,13 @@ function usePopover<T extends string>() {
   return { open, setOpen, ref, onKeyDown };
 }
 
-function fleetLeg(f: FleetView) {
+function fleetLeg(f: FleetView, lang: Locale) {
   const back = f.status === "returning";
   return {
     back,
     endsAt: back ? (f.returnsAt ?? f.arrivesAt) : f.arrivesAt,
     islandId: back ? f.homeIslandId : f.targetIslandId,
-    title: back ? `Vuelve a ${f.originName}` : `${FLEET_KIND_LABEL[f.kind]} a ${f.targetLabel}`,
+    title: back ? (lang === "en" ? `Back to ${f.originName}` : `Vuelve a ${f.originName}`) : fleetTitle(f.kind, f.targetLabel, lang),
   };
 }
 
@@ -241,19 +247,20 @@ export function MapDock({
   shipIcon: string;
   onPick: (islandId: number) => void;
 }) {
+  const { t, lang, fmt, fmtDuration } = useI18n();
   const { open, setOpen, ref, onKeyDown } = usePopover<"fleets" | "legend">();
   const now = useServerClock(serverNow, 1000);
   const listId = useId();
   const legendId = useId();
-  const legs = fleets.map((f) => ({ f, ...fleetLeg(f) })).sort((a, b) => a.endsAt - b.endsAt);
+  const legs = fleets.map((f) => ({ f, ...fleetLeg(f, lang) })).sort((a, b) => a.endsAt - b.endsAt);
   const next = legs.find((l) => l.endsAt > now);
-  const left = (t: number) => (t > now ? fmtDuration(t - now) : "Llegando");
+  const left = (at: number) => (at > now ? fmtDuration(at - now) : t({ en: "Arriving", es: "Llegando" }));
 
   return (
     <div data-hud ref={ref} onKeyDown={onKeyDown} className="relative flex items-end gap-2">
       {open === "fleets" && legs.length > 0 && (
         <div className={clsx("absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl p-1", glass)}>
-          <p className="px-2.5 pt-1.5 pb-1 text-xs font-extrabold tracking-wider text-foam/70 uppercase">Tus flotas</p>
+          <p className="px-2.5 pt-1.5 pb-1 text-xs font-extrabold tracking-wider text-foam/70 uppercase">{t({ en: "Your fleets", es: "Tus flotas" })}</p>
           <ul id={listId} className="flex max-h-64 flex-col overflow-y-auto overscroll-contain">
             {legs.map(({ f, title, endsAt, islandId }) => (
               <li key={f.id}>
@@ -268,7 +275,9 @@ export function MapDock({
                   <span aria-hidden className="size-2.5 shrink-0 rounded-full ring-2 ring-foam/30" style={{ background: FLEET_COLOR[f.kind] }} />
                   <span className="min-w-0 flex-1 leading-tight">
                     <span className="block truncate text-sm font-bold">{title}</span>
-                    <span className="block text-xs text-foam/70">{f.ships === 1 ? "1 barco" : `${f.ships} barcos`}</span>
+                    <span className="block text-xs text-foam/70">
+                      {f.ships === 1 ? t({ en: "1 ship", es: "1 barco" }) : t({ en: `${fmt(f.ships)} ships`, es: `${fmt(f.ships)} barcos` })}
+                    </span>
                   </span>
                   <span className="tabular shrink-0 text-sm font-bold text-gold" suppressHydrationWarning>
                     {left(endsAt)}
@@ -287,21 +296,21 @@ export function MapDock({
                 <span className="absolute inset-0 rounded-full border-2 border-gold/90" />
                 <span className="size-1.5 rounded-full bg-gold" />
               </span>
-              Isla de {originName}
+              {t({ en: `${originName}'s island`, es: `Isla de ${originName}` })}
             </li>
             <li className="flex items-center gap-2">
               <span aria-hidden className="h-3.5 w-5 rounded-[3px] bg-gradient-to-b from-[#fbe7a6] to-[#c9952f] ring-1 ring-bronze-dark" />
-              Tenés ciudades
+              {t({ en: "You have cities here", es: "Tenés ciudades" })}
             </li>
             <li className="flex items-center gap-2">
               <span aria-hidden className="tabular w-5 text-center text-[11px] font-bold text-foam/80">2/8</span>
-              Lugares ocupados
+              {t({ en: "Plots taken", es: "Lugares ocupados" })}
             </li>
             <li className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-foam/80">
               {(["transport", "attack", "colonize"] as const).map((k) => (
                 <span key={k} className="inline-flex items-center gap-1">
                   <span aria-hidden className="size-2 rounded-full" style={{ background: FLEET_COLOR[k] }} />
-                  {FLEET_KIND_LABEL[k]}
+                  {t(FLEET_KIND_LABEL[k])}
                 </span>
               ))}
             </li>
@@ -313,7 +322,10 @@ export function MapDock({
           type="button"
           aria-expanded={open === "fleets"}
           aria-controls={open === "fleets" ? listId : undefined}
-          aria-label={`${legs.length === 1 ? "1 flota" : `${legs.length} flotas`} en el mar${next ? `, la próxima llega en ${left(next.endsAt)}` : ""}`}
+          aria-label={t({
+            en: `${legs.length === 1 ? "1 fleet" : `${legs.length} fleets`} at sea${next ? `, next one lands in ${left(next.endsAt)}` : ""}`,
+            es: `${legs.length === 1 ? "1 flota" : `${legs.length} flotas`} en el mar${next ? `, la próxima llega en ${left(next.endsAt)}` : ""}`,
+          })}
           onClick={() => setOpen((o) => (o === "fleets" ? null : "fleets"))}
           className={clsx("flex h-11 items-center gap-2 rounded-xl pr-3 pl-2 text-sm font-bold transition hover:bg-sea-700/90", glass)}
         >
@@ -330,8 +342,8 @@ export function MapDock({
         type="button"
         aria-expanded={open === "legend"}
         aria-controls={open === "legend" ? legendId : undefined}
-        aria-label="Referencias del mapa"
-        title="Referencias"
+        aria-label={t({ en: "Map legend", es: "Referencias del mapa" })}
+        title={t({ en: "Legend", es: "Referencias" })}
         onClick={() => setOpen((o) => (o === "legend" ? null : "legend"))}
         className={clsx("grid size-11 place-items-center rounded-xl text-base font-black transition hover:bg-sea-700/90", glass)}
       >

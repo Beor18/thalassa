@@ -12,7 +12,7 @@ const AMBROSIA_OFFSET = 40;
 const rpc = createSolanaRpc(SOLANA_RPC_URL);
 
 export async function citizenAddress(owner: string) {
-  if (!PROGRAM_ID) throw new GameError("El programa de Solana todavía no está configurado.");
+  if (!PROGRAM_ID) throw new GameError({ en: "The Nectar shop isn't set up yet.", es: "El programa de Solana todavía no está configurado." });
   const [pda] = await getProgramDerivedAddress({
     programAddress: address(PROGRAM_ID),
     seeds: [new TextEncoder().encode("citizen"), getAddressEncoder().encode(address(owner))],
@@ -25,14 +25,18 @@ export async function readCitizenAmbrosia(owner: string): Promise<number> {
   const pda = await citizenAddress(owner);
   const account = await fetchEncodedAccount(rpc, pda, { commitment: "confirmed" });
   if (!account.exists) return 0;
-  if (account.programAddress !== PROGRAM_ID) throw new GameError("La cuenta on-chain no pertenece al juego.");
+  if (account.programAddress !== PROGRAM_ID) {
+    throw new GameError({ en: "That purchase record doesn't belong to the game.", es: "La cuenta on-chain no pertenece al juego." });
+  }
   const data = account.data;
   if (data.length < AMBROSIA_OFFSET + 8 || CITIZEN_DISCRIMINATOR.some((b, i) => data[i] !== b)) {
-    throw new GameError("La cuenta on-chain tiene un formato inesperado.");
+    throw new GameError({ en: "Your purchase record looks wrong. Try again later.", es: "La cuenta on-chain tiene un formato inesperado." });
   }
   const ownerBytes = getAddressEncoder().encode(address(owner));
   for (let i = 0; i < 32; i++) {
-    if (data[OWNER_OFFSET + i] !== ownerBytes[i]) throw new GameError("La cuenta on-chain no es tuya.");
+    if (data[OWNER_OFFSET + i] !== ownerBytes[i]) {
+      throw new GameError({ en: "That purchase record isn't yours.", es: "La cuenta on-chain no es tuya." });
+    }
   }
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   return Number(view.getBigUint64(AMBROSIA_OFFSET, true));

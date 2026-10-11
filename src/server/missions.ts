@@ -16,7 +16,9 @@ import {
   resolveCombat,
   type PlayerState,
 } from "@/game/engine";
+import type { Text } from "@/i18n/config";
 import { GAME_SPEED } from "./config";
+import { REPORT_TITLES as T } from "./report-text";
 import { loadPlayer, savePlayer } from "./state";
 
 type MissionRow = typeof missions.$inferSelect;
@@ -65,8 +67,12 @@ async function startReturn(tx: Tx, m: MissionRow, t: number, patch: Partial<Miss
     .where(eq(missions.id, m.id));
 }
 
-async function report(tx: Tx, playerId: string, kind: "battle" | "transport" | "colony" | "system", title: string, body: Record<string, unknown>, at: number) {
-  await tx.insert(reports).values({ playerId, kind, title, body, createdAt: new Date(at) });
+/**
+ * Reports speak every language: `body.title` holds the title as Text and the UI picks one.
+ * The `title` column keeps the Spanish line, as older rows (without body.title) have it.
+ */
+async function report(tx: Tx, playerId: string, kind: "battle" | "transport" | "colony" | "system", title: Text, body: Record<string, unknown>, at: number) {
+  await tx.insert(reports).values({ playerId, kind, title: title.es, body: { ...body, title }, createdAt: new Date(at) });
 }
 
 async function handleReturn(tx: Tx, m: MissionRow, t: number) {
@@ -113,8 +119,8 @@ async function arriveTransport(tx: Tx, m: MissionRow, t: number) {
   }
   const to = await cityLabel(tx, m.targetCityId!);
   const body = { from, to, cargo: m.cargo };
-  await report(tx, m.playerId, "transport", `Tus barcos llegaron a ${to.name}`, body, t);
-  if (target.playerId !== m.playerId) await report(tx, target.playerId, "transport", `${from.playerName} te mandó recursos`, body, t);
+  await report(tx, m.playerId, "transport", T.shipsArrived(to.name), body, t);
+  if (target.playerId !== m.playerId) await report(tx, target.playerId, "transport", T.resourcesReceived(from.playerName), body, t);
   await startReturn(tx, m, t, { cargo: {} });
 }
 
@@ -152,8 +158,16 @@ async function arriveAttackCity(tx: Tx, m: MissionRow, t: number) {
     attackerWins: result.attackerWins,
     loot,
   };
-  await report(tx, m.playerId, "battle", result.attackerWins ? `Victoria en ${city.name}` : `Derrota en ${city.name}`, { ...body, role: "attacker" }, t);
-  await report(tx, defender.id, "battle", result.attackerWins ? `${attackerLabel.playerName} saqueó ${city.name}` : `Rechazaste a ${attackerLabel.playerName}`, { ...body, role: "defender" }, t);
+  const attacker = attackerLabel.playerName;
+  await report(tx, m.playerId, "battle", result.attackerWins ? T.victory(city.name) : T.defeat(city.name), { ...body, role: "attacker" }, t);
+  await report(
+    tx,
+    defender.id,
+    "battle",
+    result.attackerWins ? T.raided(attacker, city.name) : T.droveOff(attacker),
+    { ...body, role: "defender" },
+    t,
+  );
   await startReturn(tx, m, t, { units: result.attackerSurvivors, cargo: loot });
 }
 
@@ -163,7 +177,8 @@ async function arriveAttackBarbarians(tx: Tx, m: MissionRow, t: number) {
   const rebuilding = island.barbarianDefeatedAt && island.barbarianDefeatedAt.getTime() + cooldownMs > t;
   const attackerLabel = await cityLabel(tx, m.originCityId);
   if (rebuilding) {
-    await report(tx, m.playerId, "battle", `El campamento de ${island.name} estaba vacío`, {
+    await report(tx, m.playerId, "battle", T.campEmpty(island.name), {
+      // The camp's name is fixed Spanish data kept for older rows; the UI names barbarians by `kind`.
       target: { kind: "barbarians", name: "Campamento bárbaro", islandName: island.name, level: island.barbarianLevel },
       empty: true,
       role: "attacker",
@@ -185,7 +200,7 @@ async function arriveAttackBarbarians(tx: Tx, m: MissionRow, t: number) {
     tx,
     m.playerId,
     "battle",
-    result.attackerWins ? `Arrasaste el campamento de ${island.name}` : `Los bárbaros de ${island.name} resistieron`,
+    result.attackerWins ? T.campCrushed(island.name) : T.campHeld(island.name),
     {
       role: "attacker",
       target: { kind: "barbarians", name: "Campamento bárbaro", islandName: island.name, level: island.barbarianLevel },
@@ -221,7 +236,7 @@ async function arriveColonize(tx: Tx, m: MissionRow, t: number) {
       }
       await savePlayer(tx, owner);
     }
-    await report(tx, m.playerId, "colony", `No quedaba lugar en ${island.name}`, { islandName: island.name, ok: false }, t);
+    await report(tx, m.playerId, "colony", T.colonyNoRoom(island.name), { islandName: island.name, ok: false }, t);
     await startReturn(tx, m, t);
     return;
   }
@@ -247,6 +262,6 @@ async function arriveColonize(tx: Tx, m: MissionRow, t: number) {
       createdAt: new Date(t),
     })
     .returning({ id: cities.id, name: cities.name });
-  await report(tx, m.playerId, "colony", `Fundaste ${created.name}`, { islandName: island.name, cityName: created.name, cityId: created.id, ok: true }, t);
+  await report(tx, m.playerId, "colony", T.colonyFounded(created.name), { islandName: island.name, cityName: created.name, cityId: created.id, ok: true }, t);
   await startReturn(tx, m, t);
 }

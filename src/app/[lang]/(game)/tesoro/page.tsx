@@ -7,10 +7,14 @@ import { Merchant } from "@/components/tesoro/merchant";
 import { SECTION_NARROW } from "@/components/tesoro/section-ui";
 import { AnimatedNumber } from "@/components/motion/animated-number";
 import { stagger } from "@/components/motion/reveal";
+import { getI18n } from "@/i18n/server";
 import { findCitizenPda, programAddress } from "@/lib/solana/program";
 import { getGame } from "@/server/game-context";
 
-export const metadata: Metadata = { title: "Néctar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Nectar", es: "Néctar" }) };
+}
 
 export default function TesoroPage() {
   return (
@@ -21,7 +25,7 @@ export default function TesoroPage() {
 }
 
 async function Content() {
-  const game = await getGame();
+  const [game, { t }] = await Promise.all([getGame(), getI18n()]);
   const { snapshot, city } = game;
   const player = snapshot.player;
   const citizenPda = programAddress() ? await findCitizenPda(player.wallet) : null;
@@ -37,14 +41,14 @@ async function Content() {
           <AmbrosiaVessel />
           <div className="relative min-w-0 flex-1 leading-none">
             <h1 id="nectar-title" className="font-display text-xs font-bold tracking-[0.25em] text-sea-300 uppercase">
-              Tu néctar
+              {t({ en: "Your Nectar", es: "Tu néctar" })}
             </h1>
             <p className="mt-1 font-display text-4xl font-black">
               <AnimatedNumber value={player.ambrosia} float className="text-shimmer-ambrosia" />
             </p>
           </div>
           <p className="relative hidden max-w-xs text-right text-sm leading-snug text-foam/80 sm:block">
-            Terminá obras al instante o llamá al mercader.
+            {t({ en: "Finish builds instantly or call the merchant.", es: "Terminá obras al instante o llamá al mercader." })}
           </p>
         </section>
 
@@ -54,10 +58,10 @@ async function Content() {
           ) : (
             <section aria-labelledby="shop-closed-title" className="panel flex flex-col gap-2 p-4">
               <h2 id="shop-closed-title" className="font-display text-xl font-bold">
-                Comprar néctar
+                {t({ en: "Buy Nectar", es: "Comprar néctar" })}
               </h2>
               <p className="rounded-xl border border-bronze/40 bg-parchment-2 px-3 py-2 text-[15px]">
-                La tienda todavía no abrió. El mercader sigue atendiendo.
+                {t({ en: "The shop isn't open yet. The merchant is still trading.", es: "La tienda todavía no abrió. El mercader sigue atendiendo." })}
               </p>
             </section>
           )}

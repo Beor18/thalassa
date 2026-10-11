@@ -1,11 +1,12 @@
 import clsx from "clsx";
 import { ResIcon } from "@/components/ui/res";
-import { fmt, fmt1 } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
 import { Meter } from "./bits";
 import { IconUp } from "./icons";
 
-/** "124 / 255" with a housing bar and the growth per hour. Used by the town hall and the city summary. */
-export function PopulationBar({ population, housing, growth }: { population: number; housing: number; growth: number }) {
+/** "124 / 255" with a housing bar and the growth per hour. Used by the town hall and the city summary. Server Component. */
+export async function PopulationBar({ population, housing, growth }: { population: number; housing: number; growth: number }) {
+  const { t, fmt, fmt1 } = await getI18n();
   const full = population >= housing - 0.5;
   const tone = full ? "text-bronze-dark" : growth > 0.05 ? "text-success" : growth < -0.05 ? "text-danger" : "text-ink-soft";
   return (
@@ -17,16 +18,16 @@ export function PopulationBar({ population, housing, growth }: { population: num
             {fmt(population)}
             <span className="text-sm font-bold text-ink-soft"> / {fmt(housing)}</span>
           </span>
-          <span className="sr-only">habitantes de {fmt(housing)} viviendas.</span>
+          <span className="sr-only">{t({ en: `citizens, housing for ${fmt(housing)}.`, es: `habitantes de ${fmt(housing)} viviendas.` })}</span>
         </span>
         <span className={clsx("inline-flex shrink-0 items-center gap-0.5 text-sm font-extrabold tabular", tone)}>
           {full ? (
-            "Ciudad llena"
+            t({ en: "City full", es: "Ciudad llena" })
           ) : (
             <>
               {growth > 0.05 && <IconUp size={13} />}
               {growth > 0.05 ? `+${fmt1(growth)}` : growth < -0.05 ? `−${fmt1(Math.abs(growth))}` : "0"}/h
-              <span className="sr-only"> habitantes por hora</span>
+              <span className="sr-only">{t({ en: " citizens per hour", es: " habitantes por hora" })}</span>
             </>
           )}
         </span>

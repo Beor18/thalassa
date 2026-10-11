@@ -1,6 +1,7 @@
 // Deterministic game simulation. No I/O: the server loads state, advances it to
 // "now", applies a command and persists. Same input always yields same output.
-import type { Text } from "@/i18n/config";
+import type { Locale, Text } from "@/i18n/config";
+import { getFormat } from "@/i18n/format";
 import {
   BALANCE,
   BUILDINGS,
@@ -19,6 +20,14 @@ import {
   type UnitBag,
   type UnitType,
 } from "./data";
+import { buildingName, resourceLabel, techName } from "./names";
+
+/** Amounts in each language's style: "1,200" in English, "1.200" in Spanish. */
+const enNum = (n: number) => getFormat("en").fmt(n);
+const esNum = (n: number) => getFormat("es").fmt(n);
+const needsNectar = (n: number): Text => ({ en: `You need ${enNum(n)} Nectar.`, es: `Necesitás ${esNum(n)} de néctar.` });
+const needsGold = (n: number): Text => ({ en: `You need ${enNum(n)} gold.`, es: `Necesitás ${esNum(n)} de oro.` });
+const INVALID_AMOUNT: Text = { en: "Invalid amount.", es: "Cantidad inválida." };
 
 /** A rule the player broke. Carries its message in every language; the action layer picks one. */
 export class GameError extends Error {
@@ -115,7 +124,7 @@ export function sumLevels(city: CityState, type: BuildingType): number {
 
 export function getCity(p: PlayerState, cityId: string): CityState {
   const city = p.cities.find((c) => c.id === cityId);
-  if (!city) throw new GameError("Esa ciudad no es tuya.");
+  if (!city) throw new GameError({ en: "That city isn't yours.", es: "Esa ciudad no es tuya." });
   return city;
 }
 
@@ -379,7 +388,11 @@ function pay(city: CityState, cost: Partial<ResourceBag>) {
   for (const r of RESOURCES) {
     const need = cost[r] ?? 0;
     if (need > 0 && city.res[r] + 1e-6 < need) {
-      throw new GameError(`Te falta ${Math.ceil(need - city.res[r])} de ${RESOURCE_LABEL[r]}.`);
+      const missing = Math.ceil(need - city.res[r]);
+      throw new GameError({
+        en: `You need ${enNum(missing)} more ${resourceLabel(r, "en").toLowerCase()}.`,
+        es: `${missing === 1 ? "Te falta" : "Te faltan"} ${esNum(missing)} de ${RESOURCE_LABEL[r]}.`,
+      });
     }
   }
   for (const r of RESOURCES) city.res[r] = Math.max(0, city.res[r] - (cost[r] ?? 0));
@@ -393,34 +406,50 @@ const RESOURCE_LABEL: Record<Resource, string> = {
   sulfur: "azufre",
 };
 
-export function canBuildType(p: PlayerState, city: CityState, slot: number, type: BuildingType): string | null {
+const needsTech = (tech: TechId): Text => ({
+  en: `Research ${techName(tech, "en")} first.`,
+  es: `Necesitás investigar ${techName(tech, "es")}.`,
+});
+
+const needsBuilding = (type: BuildingType, level: number): Text => ({
+  en: `You need ${buildingName(type, "en")} level ${level}.`,
+  es: `Necesitás ${buildingName(type, "es")} nivel ${level}.`,
+});
+
+/** Why `type` can't go on `slot` right now, in every language; null when it can. */
+export function buildBlocker(p: PlayerState, city: CityState, slot: number, type: BuildingType): Text | null {
   const def = BUILDINGS[type];
   const slotDef = CITY_SLOTS.find((s) => s.slot === slot);
-  if (!slotDef) return "Ese lugar no existe.";
-  if (slotDef.kind !== def.slotKind) return "Ese edificio no va en este lugar.";
-  if (def.unique && city.buildings.some((b) => b.type === type)) return "Ya tenés este edificio en la ciudad.";
-  const req = def.requires;
-  if (req?.capitalOnly && !city.isCapital) return "Solo se construye en la capital.";
-  if (req?.tech && !hasTech(p, req.tech)) return `Necesitás investigar ${TECHS[req.tech].name}.`;
-  if (req?.building && buildingLevel(city, req.building[0]) < req.building[1]) {
-    return `Necesitás ${BUILDINGS[req.building[0]].name} nivel ${req.building[1]}.`;
+  if (!slotDef) return { en: "That plot doesn't exist.", es: "Ese lugar no existe." };
+  if (slotDef.kind !== def.slotKind) return { en: "That building doesn't go here.", es: "Ese edificio no va en este lugar." };
+  if (def.unique && city.buildings.some((b) => b.type === type)) {
+    return { en: "You already have this building in this city.", es: "Ya tenés este edificio en la ciudad." };
   }
+  const req = def.requires;
+  if (req?.capitalOnly && !city.isCapital) return { en: "Only your capital can build this.", es: "Solo se construye en la capital." };
+  if (req?.tech && !hasTech(p, req.tech)) return needsTech(req.tech);
+  if (req?.building && buildingLevel(city, req.building[0]) < req.building[1]) return needsBuilding(req.building[0], req.building[1]);
   return null;
+}
+
+/** buildBlocker in one language (Spanish unless told otherwise, as before). */
+export function canBuildType(p: PlayerState, city: CityState, slot: number, type: BuildingType, lang: Locale = "es"): string | null {
+  return buildBlocker(p, city, slot, type)?.[lang] ?? null;
 }
 
 export function startConstruction(p: PlayerState, cityId: string, slot: number, type: BuildingType | null, now: number, speed: number) {
   const city = getCity(p, cityId);
-  if (city.construction) throw new GameError("Ya hay una obra en marcha en esta ciudad.");
+  if (city.construction) throw new GameError({ en: "This city is already building something.", es: "Ya hay una obra en marcha en esta ciudad." });
   const existing = city.buildings.find((b) => b.slot === slot);
   let buildType: BuildingType;
   let level: number;
   if (existing) {
     buildType = existing.type;
     level = existing.level + 1;
-    if (level > BUILDINGS[buildType].maxLevel) throw new GameError("Este edificio ya está al máximo.");
+    if (level > BUILDINGS[buildType].maxLevel) throw new GameError({ en: "This building is already at max level.", es: "Este edificio ya está al máximo." });
   } else {
-    if (!type) throw new GameError("Elegí qué construir.");
-    const why = canBuildType(p, city, slot, type);
+    if (!type) throw new GameError({ en: "Choose what to build.", es: "Elegí qué construir." });
+    const why = buildBlocker(p, city, slot, type);
     if (why) throw new GameError(why);
     buildType = type;
     level = 1;
@@ -435,7 +464,7 @@ export function startConstruction(p: PlayerState, cityId: string, slot: number, 
 export function cancelConstruction(p: PlayerState, cityId: string) {
   const city = getCity(p, cityId);
   const k = city.construction;
-  if (!k) throw new GameError("No hay ninguna obra para cancelar.");
+  if (!k) throw new GameError({ en: "There's no construction to cancel.", es: "No hay ninguna obra para cancelar." });
   const cap = storageCap(p, city);
   for (const r of RESOURCES) city.res[r] = Math.min(cap, city.res[r] + k.cost[r]);
   city.construction = null;
@@ -450,9 +479,9 @@ export function finishWithAmbrosia(p: PlayerState, cityId: string, what: "constr
   const city = getCity(p, cityId);
   const endsAt =
     what === "construction" ? city.construction?.endsAt : city.training.reduce((m, b) => Math.max(m, b.endsAt), 0) || undefined;
-  if (!endsAt || endsAt <= now) throw new GameError("No hay nada para terminar.");
+  if (!endsAt || endsAt <= now) throw new GameError({ en: "There's nothing to finish.", es: "No hay nada para terminar." });
   const price = ambrosiaToFinish(now, endsAt);
-  if (p.ambrosia < price) throw new GameError(`Necesitás ${price} de néctar.`);
+  if (p.ambrosia < price) throw new GameError(needsNectar(price));
   p.ambrosia -= price;
   if (what === "construction" && city.construction) city.construction.endsAt = now;
   if (what === "training") for (const b of city.training) b.endsAt = Math.min(b.endsAt, now);
@@ -469,12 +498,22 @@ export function setWorkers(
   const wood = next.woodWorkers ?? city.woodWorkers;
   const lux = next.luxWorkers ?? city.luxWorkers;
   const sci = next.scientists ?? city.scientists;
-  if ([wood, lux, sci].some((n) => !Number.isInteger(n) || n < 0)) throw new GameError("Cantidad inválida.");
-  if (wood > maxWoodWorkers(city.island.sawmillLevel)) throw new GameError("El aserradero no tiene lugar para tantos.");
-  if (lux > 0 && !hasTech(p, "wealth")) throw new GameError("Investigá Riqueza para trabajar la mina.");
-  if (lux > maxLuxWorkers(city.island.mineLevel)) throw new GameError("La mina no tiene lugar para tantos.");
-  if (sci > maxScientists(city)) throw new GameError("La academia no tiene lugar para tantos.");
-  if (wood + lux + sci > Math.floor(city.population)) throw new GameError("No te alcanzan los ciudadanos.");
+  if ([wood, lux, sci].some((n) => !Number.isInteger(n) || n < 0)) throw new GameError(INVALID_AMOUNT);
+  if (wood > maxWoodWorkers(city.island.sawmillLevel)) {
+    throw new GameError({ en: "The sawmill doesn't have room for that many.", es: "El aserradero no tiene lugar para tantos." });
+  }
+  if (lux > 0 && !hasTech(p, "wealth")) {
+    throw new GameError({ en: `Research ${techName("wealth", "en")} to work the mine.`, es: "Investigá Riqueza para trabajar la mina." });
+  }
+  if (lux > maxLuxWorkers(city.island.mineLevel)) {
+    throw new GameError({ en: "The mine doesn't have room for that many.", es: "La mina no tiene lugar para tantos." });
+  }
+  if (sci > maxScientists(city)) {
+    throw new GameError({ en: "The Academy doesn't have room for that many.", es: "La academia no tiene lugar para tantos." });
+  }
+  if (wood + lux + sci > Math.floor(city.population)) {
+    throw new GameError({ en: "You don't have enough citizens.", es: "No te alcanzan los ciudadanos." });
+  }
   city.woodWorkers = wood;
   city.luxWorkers = lux;
   city.scientists = sci;
@@ -483,23 +522,31 @@ export function setWorkers(
 export function setWineLevel(p: PlayerState, cityId: string, level: number) {
   const city = getCity(p, cityId);
   const max = buildingLevel(city, "tavern");
-  if (!Number.isInteger(level) || level < 0 || level > max) throw new GameError("La taberna no da para tanto.");
+  if (!Number.isInteger(level) || level < 0 || level > max) {
+    throw new GameError({ en: "Your Tavern can't serve that much.", es: "La taberna no da para tanto." });
+  }
   city.wineLevel = level;
 }
 
-export function canTrain(p: PlayerState, city: CityState, unit: UnitType): string | null {
+/** Why `unit` can't be trained in this city yet, in every language; null when it can. */
+export function trainBlocker(p: PlayerState, city: CityState, unit: UnitType): Text | null {
   const def = UNITS[unit];
-  if (buildingLevel(city, "barracks") < def.requires.barracks) return `Necesitás Cuartel nivel ${def.requires.barracks}.`;
-  if (def.requires.tech && !hasTech(p, def.requires.tech)) return `Necesitás investigar ${TECHS[def.requires.tech].name}.`;
+  if (buildingLevel(city, "barracks") < def.requires.barracks) return needsBuilding("barracks", def.requires.barracks);
+  if (def.requires.tech && !hasTech(p, def.requires.tech)) return needsTech(def.requires.tech);
   return null;
+}
+
+/** trainBlocker in one language (Spanish unless told otherwise, as before). */
+export function canTrain(p: PlayerState, city: CityState, unit: UnitType, lang: Locale = "es"): string | null {
+  return trainBlocker(p, city, unit)?.[lang] ?? null;
 }
 
 export function trainUnits(p: PlayerState, cityId: string, unit: UnitType, count: number, now: number, speed: number, id: string) {
   const city = getCity(p, cityId);
-  if (!Number.isInteger(count) || count < 1 || count > 1000) throw new GameError("Cantidad inválida.");
-  const why = canTrain(p, city, unit);
+  if (!Number.isInteger(count) || count < 1 || count > 1000) throw new GameError(INVALID_AMOUNT);
+  const why = trainBlocker(p, city, unit);
   if (why) throw new GameError(why);
-  if (freeCitizens(city) < count) throw new GameError("No hay suficientes ciudadanos libres.");
+  if (freeCitizens(city) < count) throw new GameError({ en: "Not enough idle citizens.", es: "No hay suficientes ciudadanos libres." });
   const def = UNITS[unit];
   const cost: Partial<ResourceBag> = {};
   for (const r of RESOURCES) if (def.cost[r]) cost[r] = def.cost[r]! * count;
@@ -517,10 +564,12 @@ export function trainUnits(p: PlayerState, cityId: string, unit: UnitType, count
 export function buyShip(p: PlayerState, cityId: string, totalShipsOwned: number, shipsInCity: number) {
   const city = getCity(p, cityId);
   const cap = maxShips(city);
-  if (cap === 0) throw new GameError("Construí un Puerto para comprar barcos.");
-  if (shipsInCity >= cap) throw new GameError("El puerto no tiene más amarras. Subilo de nivel.");
+  if (cap === 0) throw new GameError({ en: "Build a Port to buy ships.", es: "Construí un Puerto para comprar barcos." });
+  if (shipsInCity >= cap) {
+    throw new GameError({ en: "Your Port has no free berths. Upgrade it.", es: "El puerto no tiene más amarras. Subilo de nivel." });
+  }
   const price = shipPrice(p, totalShipsOwned);
-  if (p.gold < price) throw new GameError(`Necesitás ${price} de oro.`);
+  if (p.gold < price) throw new GameError(needsGold(price));
   p.gold -= price;
   city.ships += 1;
   return price;
@@ -528,27 +577,32 @@ export function buyShip(p: PlayerState, cityId: string, totalShipsOwned: number,
 
 export function research(p: PlayerState, tech: TechId) {
   const def = TECHS[tech];
-  if (!def) throw new GameError("Esa investigación no existe.");
-  if (hasTech(p, tech)) throw new GameError("Ya la investigaste.");
-  if (def.requires && !hasTech(p, def.requires)) throw new GameError(`Primero investigá ${TECHS[def.requires].name}.`);
-  if (p.research + 1e-6 < def.cost) throw new GameError("Te faltan puntos de investigación.");
+  if (!def) throw new GameError({ en: "That research doesn't exist.", es: "Esa investigación no existe." });
+  if (hasTech(p, tech)) throw new GameError({ en: "You've already researched that.", es: "Ya la investigaste." });
+  if (def.requires && !hasTech(p, def.requires)) {
+    throw new GameError({ en: `Research ${techName(def.requires, "en")} first.`, es: `Primero investigá ${techName(def.requires, "es")}.` });
+  }
+  if (p.research + 1e-6 < def.cost) throw new GameError({ en: "Not enough research points.", es: "Te faltan puntos de investigación." });
   p.research -= def.cost;
   p.techs = [...p.techs, tech];
 }
 
 export function merchantTrade(p: PlayerState, cityId: string, resource: Resource) {
   const city = getCity(p, cityId);
-  if (p.ambrosia < BALANCE.merchantAmbrosia) throw new GameError(`Necesitás ${BALANCE.merchantAmbrosia} de néctar.`);
+  if (p.ambrosia < BALANCE.merchantAmbrosia) throw new GameError(needsNectar(BALANCE.merchantAmbrosia));
   const cap = storageCap(p, city);
-  if (city.res[resource] >= cap) throw new GameError("El depósito ya está lleno de eso.");
+  if (city.res[resource] >= cap) throw new GameError({ en: "Your Warehouse is already full of that.", es: "El depósito ya está lleno de eso." });
   p.ambrosia -= BALANCE.merchantAmbrosia;
   city.res[resource] = Math.min(cap, city.res[resource] + BALANCE.merchantAmount);
 }
 
+/** Shared with founding a colony (src/server/commands.ts). */
+export const CITY_NAME_LENGTH: Text = { en: "City names must be 3 to 24 characters long.", es: "El nombre tiene que tener entre 3 y 24 letras." };
+
 export function renameCity(p: PlayerState, cityId: string, name: string) {
   const city = getCity(p, cityId);
   const clean = name.trim().replace(/\s+/g, " ");
-  if (clean.length < 3 || clean.length > 24) throw new GameError("El nombre tiene que tener entre 3 y 24 letras.");
+  if (clean.length < 3 || clean.length > 24) throw new GameError(CITY_NAME_LENGTH);
   city.name = clean;
 }
 
@@ -573,8 +627,8 @@ export const countUnits = (u: UnitBag) => UNIT_TYPES.reduce((s, t) => s + (u[t] 
 export function takeUnits(city: CityState, units: UnitBag) {
   for (const t of UNIT_TYPES) {
     const n = units[t] ?? 0;
-    if (!Number.isInteger(n) || n < 0) throw new GameError("Cantidad inválida.");
-    if (n > (city.units[t] ?? 0)) throw new GameError("No tenés tantas tropas en esta ciudad.");
+    if (!Number.isInteger(n) || n < 0) throw new GameError(INVALID_AMOUNT);
+    if (n > (city.units[t] ?? 0)) throw new GameError({ en: "You don't have that many troops in this city.", es: "No tenés tantas tropas en esta ciudad." });
   }
   for (const t of UNIT_TYPES) {
     const n = units[t] ?? 0;
@@ -703,7 +757,7 @@ export function advisorHint(p: PlayerState, city: CityState, speed: number): Adv
   // Suggest building X only when nothing is under construction (one obra at a time).
   const canSuggest = (type: BuildingType) => !city.construction && building !== type;
   if (city.woodWorkers === 0) {
-    return { title: { en: "Put people to work", es: "Poné gente a talar" }, body: { en: "No wood, no buildings. Send citizens to the island sawmill.", es: "Sin madera no hay obras. Mandá ciudadanos al aserradero de la isla." }, href: `${island}?panel=sawmill` };
+    return { title: { en: "Chop some wood", es: "Poné gente a talar" }, body: { en: "No wood, no buildings. Send citizens to the island sawmill.", es: "Sin madera no hay obras. Mandá ciudadanos al aserradero de la isla." }, href: `${island}?panel=sawmill` };
   }
   if (canSuggest("academy") && buildingLevel(city, "academy") === 0) {
     return { title: { en: "Build an Academy", es: "Levantá una Academia" }, body: { en: "Scientists unlock upgrades for your whole polis.", es: "Los científicos destraban mejoras para toda tu polis." }, href: `${cityHref}?slot=${freeSlot}` };

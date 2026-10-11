@@ -16,6 +16,7 @@ import {
   type CityState,
   type PlayerState,
 } from "@/game/engine";
+import { DEFAULT_LOCALE, type Locale, type Text } from "@/i18n/config";
 import { GAME_SPEED } from "./config";
 import { onPlayerSeen } from "./growth/hooks";
 import { processDueMissions } from "./missions";
@@ -27,7 +28,10 @@ export interface MissionView {
   status: "outbound" | "returning";
   originCityId: string;
   originName: string;
+  /** Where the fleet is headed, in the snapshot's language (the page's, via getGame). */
   targetLabel: string;
+  /** Where the fleet is headed, in every language: "Nueva Atenas on Naxos", "Barbarians on Paros", a city name. */
+  targetText: Text;
   targetIslandId: number;
   ships: number;
   units: UnitBag;
@@ -47,8 +51,8 @@ export interface GameSnapshot {
   advisor: AdvisorHint | null;
 }
 
-/** Fresh, side-effect-free view of an account at this instant. */
-export async function getSnapshot(playerId: string, focusCityId?: string): Promise<GameSnapshot | null> {
+/** Fresh, side-effect-free view of an account at this instant. `lang` picks the language of text labels. */
+export async function getSnapshot(playerId: string, focusCityId?: string, lang: Locale = DEFAULT_LOCALE): Promise<GameSnapshot | null> {
   await processDueMissions();
   const p = await loadPlayer(db, playerId);
   if (!p) return null;
@@ -84,29 +88,42 @@ export async function getSnapshot(playerId: string, focusCityId?: string): Promi
     speed: GAME_SPEED,
     player,
     cities: cityStates.map((c) => ({ ...c, rates: cityRates(p, c, GAME_SPEED) })),
-    missions: missionRows.map((m) => ({
-      id: m.id,
-      kind: m.kind,
-      status: m.status as "outbound" | "returning",
-      originCityId: m.originCityId,
-      originName: nameOf.get(m.originCityId) ?? "?",
-      targetLabel:
-        m.kind === "colonize"
-          ? `${m.colonyName} en ${islandOf.get(m.targetIslandId)}`
-          : m.targetCityId
-            ? (nameOf.get(m.targetCityId) ?? "?")
-            : `Bárbaros de ${islandOf.get(m.targetIslandId)}`,
-      targetIslandId: m.targetIslandId,
-      ships: m.ships,
-      units: m.units,
-      cargo: m.cargo as Record<string, number>,
-      departsAt: m.departsAt.getTime(),
-      arrivesAt: m.arrivesAt.getTime(),
-      returnsAt: m.returnsAt?.getTime() ?? null,
-    })),
+    missions: missionRows.map((m) => {
+      const targetText = missionTarget(m, nameOf, islandOf);
+      return {
+        id: m.id,
+        kind: m.kind,
+        status: m.status as "outbound" | "returning",
+        originCityId: m.originCityId,
+        originName: nameOf.get(m.originCityId) ?? "?",
+        targetLabel: targetText[lang],
+        targetText,
+        targetIslandId: m.targetIslandId,
+        ships: m.ships,
+        units: m.units,
+        cargo: m.cargo as Record<string, number>,
+        departsAt: m.departsAt.getTime(),
+        arrivesAt: m.arrivesAt.getTime(),
+        returnsAt: m.returnsAt?.getTime() ?? null,
+      };
+    }),
     unreadReports: unread,
     advisor: focus ? advisorHint(p, focus, GAME_SPEED) : null,
   };
+}
+
+function missionTarget(
+  m: { kind: string; colonyName: string | null; targetCityId: string | null; targetIslandId: number },
+  nameOf: Map<string, string>,
+  islandOf: Map<number, string>,
+): Text {
+  const island = islandOf.get(m.targetIslandId);
+  if (m.kind === "colonize") return { en: `${m.colonyName} on ${island}`, es: `${m.colonyName} en ${island}` };
+  if (m.targetCityId) {
+    const name = nameOf.get(m.targetCityId) ?? "?";
+    return { en: name, es: name };
+  }
+  return { en: `Barbarians on ${island}`, es: `Bárbaros de ${island}` };
 }
 
 export interface IslandCityView {

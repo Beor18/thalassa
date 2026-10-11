@@ -4,17 +4,27 @@ import { memo, type CSSProperties } from "react";
 import Image from "next/image";
 import { ISLAND_PLOTS, RESOURCE_INFO } from "@/game/data";
 import { ISLAND_IMAGE } from "@/game/layout";
+import { resourceLabel } from "@/game/names";
 import type { WorldIsland } from "@/server/queries";
-import { fmtDuration } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
+import type { I18n } from "@/i18n/i18n";
 import type { Placed } from "./geometry";
 import { s } from "./styles";
 
 export type MapIsland = Placed<WorldIsland>;
 
-export function islandSummary(i: WorldIsland, isCurrent: boolean, seconds: number) {
-  const parts = [i.name, RESOURCE_INFO[i.resource].label, `${i.cityCount} de ${ISLAND_PLOTS} lugares ocupados`];
-  if (i.mine) parts.push("tenés ciudades acá");
-  parts.push(isCurrent ? "estás acá" : `viaje de ${fmtDuration(seconds * 1000)}`);
+export function islandSummary(i: WorldIsland, isCurrent: boolean, seconds: number, { t, lang, fmtDuration }: I18n) {
+  const parts = [
+    i.name,
+    resourceLabel(i.resource, lang),
+    t({ en: `${i.cityCount} of ${ISLAND_PLOTS} plots taken`, es: `${i.cityCount} de ${ISLAND_PLOTS} lugares ocupados` }),
+  ];
+  if (i.mine) parts.push(t({ en: "you have cities here", es: "tenés ciudades acá" }));
+  parts.push(
+    isCurrent
+      ? t({ en: "you're here", es: "estás acá" })
+      : t({ en: `${fmtDuration(seconds * 1000)} away`, es: `viaje de ${fmtDuration(seconds * 1000)}` }),
+  );
   return parts.join(", ");
 }
 
@@ -33,6 +43,7 @@ export const IslandMarker = memo(function IslandMarker({
   sparkle: string | null;
   onSelect: (id: number, via: "pointer" | "keyboard") => void;
 }) {
+  const i18n = useI18n();
   const i = island;
   const style = {
     left: i.px,
@@ -70,7 +81,7 @@ export const IslandMarker = memo(function IslandMarker({
       <button
         type="button"
         className={s.hit}
-        aria-label={islandSummary(i, isCurrent, seconds)}
+        aria-label={islandSummary(i, isCurrent, seconds, i18n)}
         aria-pressed={isSelected}
         aria-current={isCurrent ? "location" : undefined}
         onClick={(e) => onSelect(i.id, e.detail === 0 ? "keyboard" : "pointer")}
@@ -105,7 +116,7 @@ export const IslandMarker = memo(function IslandMarker({
       {isCurrent && (
         <span className={s.here} aria-hidden>
           <span className={s.hereChip}>
-            <span className={s.hereLabel}>Estás acá</span>
+            <span className={s.hereLabel}>{i18n.t({ en: "You're here", es: "Estás acá" })}</span>
             <span className={s.hereStem} />
           </span>
         </span>

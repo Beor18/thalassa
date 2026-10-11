@@ -5,6 +5,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { CITY_SLOTS, TECHS, TECH_BRANCHES, TECH_IDS, type TechBranch, type TechDef } from "@/game/data";
 import { buildingLevel } from "@/game/engine";
+import { branchName, techEffect, techName } from "@/game/names";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { LaurelIcon } from "@/components/game/icons";
 import { IconLock } from "@/components/island/icons";
@@ -17,11 +18,14 @@ import { ActionButton } from "@/components/ui/action-button";
 import { buttonClass } from "@/components/ui/button";
 import { Countdown } from "@/components/ui/countdown";
 import { ResIcon } from "@/components/ui/res";
-import { fmt, fmt1 } from "@/lib/format";
 import { researchAction } from "@/server/actions";
+import { getI18n } from "@/i18n/server";
 import { getGame } from "@/server/game-context";
 
-export const metadata: Metadata = { title: "Investigación" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Research", es: "Investigación" }) };
+}
 
 const BRANCH_ART: Record<TechBranch, string> = {
   economy: "/assets/r-gold.webp",
@@ -59,7 +63,7 @@ export default function InvestigacionPage() {
 }
 
 async function Content() {
-  const game = await getGame();
+  const [game, { t, lang, fmt, fmt1 }] = await Promise.all([getGame(), getI18n()]);
   const { snapshot, city } = game;
   const p = snapshot.player;
   const perHour = snapshot.cities.reduce((s, c) => s + c.rates.research, 0);
@@ -77,13 +81,27 @@ async function Content() {
   const ready = open.find((t) => t.cost <= p.research + 1e-6) ?? null;
   const next = ready ?? open[0] ?? null;
 
-  const hint = !academyCity
-    ? { title: "Sin Academia", body: "Sin Academia no hay puntos.", cta: "Construir Academia", href: `/ciudad/${city.id}?slot=${freeLand}` }
+  // An Academy already going up: point at the construction instead of asking for another one.
+  const academyWork = academyCity ? null : snapshot.cities.find((c) => c.construction?.type === "academy");
+  const hint = academyWork
+    ? {
+        title: t({ en: "Academy on the way", es: "Academia en obra" }),
+        body: t({ en: "Points start when it's finished.", es: "Los puntos arrancan cuando termine." }),
+        cta: t({ en: "See construction", es: "Ver obra" }),
+        href: `/ciudad/${academyWork.id}?slot=${academyWork.construction!.slot}`,
+      }
+    : !academyCity
+    ? {
+        title: t({ en: "No Academy", es: "Sin Academia" }),
+        body: t({ en: "No Academy, no points.", es: "Sin Academia no hay puntos." }),
+        cta: t({ en: "Build Academy", es: "Construir Academia" }),
+        href: `/ciudad/${city.id}?slot=${freeLand}`,
+      }
     : scientists === 0
       ? {
-          title: "Academia vacía",
-          body: "Sin científicos no suman puntos.",
-          cta: "Asignar científicos",
+          title: t({ en: "Empty Academy", es: "Academia vacía" }),
+          body: t({ en: "No scientists, no points.", es: "Sin científicos no suman puntos." }),
+          cta: t({ en: "Assign scientists", es: "Asignar científicos" }),
           href: `/ciudad/${academyCity.id}${academySlot !== undefined ? `?slot=${academySlot}` : ""}`,
         }
       : null;
@@ -92,7 +110,7 @@ async function Content() {
     const tree = branchTree(branch);
     return {
       id: branch,
-      label: TECH_BRANCHES[branch],
+      label: branchName(branch, lang),
       icon: BRANCH_ART[branch],
       done: tree.filter(({ tech }) => researched.has(tech.id)).length,
       total: tree.length,
@@ -116,7 +134,7 @@ async function Content() {
               </span>
               <div className="leading-none">
                 <h1 id="research-title" className="font-display text-xs font-bold tracking-[0.25em] text-sea-300 uppercase">
-                  Investigación
+                  {t({ en: "Research", es: "Investigación" })}
                 </h1>
                 <p className="mt-1 font-display text-3xl font-black text-foam sm:text-4xl">
                   <LivePoints value={p.research} perHour={perHour} serverNow={snapshot.now} unitClassName="text-sm font-bold text-foam/70" />
@@ -133,19 +151,23 @@ async function Content() {
                     <span className="font-body text-xs font-bold">/h</span>
                   </>
                 }
-                label="Por hora"
-                hint="Puntos por hora, sumando todas tus Academias"
+                label={t({ en: "Per hour", es: "Por hora" })}
+                hint={t({ en: "Points per hour from all your Academies", es: "Puntos por hora, sumando todas tus Academias" })}
                 tone={perHour > 0 ? "good" : "default"}
               />
               <HeroStat
                 iconOnPhone={false}
                 icon={<Image src="/assets/r-citizens.webp" alt="" width={24} height={24} className="size-6" />}
                 value={fmt(scientists)}
-                label="Científicos"
+                label={t({ en: "Scientists", es: "Científicos" })}
               />
               <HeroStat
                 iconOnPhone={false}
-                icon={<LaurelIcon className="w-7 text-gold" />} value={`${researched.size}/${TECH_IDS.length}`} label="Hechas" hint="Investigaciones terminadas" />
+                icon={<LaurelIcon className="w-7 text-gold" />}
+                value={`${researched.size}/${TECH_IDS.length}`}
+                label={t({ en: "Done", es: "Hechas" })}
+                hint={t({ en: "Research completed", es: "Investigaciones terminadas" })}
+              />
             </div>
           </div>
 
@@ -173,9 +195,12 @@ async function Content() {
                 <header className="flex items-center gap-2.5">
                   <Image src={BRANCH_ART[branch]} alt="" width={36} height={36} className="sprite size-9 shrink-0" />
                   <h2 id={`branch-${branch}`} className="flex-1 font-display text-lg font-bold">
-                    {TECH_BRANCHES[branch]}
+                    {branchName(branch, lang)}
                   </h2>
-                  <span className="text-sm font-bold text-ink-soft tabular" title={`${done} de ${tree.length} investigadas`}>
+                  <span
+                    className="text-sm font-bold text-ink-soft tabular"
+                    title={t({ en: `${done} of ${tree.length} researched`, es: `${done} de ${tree.length} investigadas` })}
+                  >
                     {done}/{tree.length}
                   </span>
                 </header>
@@ -227,9 +252,22 @@ async function Content() {
           })}
         </BranchTabs>
 
-        <HowItWorks className="rise-in self-start bg-parchment/90 lg:min-w-96" title="¿Cómo funciona la investigación?">
-          <p>Los científicos de tu Academia suman puntos cada hora. Los puntos son de todo tu imperio y se gastan al investigar.</p>
-          <p>Cada rama se abre de arriba hacia abajo: para investigar algo, primero necesitás la investigación de la que cuelga.</p>
+        <HowItWorks
+          className="rise-in self-start bg-parchment/90 lg:min-w-96"
+          title={t({ en: "How does research work?", es: "¿Cómo funciona la investigación?" })}
+        >
+          <p>
+            {t({
+              en: "Scientists in your Academy earn points every hour. Points belong to your whole empire and are spent on research.",
+              es: "Los científicos de tu Academia suman puntos cada hora. Los puntos son de todo tu imperio y se gastan al investigar.",
+            })}
+          </p>
+          <p>
+            {t({
+              en: "Each branch unlocks from the top down: research the tech above it first.",
+              es: "Cada rama se abre de arriba hacia abajo: para investigar algo, primero necesitás la investigación de la que cuelga.",
+            })}
+          </p>
         </HowItWorks>
       </div>
     </GameShell>
@@ -237,7 +275,7 @@ async function Content() {
 }
 
 /** The hero's call to action: research now, fix what blocks research, or see when the next one arrives. */
-function NextResearch({
+async function NextResearch({
   ready,
   next,
   hint,
@@ -252,6 +290,7 @@ function NextResearch({
   perHour: number;
   now: number;
 }) {
+  const { t, lang, fmt } = await getI18n();
   const card =
     "relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-parchment p-2.5 pl-3 text-ink shadow-[0_8px_20px_-10px_rgb(0_0_0/0.6)] ring-1 lg:w-[28rem] lg:shrink-0";
   const eyebrow = "text-[11px] font-extrabold tracking-wider uppercase";
@@ -260,21 +299,21 @@ function NextResearch({
     return (
       <div className={clsx(card, "pop-in ring-gold/70")} style={stagger(0, 0, 0, 200)}>
         <div className="min-w-[10rem] flex-1">
-          <p className={clsx(eyebrow, "text-bronze-dark")}>Lista para investigar</p>
-          <p className="truncate font-display text-lg leading-tight font-bold">{ready.name}</p>
-          <p className="line-clamp-2 text-sm leading-snug text-ink-soft" title={ready.effect}>
-            {ready.effect}
+          <p className={clsx(eyebrow, "text-bronze-dark")}>{t({ en: "Ready to research", es: "Lista para investigar" })}</p>
+          <p className="truncate font-display text-lg leading-tight font-bold">{techName(ready.id, lang)}</p>
+          <p className="line-clamp-2 text-sm leading-snug text-ink-soft" title={techEffect(ready.id, lang)}>
+            {techEffect(ready.id, lang)}
           </p>
         </div>
         <ActionButton
           action={researchAction.bind(null, { tech: ready.id })}
           size="md"
           className="shrink-0 max-sm:w-full"
-          pendingLabel="Investigando…"
+          pendingLabel={t({ en: "Researching…", es: "Investigando…" })}
           celebrate
         >
           <ResIcon kind="research" size={18} />
-          Investigar
+          {t({ en: "Research", es: "Investigar" })}
         </ActionButton>
       </div>
     );
@@ -298,19 +337,25 @@ function NextResearch({
       <div className={clsx(card, "ring-parchment-3")}>
         <ResIcon kind="research" size={36} className="shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className={clsx(eyebrow, "text-ink-soft")}>Próxima</p>
-          <p className="truncate font-display text-lg leading-tight font-bold">{next.name}</p>
+          <p className={clsx(eyebrow, "text-ink-soft")}>{t({ en: "Next up", es: "Próxima" })}</p>
+          <p className="truncate font-display text-lg leading-tight font-bold">{techName(next.id, lang)}</p>
         </div>
         {perHour > 0 ? (
           <p className="shrink-0 text-right leading-tight">
-            <span className="block text-[11px] font-bold text-ink-soft uppercase">Lista en</span>
+            <span className="block text-[11px] font-bold text-ink-soft uppercase">{t({ en: "Ready in", es: "Lista en" })}</span>
             <strong className="font-display text-lg">
-              <Countdown endsAt={now + ((next.cost - points) / perHour) * 3_600_000} serverNow={now} doneLabel="un momento" />
+              <Countdown
+                endsAt={now + ((next.cost - points) / perHour) * 3_600_000}
+                serverNow={now}
+                doneLabel={t({ en: "a moment", es: "un momento" })}
+              />
             </strong>
           </p>
         ) : (
           <p className="shrink-0 text-sm font-bold text-terracotta tabular">
-            Faltan {fmt(Math.ceil(next.cost - points))} {Math.ceil(next.cost - points) === 1 ? "punto" : "puntos"}
+            {Math.ceil(next.cost - points) === 1
+              ? t({ en: "1 point to go", es: "Falta 1 punto" })
+              : t({ en: `${fmt(Math.ceil(next.cost - points))} points to go`, es: `Faltan ${fmt(Math.ceil(next.cost - points))} puntos` })}
           </p>
         )}
       </div>
@@ -319,12 +364,12 @@ function NextResearch({
   return (
     <div className={clsx(card, "ring-gold/70")}>
       <LaurelIcon className="w-12 shrink-0 text-gold" />
-      <p className="font-display text-lg font-bold">Investigaste todo</p>
+      <p className="font-display text-lg font-bold">{t({ en: "You researched everything", es: "Investigaste todo" })}</p>
     </div>
   );
 }
 
-function TechCard({
+async function TechCard({
   tech,
   suggested,
   researched,
@@ -342,13 +387,14 @@ function TechCard({
   perHour: number;
   now: number;
 }) {
+  const { t, lang, fmt } = await getI18n();
   const affordable = tech.cost <= points + 1e-6;
   const status = researched ? "done" : !unlocked ? "locked" : affordable ? "ready" : "short";
-  const requires = tech.requires ? TECHS[tech.requires].name : null;
+  const requires = tech.requires ? techName(tech.requires, lang) : null;
 
   return (
     <article
-      title={status === "locked" && requires ? `Requiere ${requires}` : undefined}
+      title={status === "locked" && requires ? t({ en: `Requires ${requires}`, es: `Requiere ${requires}` }) : undefined}
       className={clsx(
         "relative flex flex-col gap-1 rounded-xl border px-3 py-2 transition-[box-shadow,transform,border-color] duration-200",
         status === "done" && "border-olive/35 bg-olive/10",
@@ -360,28 +406,32 @@ function TechCard({
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className={clsx("min-w-0 font-display text-[15px] leading-tight font-bold", status === "locked" ? "text-ink-soft" : "text-ink")}>
-          {tech.name}
+          {techName(tech.id, lang)}
         </h3>
         {status === "done" ? (
           <ResearchedStamp className="-my-1" />
         ) : (
           <span
             className={clsx("inline-flex shrink-0 items-center gap-1 text-sm font-bold tabular", status === "ready" ? "text-bronze-dark" : "text-ink-soft")}
-            title="Costo en puntos de investigación"
+            title={t({ en: "Cost in research points", es: "Costo en puntos de investigación" })}
           >
             {status === "locked" ? <IconLock size={14} /> : <ResIcon kind="research" size={16} />}
             {fmt(tech.cost)}
           </span>
         )}
       </div>
-      <p className={clsx("text-sm leading-snug", status === "done" || status === "locked" ? "text-ink-soft" : "text-ink")}>{tech.effect}</p>
-      {status === "locked" && requires && <span className="sr-only">Bloqueada: requiere {requires}.</span>}
+      <p className={clsx("text-sm leading-snug", status === "done" || status === "locked" ? "text-ink-soft" : "text-ink")}>
+        {techEffect(tech.id, lang)}
+      </p>
+      {status === "locked" && requires && (
+        <span className="sr-only">{t({ en: `Locked: requires ${requires}.`, es: `Bloqueada: requiere ${requires}.` })}</span>
+      )}
       {status === "ready" && suggested && (
         <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold tracking-wide text-bronze-dark uppercase">
           <svg viewBox="0 0 16 16" aria-hidden className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" />
           </svg>
-          Investigala arriba
+          {t({ en: "Ready (see above)", es: "Investigala arriba" })}
         </p>
       )}
       {status === "ready" && !suggested && (
@@ -390,10 +440,10 @@ function TechCard({
           variant="secondary"
           size="sm"
           className="mt-1 h-10 w-full"
-          pendingLabel="Investigando…"
+          pendingLabel={t({ en: "Researching…", es: "Investigando…" })}
           celebrate
         >
-          Investigar
+          {t({ en: "Research", es: "Investigar" })}
         </ActionButton>
       )}
       {status === "short" && <TechProgress cost={tech.cost} points={points} perHour={perHour} serverNow={now} />}

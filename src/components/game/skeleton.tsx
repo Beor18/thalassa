@@ -1,7 +1,8 @@
 "use client";
 
 import clsx from "clsx";
-import { usePathname } from "next/navigation";
+
+import { useI18n, usePagePathname } from "@/i18n/client";
 import { CompassLoader } from "@/components/motion/compass";
 import { SECTION_NARROW, SECTION_WIDE } from "@/components/tesoro/section-ui";
 import { CITY_GRID, ISLAND_GRID, SceneFit } from "./scene-layout";
@@ -30,7 +31,7 @@ export function SkeletonBody({ routeAware = false }: { routeAware?: boolean }) {
 }
 
 function RouteSkeleton() {
-  const pathname = usePathname();
+  const pathname = usePagePathname();
   const variant = ROUTES.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? "default";
   return <Body variant={variant} />;
 }
@@ -77,13 +78,14 @@ function HeroBand({ className, stats = 3, next = false }: { className?: string; 
 }
 
 function Body({ variant }: { variant: Variant }) {
+  const { t } = useI18n();
   switch (variant) {
     case "city":
       return (
         <SceneFit>
           <div className={CITY_GRID}>
             <div className="skel-dark grid aspect-[3/2] place-items-center">
-              <CompassLoader size={72} label="Cargando la ciudad" />
+              <CompassLoader size={72} label={t({ en: "Loading the city", es: "Cargando la ciudad" })} />
             </div>
             <div className="skel flex flex-col gap-4 p-4">
               <Lines widths={["w-24 h-5", "w-full h-16"]} />
@@ -99,7 +101,7 @@ function Body({ variant }: { variant: Variant }) {
           <SceneFit>
             <div className={ISLAND_GRID}>
               <div className="skel-dark grid aspect-[3/2] place-items-center">
-                <CompassLoader size={72} label="Cargando la isla" />
+                <CompassLoader size={72} label={t({ en: "Loading the island", es: "Cargando la isla" })} />
               </div>
               <div className="skel flex flex-col gap-4 p-4">
                 <Lines widths={["w-32 h-5", "w-full h-16"]} />
@@ -113,7 +115,7 @@ function Body({ variant }: { variant: Variant }) {
       // The map takes the height left under the header, like the real one.
       return (
         <div className="skel-dark -mx-4 grid min-h-[360px] flex-1 place-items-center rounded-none sm:mx-0 sm:min-h-[500px] sm:rounded-2xl">
-          <CompassLoader size={72} label="Cargando el mapa" />
+          <CompassLoader size={72} label={t({ en: "Loading the map", es: "Cargando el mapa" })} />
         </div>
       );
     case "research":

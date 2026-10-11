@@ -5,31 +5,43 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import type { UiWallet } from "@wallet-standard/react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n/client";
+import type { Text } from "@/i18n/config";
 import "./landing.css";
-import { FriendlyError, isUserRejection } from "@/lib/solana/client";
+import { FriendlyError, friendlySolanaText, isUserRejection } from "@/lib/solana/client";
 import { hasLocalWallet, loadOrCreateLocalWallet, setWalletKind, signMessageWithLocal } from "@/lib/solana/local-wallet";
 import { requestLoginMessage, verifyLogin } from "@/lib/solana/login";
 import { INSTALL_WALLET_URL, connectAndSignMessage, useSolanaWallets } from "@/lib/solana/wallet-standard";
 
 type Phase = "idle" | "key" | "founding" | "returning";
 
-const PHASE_LABEL: Record<Exclude<Phase, "idle">, string> = {
-  key: "Preparando tu llave…",
-  founding: "Fundando tu polis…",
-  returning: "Volviendo a tu polis…",
+const PHASE_LABEL: Record<Exclude<Phase, "idle">, Text> = {
+  key: { en: "Preparing your key…", es: "Preparando tu llave…" },
+  founding: { en: "Founding your polis…", es: "Fundando tu polis…" },
+  returning: { en: "Returning to your polis…", es: "Volviendo a tu polis…" },
 };
 
 const noopSubscribe = () => () => {};
 
-function errorText(err: unknown, fallback: string) {
-  return err instanceof FriendlyError ? err.message : fallback;
+/**
+ * The reason to show: a FriendlyError's own words (also when a wallet wraps it), else this flow's fallback.
+ * friendlySolanaText's generic "the test network returned an error" doesn't fit a failed sign-in.
+ */
+function errorText(err: unknown, fallback: Text): Text {
+  const seen = new Set<unknown>();
+  for (let e = err; e && typeof e === "object" && !seen.has(e); e = (e as { cause?: unknown }).cause) {
+    seen.add(e);
+    if (e instanceof FriendlyError) return friendlySolanaText(e);
+  }
+  return fallback;
 }
 
 /**
- * "Jugar ahora" with the in-browser game key, plus the wallet chooser.
+ * "Play now" with the in-browser game key, plus the wallet chooser.
  * `where` tags the funnel events (hero or closing call to action).
  */
 export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +64,7 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
     } catch (err) {
       console.error("[thalassa] play failed", err);
       setPhase("idle");
-      setError(errorText(err, "No pudimos abrir tu polis. Probá de nuevo."));
+      setError(t(errorText(err, { en: "We couldn't open your polis. Try again.", es: "No pudimos abrir tu polis. Probá de nuevo." })));
     }
   }
 
@@ -67,12 +79,14 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
           data-track-prop-where={where}
           className="h-14 min-w-60 px-8 text-lg"
         >
-          {phase !== "idle" ? PHASE_LABEL[phase] : navigating ? "Zarpando…" : "Jugar ahora"}
+          {phase !== "idle" ? t(PHASE_LABEL[phase]) : navigating ? t({ en: "Setting sail…", es: "Zarpando…" }) : t({ en: "Play now", es: "Jugar ahora" })}
         </Button>
       </span>
       {/* Hidden (not removed) while busy: the key appears mid-flow and the hint would flip under the spinner. */}
       <p aria-hidden={busy} className={clsx("max-w-sm text-[15px] text-foam/90 [text-shadow:0_1px_6px_rgb(6_26_48/0.9)]", busy && "invisible")}>
-        {hasKey ? "Seguís con tu polis de este navegador." : "Gratis. Sin mail ni contraseña."}
+        {hasKey
+          ? t({ en: "Your polis in this browser is waiting.", es: "Seguís con tu polis de este navegador." })
+          : t({ en: "Free. No email, no password.", es: "Gratis. Sin mail ni contraseña." })}
       </p>
       {error && (
         <p role="alert" className="max-w-md rounded-lg bg-danger px-3 py-2 text-sm font-bold text-marble">
@@ -87,7 +101,7 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
         data-track-prop-where={where}
         className="-mx-1 -mt-1 min-h-10 rounded px-1 text-[15px] font-bold text-foam/90 underline decoration-gold/70 underline-offset-4 transition-colors hover:text-gold disabled:opacity-50"
       >
-        Entrar con mi billetera
+        {t({ en: "Sign in with my wallet", es: "Entrar con mi billetera" })}
       </button>
       <WalletDialog
         dialogRef={dialogRef}
@@ -102,10 +116,10 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
 }
 
 type Step = "connecting" | "signing" | "entering";
-const STEP_LABEL: Record<Step, string> = {
-  connecting: "Conectando…",
-  signing: "Firmá en tu billetera…",
-  entering: "Entrando…",
+const STEP_LABEL: Record<Step, Text> = {
+  connecting: { en: "Connecting…", es: "Conectando…" },
+  signing: { en: "Approve in your wallet…", es: "Firmá en tu billetera…" },
+  entering: { en: "Signing in…", es: "Entrando…" },
 };
 
 function WalletDialog({
@@ -118,6 +132,7 @@ function WalletDialog({
   /** No wallet here: close and play with the in-browser key instead. */
   onPlay: () => void;
 }) {
+  const { t } = useI18n();
   const wallets = useSolanaWallets();
   const [busy, setBusy] = useState<{ name: string; step: Step } | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "info" | "error" } | null>(null);
@@ -137,10 +152,14 @@ function WalletDialog({
     } catch (err) {
       setBusy(null);
       if (isUserRejection(err)) {
-        setNote({ text: "Cancelaste en la billetera. Podés intentar de nuevo cuando quieras.", kind: "info" });
+        setNote({
+          text: t({ en: "You canceled in your wallet. Try again whenever you like.", es: "Cancelaste en la billetera. Podés intentar de nuevo cuando quieras." }),
+          kind: "info",
+        });
       } else {
         console.error("[thalassa] wallet sign-in failed", err);
-        setNote({ text: errorText(err, `No pudimos entrar con ${wallet.name}. Probá de nuevo.`), kind: "error" });
+        const fallback = { en: `We couldn't sign in with ${wallet.name}. Try again.`, es: `No pudimos entrar con ${wallet.name}. Probá de nuevo.` };
+        setNote({ text: t(errorText(err, fallback)), kind: "error" });
       }
     }
   }
@@ -160,12 +179,12 @@ function WalletDialog({
       <div className="panel p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <h2 id="wallet-dialog-title" className="font-display text-xl font-bold">
-            Entrar con tu billetera
+            {t({ en: "Sign in with your wallet", es: "Entrar con tu billetera" })}
           </h2>
           <form method="dialog">
             <button
               type="submit"
-              aria-label="Cerrar"
+              aria-label={t({ en: "Close", es: "Cerrar" })}
               disabled={!!busy}
               className="-mt-2 -mr-2 grid size-10 place-items-center rounded-lg text-2xl leading-none text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-40"
             >
@@ -174,7 +193,12 @@ function WalletDialog({
           </form>
         </div>
         {wallets.length > 0 && (
-          <p className="mt-1 text-[15px] text-ink-soft">Firmás un mensaje que prueba que la cuenta es tuya. No cuesta nada ni mueve fondos.</p>
+          <p className="mt-1 text-[15px] text-ink-soft">
+            {t({
+              en: "You sign a message that proves the account is yours. It's free and moves no funds.",
+              es: "Firmás un mensaje que prueba que la cuenta es tuya. No cuesta nada ni mueve fondos.",
+            })}
+          </p>
         )}
 
         {wallets.length > 0 ? (
@@ -198,7 +222,7 @@ function WalletDialog({
                     {/* eslint-disable-next-line @next/next/no-img-element -- wallet icons are data URIs */}
                     <img src={wallet.icon} alt="" width={32} height={32} className="size-8 shrink-0 rounded-lg" />
                     <span className="flex-1 font-bold">{wallet.name}</span>
-                    <span className="text-sm font-bold text-bronze-dark">{mine ? STEP_LABEL[busy.step] : "Elegir"}</span>
+                    <span className="text-sm font-bold text-bronze-dark">{mine ? t(STEP_LABEL[busy.step]) : t({ en: "Choose", es: "Elegir" })}</span>
                   </button>
                 </li>
               );
@@ -206,9 +230,14 @@ function WalletDialog({
           </ul>
         ) : (
           <div className="mt-2 flex flex-col items-start gap-3">
-            <p className="text-[15px] text-ink-soft">No encontramos una billetera en este navegador. No hace falta: podés jugar sin ella.</p>
+            <p className="text-[15px] text-ink-soft">
+              {t({
+                en: "We didn't find a wallet in this browser. You don't need one: you can play without it.",
+                es: "No encontramos una billetera en este navegador. No hace falta: podés jugar sin ella.",
+              })}
+            </p>
             <Button size="lg" onClick={onPlay} data-track="play_click" data-track-prop-where="wallet_dialog" className="w-full">
-              Jugar sin billetera
+              {t({ en: "Play without a wallet", es: "Jugar sin billetera" })}
             </Button>
             <a
               href={INSTALL_WALLET_URL}
@@ -216,8 +245,8 @@ function WalletDialog({
               rel="noreferrer"
               className="inline-flex min-h-10 items-center text-[15px] font-bold text-bronze-dark underline underline-offset-4 hover:text-ink"
             >
-              Instalar Phantom
-              <span className="sr-only"> (se abre en otra pestaña)</span>
+              {t({ en: "Install Phantom", es: "Instalar Phantom" })}
+              <span className="sr-only">{t({ en: " (opens in a new tab)", es: " (se abre en otra pestaña)" })}</span>
             </a>
           </div>
         )}

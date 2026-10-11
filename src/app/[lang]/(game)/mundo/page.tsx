@@ -7,9 +7,13 @@ import { getWorld } from "@/server/queries";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { WorldMap } from "@/components/world/world-map";
 import type { FleetView } from "@/components/world/types";
+import { getI18n } from "@/i18n/server";
 import { worldFx } from "./fx";
 
-export const metadata: Metadata = { title: "Mundo" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "World", es: "Mundo" }) };
+}
 
 export default function Page() {
   return (

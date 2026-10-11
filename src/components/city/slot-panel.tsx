@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { BUILDINGS } from "@/game/data";
+import { buildingName } from "@/game/names";
 import { fx } from "@/components/fx/classes";
+import { getI18n } from "@/i18n/server";
 import type { Game } from "@/server/game-context";
 import { BuildMenu, EMPTY_SLOT_HINT } from "./build-menu";
 import { BuildingInfo, BuildingSection, FUNCTION_FIRST, LevelChip } from "./building-sections";
@@ -13,7 +15,8 @@ import { ConstructionBlock, UpgradeBlock } from "./work-blocks";
  * Every building panel reads the same way: header (sprite, level, ⓘ), the upgrade or the running
  * work, then what the building does.
  */
-export function SlotPanel({ game, slot }: { game: Game; slot: number }) {
+export async function SlotPanel({ game, slot }: { game: Game; slot: number }) {
+  const { t, lang } = await getI18n();
   const { city } = game;
   const kind = slotKindOf(slot);
   if (!kind) return null;
@@ -28,9 +31,13 @@ export function SlotPanel({ game, slot }: { game: Game; slot: number }) {
         <SlotDrawer
           slot={slot}
           closeHref={closeHref}
-          title={def.name}
+          title={buildingName(def.type, lang)}
           image={def.image}
-          chip={<span className="rounded-full bg-gold/30 px-2 py-px text-xs font-extrabold text-bronze-deep ring-1 ring-gold">En obra</span>}
+          chip={
+            <span className="rounded-full bg-gold/30 px-2 py-px text-xs font-extrabold text-bronze-deep ring-1 ring-gold">
+              {t({ en: "Under construction", es: "En obra" })}
+            </span>
+          }
           info={<BuildingInfo game={game} type={def.type} level={city.construction.targetLevel} />}
         >
           <ConstructionBlock game={game} />
@@ -41,7 +48,7 @@ export function SlotPanel({ game, slot }: { game: Game; slot: number }) {
       <SlotDrawer
         slot={slot}
         closeHref={closeHref}
-        title={emptySlotLabel(kind)}
+        title={t(emptySlotLabel(kind))}
         icon={
           <span className={fx.medallion} style={{ "--m": "40px" } as CSSProperties}>
             <svg viewBox="0 0 16 16" className="size-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden>
@@ -49,7 +56,7 @@ export function SlotPanel({ game, slot }: { game: Game; slot: number }) {
             </svg>
           </span>
         }
-        subtitle={EMPTY_SLOT_HINT[kind]}
+        subtitle={t(EMPTY_SLOT_HINT[kind])}
       >
         <BuildMenu game={game} slot={slot} kind={kind} />
       </SlotDrawer>
@@ -61,7 +68,7 @@ export function SlotPanel({ game, slot }: { game: Game; slot: number }) {
     <SlotDrawer
       slot={slot}
       closeHref={closeHref}
-      title={def.name}
+      title={buildingName(building.type, lang)}
       image={def.image}
       chip={<LevelChip level={building.level} max={def.maxLevel} />}
       info={<BuildingInfo game={game} type={building.type} level={building.level} />}

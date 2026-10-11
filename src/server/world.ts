@@ -3,6 +3,7 @@ import { count, eq, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db";
 import { cities, islands, players, reports } from "@/db/schema";
 import { BALANCE, ISLAND_PLOTS, LUXURY_RESOURCES } from "@/game/data";
+import { REPORT_TEXTS, REPORT_TITLES } from "./report-text";
 
 const ISLAND_NAMES = [
   "Naxos", "Paros", "Milos", "Thera", "Andros", "Kythnos", "Serifos", "Sifnos", "Ios", "Amorgos",
@@ -83,10 +84,12 @@ export async function findOrCreatePlayer(wallet: string): Promise<{ id: string; 
     const [again] = await tx.select({ id: players.id }).from(players).where(eq(players.wallet, wallet));
     if (again) return { id: again.id, created: false };
 
+    // "Archon" reads well in both languages; the city keeps the "Polis XXXX" pattern the city plaque
+    // looks for to invite the player to name it.
     const short = wallet.slice(0, 4);
     const [player] = await tx
       .insert(players)
-      .values({ wallet, name: `Arconte ${short}`, gold: BALANCE.startingGold, lastTick: new Date() })
+      .values({ wallet, name: `Archon ${short}`, gold: BALANCE.startingGold, lastTick: new Date() })
       .returning({ id: players.id });
     const home = await pickHome(tx);
     const r = BALANCE.startingResources;
@@ -107,10 +110,8 @@ export async function findOrCreatePlayer(wallet: string): Promise<{ id: string; 
       playerId: player.id,
       kind: "system",
       read: true,
-      title: "Bienvenido al Egeo",
-      body: {
-        text: "Fundaste tu polis. Mandá ciudadanos al aserradero, levantá una Academia y prepará la flota. Antes de atacar a los bárbaros de la isla, mirá cuántos son.",
-      },
+      title: REPORT_TITLES.welcome.es,
+      body: { title: REPORT_TITLES.welcome, text: REPORT_TEXTS.welcome },
     });
     return { id: player.id, created: true };
   });

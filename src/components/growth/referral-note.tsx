@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { cacheLife } from "next/cache";
 import clsx from "clsx";
+import { buildingName } from "@/game/names";
+import { getI18n } from "@/i18n/server";
 import { REFERRAL_COOKIE, normalizeReferralCode } from "@/server/growth/referral-code";
 import { REFERRAL_REWARD, REFERRAL_TOWN_HALL, findReferrer } from "@/server/growth/referrals";
 
@@ -11,7 +13,7 @@ async function referrerName(code: string) {
 }
 
 /**
- * "Te invitó X" for visitors who arrived through an invite link (thalassa_ref cookie).
+ * "X invited you" for visitors who arrived through an invite link (thalassa_ref cookie).
  * Reads cookies: render it inside a <Suspense> boundary. Renders nothing for everyone else.
  */
 export async function ReferralNote({ className }: { className?: string }) {
@@ -19,6 +21,9 @@ export async function ReferralNote({ className }: { className?: string }) {
   if (!code) return null;
   const name = await referrerName(code);
   if (!name) return null;
+  const { t, lang, fmt } = await getI18n();
+  const townHall = `${buildingName("town_hall", lang)} ${REFERRAL_TOWN_HALL}`;
+  const reward = t({ en: `${fmt(REFERRAL_REWARD)} Nectar`, es: `${fmt(REFERRAL_REWARD)} de néctar` });
   return (
     <p
       className={clsx(
@@ -26,8 +31,15 @@ export async function ReferralNote({ className }: { className?: string }) {
         className,
       )}
     >
-      Te invitó <b className="text-gold">{name}</b>. Llegá a Intendencia {REFERRAL_TOWN_HALL} y ganan{" "}
-      <b className="text-ambrosia-soft">{REFERRAL_REWARD} de néctar</b> cada uno.
+      {lang === "en" ? (
+        <>
+          <b className="text-gold">{name}</b> invited you. Reach {townHall} and you each get <b className="text-ambrosia-soft">{reward}</b>.
+        </>
+      ) : (
+        <>
+          Te invitó <b className="text-gold">{name}</b>. Llegá a {townHall} y ganan <b className="text-ambrosia-soft">{reward}</b> cada uno.
+        </>
+      )}
     </p>
   );
 }

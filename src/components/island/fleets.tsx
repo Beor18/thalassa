@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import type { CSSProperties } from "react";
-import { fmtDuration } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { useServerClock } from "@/lib/use-server-clock";
 import { heading } from "@/components/fx/ambient";
 import { fx } from "@/components/fx/classes";
@@ -28,6 +28,7 @@ const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
  */
 export function Fleets({ paths, serverNow }: { paths: FleetPath[]; serverNow: number }) {
   const now = useServerClock(serverNow, 1000);
+  const { fmtDuration } = useI18n();
   const live = paths.filter((p) => now < p.arrivesAt);
   if (!live.length) return null;
   return (

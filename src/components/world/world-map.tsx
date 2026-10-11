@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import clsx from "clsx";
 import type { WorldIsland } from "@/server/queries";
 import { SHIP_IMAGE } from "@/game/layout";
-import { fmtDuration } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { Camera, type View } from "./camera";
 import { clamp, curvePath, layoutWorld, pointOnCurve, routeCurve, type Curve } from "./geometry";
 import { IslandMarker, type MapIsland } from "./island-marker";
@@ -80,6 +80,7 @@ export function WorldMap({
   serverNow: number;
   fx: WorldFx;
 }) {
+  const { t, fmtDuration } = useI18n();
   const layout = useMemo(() => layoutWorld(islands), [islands]);
   const routes = useMemo(() => fleetRoutes(fleets, layout.byId), [fleets, layout]);
   const clouds = useMemo(() => cloudField(layout.extent, fx.clouds), [layout.extent, fx.clouds]);
@@ -441,8 +442,10 @@ export function WorldMap({
     return (
       <section className={clsx(s.stage, "-mx-4 grid h-[calc(100dvh-16rem)] min-h-[360px] sm:min-h-[500px] place-items-center sm:mx-0 sm:rounded-2xl")} style={{ backgroundImage: `url(${fx.sea})`, backgroundSize: 800 }}>
         <div className="panel max-w-sm p-6 text-center">
-          <h1 className="font-display text-xl font-bold">El mar está vacío</h1>
-          <p className="mt-1 text-ink-soft">Todavía no hay islas en el mundo. Volvé en un rato.</p>
+          <h1 className="font-display text-xl font-bold">{t({ en: "The sea is empty", es: "El mar está vacío" })}</h1>
+          <p className="mt-1 text-ink-soft">
+            {t({ en: "No islands in the world yet. Check back soon.", es: "Todavía no hay islas en el mundo. Volvé en un rato." })}
+          </p>
         </div>
       </section>
     );
@@ -452,24 +455,30 @@ export function WorldMap({
     <section
       ref={stageRef}
       tabIndex={0}
-      aria-label="Mapa del Egeo"
-      aria-roledescription="mapa"
+      aria-label={t({ en: "Aegean map", es: "Mapa del Egeo" })}
+      aria-roledescription={t({ en: "map", es: "mapa" })}
       aria-describedby={helpId}
       onKeyDown={onKeyDown}
       className={clsx(s.stage, "-mx-4 h-[calc(100dvh-16rem)] min-h-[360px] sm:min-h-[500px] shrink-0 sm:mx-0 sm:rounded-2xl")}
       style={{ backgroundImage: `url(${fx.sea})`, backgroundSize: 800 }}
     >
       <p id={helpId} className="sr-only">
-        Arrastrá o usá las flechas para moverte. Más y menos acercan o alejan. Cero vuelve a tu isla. Escape cierra la isla elegida.
+        {t({
+          en: "Drag or use the arrow keys to move. Plus and minus zoom in and out. Zero flies back to your island. Escape closes the selected island.",
+          es: "Arrastrá o usá las flechas para moverte. Más y menos acercan o alejan. Cero vuelve a tu isla. Escape cierra la isla elegida.",
+        })}
       </p>
 
       {/* HUD: title and island search come first in tab order */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-3 sm:gap-3 sm:p-4">
         {/* The section tab already says where you are: the title stays for screen readers and the sea stays clear. */}
         <div className="sr-only">
-          <h1>El Egeo</h1>
+          <h1>{t({ en: "The Aegean", es: "El Egeo" })}</h1>
           <p>
-            {islands.length} islas, {mineCount === 1 ? "1 tuya" : `${mineCount} tuyas`}
+            {t({
+              en: `${islands.length} islands, ${mineCount} ${mineCount === 1 ? "is" : "are"} yours`,
+              es: `${islands.length} islas, ${mineCount === 1 ? "1 tuya" : `${mineCount} tuyas`}`,
+            })}
           </p>
         </div>
         <div className="pointer-events-auto ml-auto min-w-0 flex-1 sm:flex-none">
@@ -565,7 +574,7 @@ export function WorldMap({
             "pointer-events-none absolute top-[4.75rem] left-1/2 z-10 w-max max-w-[calc(100%-2rem)] rounded-2xl border border-foam/15 bg-sea-950/75 px-4 py-2 text-center text-sm font-bold text-balance text-foam shadow-lg backdrop-blur-md lg:top-auto lg:bottom-6",
           )}
         >
-          Tocá una isla para ver el viaje
+          {t({ en: "Pick an island to see the voyage time", es: "Tocá una isla para ver el viaje" })}
         </p>
       )}
 
@@ -582,7 +591,16 @@ export function WorldMap({
       />
 
       <p className="sr-only" aria-live="polite">
-        {selected ? `${selected.name}. ${selected.id === currentIslandId ? "Estás acá." : `Viaje de ${fmtDuration((travel[selected.id] ?? 0) * 1000)}.`}` : ""}
+        {selected
+          ? `${selected.name}. ${
+              selected.id === currentIslandId
+                ? t({ en: "You're here.", es: "Estás acá." })
+                : t({
+                    en: `Voyage: ${fmtDuration((travel[selected.id] ?? 0) * 1000)}.`,
+                    es: `Viaje de ${fmtDuration((travel[selected.id] ?? 0) * 1000)}.`,
+                  })
+            }`
+          : ""}
       </p>
     </section>
   );

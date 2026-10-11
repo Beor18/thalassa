@@ -2,10 +2,12 @@
 
 import type { KeyboardEvent, ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+
 import clsx from "clsx";
-import { RESOURCES, RESOURCE_INFO, type Resource } from "@/game/data";
-import { fmt, fmtDuration, fmtSigned } from "@/lib/format";
+import { RESOURCES, type Resource } from "@/game/data";
+import { resourceLabel } from "@/game/names";
+import { useI18n, usePagePathname } from "@/i18n/client";
+import type { Text } from "@/i18n/config";
 import { ResIcon, type ResKey } from "@/components/ui/res";
 import { useAnchoredPopover } from "@/components/ui/popover";
 import { AnimatedNumber } from "@/components/motion/animated-number";
@@ -37,13 +39,22 @@ export interface ResourceBarProps {
 }
 
 /**
- * Two groups (raw materials, then gold, citizens, research and néctar). Phones stack them in two
+ * Two groups (raw materials, then gold, citizens, research and nectar). Phones stack them in two
  * even rows so every number is in sight; from 768px they share one slim row.
  */
 export const BAR_LAYOUT = "flex flex-wrap items-center gap-x-1 gap-y-0.5 px-2 py-1 md:flex-nowrap md:px-1.5 lg:h-11 lg:py-0";
 export const BAR_GROUP = "flex w-full items-center justify-between md:w-auto md:justify-start md:gap-0.5 xl:gap-1";
 
 type Line = [label: string, value: ReactNode, tone?: "good" | "bad" | "gold"];
+
+/** Card labels used more than once. */
+const L = {
+  storage: { en: "Storage", es: "Depósito" },
+  perHour: { en: "Per hour", es: "Por hora" },
+  status: { en: "Status", es: "Estado" },
+  full: { en: "Full", es: "Lleno" },
+  runsOut: { en: "Runs out in", es: "Se acaba en" },
+} satisfies Record<string, Text>;
 
 /**
  * Live HUD. Interpolates production between server snapshots so numbers move in real time; when a
@@ -55,7 +66,8 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
   const now = useServerClock(props.serverNow);
   const elapsedH = (now - props.serverNow) / 3_600_000;
   const key = props.serverNow;
-  const pathname = usePathname();
+  const pathname = usePagePathname();
+  const { t, fmt, fmtDuration, fmtSigned } = useI18n();
   const overview = useAnchoredPopover<HTMLButtonElement>({ gap: 6, fullBelow: 640 });
 
   const perHour = (r: Resource) => {
@@ -76,30 +88,34 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
     const value = live(r);
     const rate = perHour(r);
     const full = value >= props.storage - 0.5;
-    const lines: Line[] = [["Depósito", `${fmt(value)} / ${fmt(props.storage)}`, full ? "gold" : undefined]];
-    if (rate) lines.push(["Por hora", fmtSigned(rate), rate > 0 ? "good" : "bad"]);
-    if (full) lines.push(["Estado", rate > 0 ? "Lleno, se pierde producción" : "Lleno", "gold"]);
-    else if (rate > 0) lines.push(["Lleno en", fmtDuration(((props.storage - value) / rate) * 3_600_000)]);
-    else if (rate < 0 && value > 0) lines.push(["Se acaba en", fmtDuration((value / -rate) * 3_600_000), "bad"]);
-    if (props.safe) lines.push(["A salvo", fmt(Math.min(props.safe, props.storage))]);
+    const lines: Line[] = [[t(L.storage), `${fmt(value)} / ${fmt(props.storage)}`, full ? "gold" : undefined]];
+    if (rate) lines.push([t(L.perHour), fmtSigned(rate), rate > 0 ? "good" : "bad"]);
+    if (full) lines.push([t(L.status), t(rate > 0 ? { en: "Full, output lost", es: "Lleno, se pierde producción" } : L.full), "gold"]);
+    else if (rate > 0) lines.push([t({ en: "Full in", es: "Lleno en" }), fmtDuration(((props.storage - value) / rate) * 3_600_000)]);
+    else if (rate < 0 && value > 0) lines.push([t(L.runsOut), fmtDuration((value / -rate) * 3_600_000), "bad"]);
+    if (props.safe) lines.push([t({ en: "Safe", es: "A salvo" }), fmt(Math.min(props.safe, props.storage))]);
     return { r, value, rate, full, fill: props.storage > 0 ? value / props.storage : 0, lines };
   });
 
-  const goldLines: Line[] = [["Por hora", fmtSigned(props.goldPerHour), props.goldPerHour >= 0 ? "good" : "bad"]];
-  if (props.goldIncome !== undefined) goldLines.push(["Impuestos", fmtSigned(props.goldIncome), "good"]);
-  if (props.goldUpkeep) goldLines.push(["Gastos", fmtSigned(-props.goldUpkeep), "bad"]);
-  if (props.goldPerHour < 0 && gold > 0) goldLines.push(["Se acaba en", fmtDuration((gold / -props.goldPerHour) * 3_600_000), "bad"]);
+  const goldLines: Line[] = [[t(L.perHour), fmtSigned(props.goldPerHour), props.goldPerHour >= 0 ? "good" : "bad"]];
+  if (props.goldIncome !== undefined) goldLines.push([t({ en: "Taxes", es: "Impuestos" }), fmtSigned(props.goldIncome), "good"]);
+  if (props.goldUpkeep) goldLines.push([t({ en: "Wages", es: "Gastos" }), fmtSigned(-props.goldUpkeep), "bad"]);
+  if (props.goldPerHour < 0 && gold > 0) goldLines.push([t(L.runsOut), fmtDuration((gold / -props.goldPerHour) * 3_600_000), "bad"]);
 
   const citizenLines: Line[] = [
-    ["Libres", fmt(props.freeCitizens)],
-    ["Población", `${fmt(props.population)} / ${fmt(props.housing)}`, props.population >= props.housing ? "gold" : undefined],
+    [t({ en: "Idle", es: "Libres" }), fmt(props.freeCitizens)],
+    [
+      t({ en: "Population", es: "Población" }),
+      `${fmt(props.population)} / ${fmt(props.housing)}`,
+      props.population >= props.housing ? "gold" : undefined,
+    ],
   ];
-  if (props.growth) citizenLines.push(["Crecen", `${fmtSigned(props.growth)}/h`, props.growth > 0 ? "good" : "bad"]);
+  if (props.growth) citizenLines.push([t({ en: "Growth", es: "Crecen" }), `${fmtSigned(props.growth)}/h`, props.growth > 0 ? "good" : "bad"]);
 
-  const researchLines: Line[] = [["Por hora", fmtSigned(props.researchPerHour), props.researchPerHour > 0 ? "good" : undefined]];
+  const researchLines: Line[] = [[t(L.perHour), fmtSigned(props.researchPerHour), props.researchPerHour > 0 ? "good" : undefined]];
 
   return (
-    <div role="toolbar" aria-label="Recursos" onKeyDown={moveBetweenChips} className={clsx("panel-glass relative", BAR_LAYOUT, className)}>
+    <div role="toolbar" aria-label={t({ en: "Resources", es: "Recursos" })} onKeyDown={moveBetweenChips} className={clsx("panel-glass relative", BAR_LAYOUT, className)}>
       {lead && (
         <>
           <span className="hidden lg:contents">{lead}</span>
@@ -111,9 +127,8 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
           <Chip key={r} kind={r} full={full} fill={fill} lines={lines} first={r === RESOURCES[0]}>
             <AnimatedNumber value={value} animateKey={key} minDelta={minDelta(rate)} float className={full ? "text-gold" : "text-foam"} />
             <span className="sr-only">
-              {" "}
-              de {fmt(props.storage)}
-              {full ? ", depósito lleno" : ""}
+              {t({ en: ` of ${fmt(props.storage)}`, es: ` de ${fmt(props.storage)}` })}
+              {full ? t({ en: ", storage full", es: ", depósito lleno" }) : ""}
             </span>
           </Chip>
         ))}
@@ -130,7 +145,7 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
               {" "}
               / <span className="tabular">{fmt(props.population)}</span>
             </span>
-            <span className="sr-only 2xl:hidden"> libres de {fmt(props.population)}</span>
+            <span className="sr-only 2xl:hidden">{t({ en: ` free of ${fmt(props.population)}`, es: ` libres de ${fmt(props.population)}` })}</span>
           </span>
         </Chip>
         <Chip kind="research" lines={researchLines}>
@@ -139,7 +154,7 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
         <Chip
           kind="ambrosia"
           lines={[]}
-          note="Termina cualquier obra al instante."
+          note={t({ en: "Finishes any build instantly.", es: "Termina cualquier obra al instante." })}
           href="/tesoro"
           transitionTypes={sectionTransition(pathname, "/tesoro")}
         >
@@ -151,14 +166,14 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
       <button
         type="button"
         {...overview.triggerProps}
-        aria-label="Ver el detalle de tus recursos"
+        aria-label={t({ en: "See your resources in detail", es: "Ver el detalle de tus recursos" })}
         className="absolute inset-0 z-10 rounded-[inherit] lg:hidden"
       />
       <div {...overview.popoverProps} className="hud-pop">
         {overview.open && (
           <div className="hud-tip w-[22rem] max-w-full p-1.5">
             <table className="w-full border-separate border-spacing-y-0.5 text-sm">
-              <caption className="sr-only">Tus recursos</caption>
+              <caption className="sr-only">{t({ en: "Your resources", es: "Tus recursos" })}</caption>
               <tbody>
                 {raw.map(({ r, value, rate, full }) => (
                   <OverviewRow
@@ -170,7 +185,7 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
                         <span className="font-normal text-foam/55"> / {fmt(props.storage)}</span>
                       </>
                     }
-                    rate={full && rate > 0 ? <span className="text-gold">Lleno</span> : rate ? <Rate value={rate} /> : null}
+                    rate={full && rate > 0 ? <span className="text-gold">{t(L.full)}</span> : rate ? <Rate value={rate} /> : null}
                   />
                 ))}
                 <tr aria-hidden>
@@ -184,7 +199,9 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
                   value={
                     <>
                       {fmt(props.freeCitizens)}
-                      <span className="font-normal text-foam/55"> libres de {fmt(props.population)}</span>
+                      <span className="font-normal text-foam/55">
+                        {t({ en: ` free of ${fmt(props.population)}`, es: ` libres de ${fmt(props.population)}` })}
+                      </span>
                     </>
                   }
                   rate={props.growth ? <Rate value={props.growth} /> : null}
@@ -204,7 +221,7 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
                       onClick={overview.hide}
                       className="-my-1 inline-flex h-8 items-center rounded-lg bg-ambrosia/30 px-2.5 text-[13px] font-bold text-ambrosia-soft ring-1 ring-ambrosia-light/40"
                     >
-                      Conseguir
+                      {t({ en: "Get more", es: "Conseguir" })}
                     </Link>
                   }
                 />
@@ -214,7 +231,8 @@ export function ResourceBar({ lead, className, ...props }: ResourceBarProps & { 
               <p className="mt-1 flex items-center gap-1.5 rounded-lg bg-foam/5 px-2.5 py-1.5 text-[13px] text-foam/75">
                 <IconShield className="size-4 text-sea-300" />
                 <span>
-                  <b className="text-foam tabular">{fmt(Math.min(props.safe, props.storage))}</b> de cada recurso, a salvo de saqueos
+                  <b className="text-foam tabular">{fmt(Math.min(props.safe, props.storage))}</b>{" "}
+                  {t({ en: "of each resource safe from raids", es: "de cada recurso, a salvo de saqueos" })}
                 </span>
               </p>
             ) : null}
@@ -261,17 +279,19 @@ function Divider({ className }: { className?: string }) {
 }
 
 function Rate({ value }: { value: number }) {
+  const { fmtSigned } = useI18n();
   return <span className={clsx("tabular", value > 0 ? "text-sea-300" : "text-danger-soft")}>{fmtSigned(value)}/h</span>;
 }
 
 function OverviewRow({ kind, value, rate }: { kind: ResKey; value: ReactNode; rate: ReactNode }) {
+  const { lang } = useI18n();
   return (
     <tr>
       <td className="w-7 py-1 pl-1.5">
         <ResIcon kind={kind} size={20} />
       </td>
       <th scope="row" className="py-1 pr-2 text-left font-normal text-foam/75">
-        {RESOURCE_INFO[kind].label}
+        {resourceLabel(kind, lang)}
       </th>
       <td className="py-1 text-right font-bold whitespace-nowrap tabular">{value}</td>
       <td className="w-[5.5rem] py-1 pr-1.5 text-right text-[13px] font-bold whitespace-nowrap">{rate}</td>
@@ -301,7 +321,7 @@ function moveBetweenChips(e: KeyboardEvent<HTMLDivElement>) {
 
 /**
  * One counter: icon, number and (for stored goods and citizens) how full it is.
- * Hover, focus or click shows its detail card; `href` turns it into a link (néctar opens the shop).
+ * Hover, focus or click shows its detail card; `href` turns it into a link (nectar opens the shop).
  */
 function Chip({
   kind,
@@ -326,8 +346,9 @@ function Chip({
   children: ReactNode;
 }) {
   const tip = useAnchoredPopover<HTMLButtonElement & HTMLAnchorElement>({ hover: true, gap: 8 });
+  const { t, lang } = useI18n();
   const pct = Math.max(0, Math.min(1, fill ?? 0));
-  const label = RESOURCE_INFO[kind].label;
+  const label = resourceLabel(kind, lang);
   const face = (
     <>
       <ResIcon kind={kind} size={22} className="size-[18px] md:size-5 lg:size-[22px]" />
@@ -369,7 +390,7 @@ function Chip({
         >
           <span className="sr-only">{label}: </span>
           {face}
-          <span className="sr-only">. Conseguir más</span>
+          <span className="sr-only">{t({ en: ". Get more", es: ". Conseguir más" })}</span>
         </Link>
       ) : (
         <button type="button" {...tip.triggerProps} data-chip tabIndex={first ? 0 : -1} className={clsx(CHIP, full && "at-cap bg-gold/10")}>

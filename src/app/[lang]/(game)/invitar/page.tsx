@@ -8,6 +8,8 @@ import { InviteLink } from "@/components/growth/invite-link";
 import { stagger } from "@/components/motion/reveal";
 import { HowItWorks, SECTION_NARROW } from "@/components/tesoro/section-ui";
 import { ResIcon } from "@/components/ui/res";
+import { buildingName } from "@/game/names";
+import { getI18n } from "@/i18n/server";
 import { SITE_URL } from "@/lib/site";
 import { requirePlayerId } from "@/server/auth";
 import { getGame } from "@/server/game-context";
@@ -20,7 +22,10 @@ import {
   type InviteeView,
 } from "@/server/growth/referrals";
 
-export const metadata: Metadata = { title: "Invitar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t({ en: "Invite", es: "Invitar" }) };
+}
 
 export default function InvitePage() {
   return (
@@ -33,7 +38,8 @@ export default function InvitePage() {
 async function Content() {
   // Settle first so the néctar (ambrosia) in the header already includes any reward paid right now.
   const invitees = await getInviteesSettled(await requirePlayerId());
-  const game = await getGame();
+  const [game, { t, lang, fmt }] = await Promise.all([getGame(), getI18n()]);
+  const townHall = buildingName("town_hall", lang);
   const { snapshot, city } = game;
   const rewarded = invitees.filter((i) => i.rewarded).length;
 
@@ -46,13 +52,17 @@ async function Content() {
             <Image src="/assets/u-ship.webp" alt="" width={64} height={64} loading="eager" className="sprite size-14 shrink-0 motion-safe:animate-float" />
             <div className="min-w-0">
               <h1 id="invite-title" className="font-display text-xl leading-tight font-bold text-foam sm:text-2xl">
-                Invitá y ganan los dos
+                {t({ en: "Invite and you both win", es: "Invitá y ganan los dos" })}
               </h1>
               <p className="mt-0.5 inline-flex flex-wrap items-center gap-x-1.5 text-[15px] text-foam/85">
                 <span className="inline-flex items-center gap-1 font-bold text-ambrosia-soft">
-                  <ResIcon kind="ambrosia" size={18} />+{REFERRAL_REWARD} de néctar
+                  <ResIcon kind="ambrosia" size={18} />
+                  {t({ en: `+${fmt(REFERRAL_REWARD)} Nectar`, es: `+${fmt(REFERRAL_REWARD)} de néctar` })}
                 </span>
-                cada uno cuando llega a Intendencia {REFERRAL_TOWN_HALL}.
+                {t({
+                  en: `each when your friend reaches ${townHall} ${REFERRAL_TOWN_HALL}.`,
+                  es: `cada uno cuando llega a ${townHall} ${REFERRAL_TOWN_HALL}.`,
+                })}
               </p>
             </div>
           </div>
@@ -65,17 +75,26 @@ async function Content() {
           <section aria-labelledby="invitees-title" className="panel rise-in flex flex-col gap-2 p-3 sm:p-4" style={stagger(1, 80, 3, 40)}>
             <div className="flex items-baseline justify-between gap-3">
               <h2 id="invitees-title" className="font-display text-lg font-bold">
-                Tus invitados
+                {t({ en: "Your invites", es: "Tus invitados" })}
               </h2>
               {invitees.length > 0 && (
-                <span className="text-sm font-bold text-ink-soft tabular-nums" title={`${rewarded} de ${invitees.length} ya cobraron el premio`}>
-                  {rewarded}/{invitees.length} con premio
+                <span
+                  className="text-sm font-bold text-ink-soft tabular-nums"
+                  title={t({
+                    en: `${rewarded} of ${invitees.length} already got the reward`,
+                    es: `${rewarded} de ${invitees.length} ya cobraron el premio`,
+                  })}
+                >
+                  {t({ en: `${rewarded}/${invitees.length} rewarded`, es: `${rewarded}/${invitees.length} con premio` })}
                 </span>
               )}
             </div>
             {invitees.length === 0 ? (
               <p className="rounded-xl border border-dashed border-parchment-3 px-3 py-3 text-sm text-ink-soft">
-                Todavía nadie. El primero que funde su polis con tu link aparece acá.
+                {t({
+                  en: "Nobody yet. The first friend to found a polis with your link shows up here.",
+                  es: "Todavía nadie. El primero que funde su polis con tu link aparece acá.",
+                })}
               </p>
             ) : (
               <ul className="flex flex-col gap-1.5">
@@ -87,20 +106,25 @@ async function Content() {
           </section>
 
           <div className="rise-in flex flex-col gap-3" style={stagger(2, 80, 3, 40)}>
-            <HowItWorks className="bg-parchment/90">
+            <HowItWorks className="bg-parchment/90" title={t({ en: "How does it work?", es: "¿Cómo funciona?" })}>
               <p>
-                Vale para cuentas nuevas que entran con tu link en los próximos 30 días. El premio llega cuando tu invitado sube
-                su Intendencia a nivel {REFERRAL_TOWN_HALL}.
+                {t({
+                  en: `It counts for new accounts that join through your link in the next 30 days. The reward arrives when your friend's ${townHall} reaches level ${REFERRAL_TOWN_HALL}.`,
+                  es: `Vale para cuentas nuevas que entran con tu link en los próximos 30 días. El premio llega cuando tu invitado sube su ${townHall} a nivel ${REFERRAL_TOWN_HALL}.`,
+                })}
               </p>
               <p>
-                Hasta {REFERRAL_MAX_PER_DAY} premios por día. Si te pasás, el resto se acredita al día siguiente.
+                {t({
+                  en: `Up to ${REFERRAL_MAX_PER_DAY} rewards a day. Any extra arrive the next day.`,
+                  es: `Hasta ${REFERRAL_MAX_PER_DAY} premios por día. Si te pasás, el resto se acredita al día siguiente.`,
+                })}
               </p>
             </HowItWorks>
             <Link
               href={`/polis/${city.id}`}
               className="panel-glass inline-flex min-h-11 items-center justify-between gap-2 px-3 text-sm font-bold text-foam hover:text-gold"
             >
-              Mostrá {city.name} con su página pública
+              {t({ en: `Show off ${city.name} with its public page`, es: `Mostrá ${city.name} con su página pública` })}
               <span aria-hidden>→</span>
             </Link>
           </div>
@@ -110,7 +134,9 @@ async function Content() {
   );
 }
 
-function InviteeRow({ invitee }: { invitee: InviteeView }) {
+async function InviteeRow({ invitee }: { invitee: InviteeView }) {
+  const { t, lang, fmt } = await getI18n();
+  const townHall = buildingName("town_hall", lang);
   const level = Math.min(invitee.townHall, REFERRAL_TOWN_HALL);
   return (
     <li className="flex items-center gap-3 rounded-xl border border-parchment-3 bg-marble/60 px-3 py-2">
@@ -119,7 +145,7 @@ function InviteeRow({ invitee }: { invitee: InviteeView }) {
         <div className="mt-1 flex items-center gap-2">
           <div
             role="progressbar"
-            aria-label={`Intendencia de ${invitee.name}`}
+            aria-label={t({ en: `${invitee.name}'s ${townHall}`, es: `${townHall} de ${invitee.name}` })}
             aria-valuemin={0}
             aria-valuemax={REFERRAL_TOWN_HALL}
             aria-valuenow={level}
@@ -130,7 +156,10 @@ function InviteeRow({ invitee }: { invitee: InviteeView }) {
               style={{ width: `${(level / REFERRAL_TOWN_HALL) * 100}%` }}
             />
           </div>
-          <span className="shrink-0 text-xs font-bold text-ink-soft tabular-nums" title="Nivel de Intendencia">
+          <span
+            className="shrink-0 text-xs font-bold text-ink-soft tabular-nums"
+            title={t({ en: `${townHall} level`, es: `Nivel de ${townHall}` })}
+          >
             {invitee.townHall}/{REFERRAL_TOWN_HALL}
           </span>
         </div>
@@ -143,10 +172,10 @@ function InviteeRow({ invitee }: { invitee: InviteeView }) {
       >
         {invitee.rewarded ? (
           <>
-            <ResIcon kind="ambrosia" size={14} />+{REFERRAL_REWARD}
+            <ResIcon kind="ambrosia" size={14} />+{fmt(REFERRAL_REWARD)}
           </>
         ) : (
-          "En camino"
+          t({ en: "On the way", es: "En camino" })
         )}
       </span>
     </li>

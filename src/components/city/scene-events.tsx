@@ -2,9 +2,12 @@
 
 import { createContext, use, useEffect, useEffectEvent, useLayoutEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from "motion/react";
-import { BUILDINGS, type BuildingType } from "@/game/data";
+import type { BuildingType } from "@/game/data";
 import { CITY_PLOTS, CITY_SPRITE_WIDTH } from "@/game/layout";
+import { buildingName } from "@/game/names";
 import { fx as scene } from "@/components/fx/classes";
+import type { Locale } from "@/i18n/config";
+import { useI18n } from "@/i18n/client";
 import { plotId } from "./lib";
 
 /*
@@ -12,7 +15,7 @@ import { plotId } from "./lib";
   goes up (a construction finished) or a new construction starts, the scene plays a moment:
   golden burst + the building dropping into place, or the scaffolding springing up.
 
-  - Live: the snapshot changes while the page is open (timer ran out, "Terminar ya", "Construir").
+  - Live: the snapshot changes while the page is open (timer ran out, "Finish now", "Build").
     Detected during render, so the new sprite starts its entrance before the first paint.
   - Late: the construction finished while the player was elsewhere. The last snapshot seen in this
     tab lives in sessionStorage per city; on mount we compare and celebrate with a softer pop
@@ -76,12 +79,16 @@ function writeStore(cityId: string, snap: CitySnapshot, seen: string[]) {
 
 const FEMININE = new Set<BuildingType>(["town_hall", "academy", "tavern", "wall", "carpenter", "stonemason"]);
 
-export function doneMessage(type: BuildingType, level: number): string {
+/** "Academy level 3 ready!" / "¡Academia nivel 3 lista!" */
+export function doneMessage(type: BuildingType, level: number, lang: Locale): string {
+  const name = buildingName(type, lang);
+  if (lang === "en") return level > 1 ? `${name} level ${level} ready!` : `${name} ready!`;
   const ready = FEMININE.has(type) ? "lista" : "listo";
-  return level > 1 ? `¡${BUILDINGS[type].name} nivel ${level} ${ready}!` : `¡${BUILDINGS[type].name} ${ready}!`;
+  return level > 1 ? `¡${name} nivel ${level} ${ready}!` : `¡${name} ${ready}!`;
 }
 
 export function SceneEvents({ cityId, snapshot, children }: { cityId: string; snapshot: CitySnapshot; children: ReactNode }) {
+  const { lang } = useI18n();
   const key = JSON.stringify(snapshot);
   const stamp = `${cityId}|${key}`;
   const [shown, setShown] = useState(stamp);
@@ -102,7 +109,7 @@ export function SceneEvents({ cityId, snapshot, children }: { cityId: string; sn
       setEvents((list) => [...list.filter((x) => !fresh.some((e) => e.id === x.id)), ...fresh]);
       setSeen((list) => [...list, ...fresh.filter((e) => e.kind === "done").map((e) => e.id)]);
       const done = fresh.filter((e) => e.kind === "done");
-      if (done.length) setMessage(done.map((e) => doneMessage(e.type, e.level)).join(" "));
+      if (done.length) setMessage(done.map((e) => doneMessage(e.type, e.level, lang)).join(" "));
     }
   }
 
@@ -122,7 +129,7 @@ export function SceneEvents({ cityId, snapshot, children }: { cityId: string; sn
     requestAnimationFrame(() => {
       setSeen((list) => [...list, ...late.map((e) => e.id)]);
       setEvents((list) => [...list, ...late.filter((e) => !list.some((x) => x.id === e.id))]);
-      setMessage(late.map((e) => doneMessage(e.type, e.level)).join(" "));
+      setMessage(late.map((e) => doneMessage(e.type, e.level, lang)).join(" "));
     });
     // Only on mount: later snapshots are handled live.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,6 +248,7 @@ function revealPlot(slot: number, smooth: boolean) {
 }
 
 function Celebration({ event, onDone }: { event: SceneEvent; onDone: () => void }) {
+  const { lang } = useI18n();
   const reduce = useReducedMotion();
   const pos = CITY_PLOTS[event.slot];
   // The top row would push a ribbon above the painting: show it under the building instead.
@@ -310,7 +318,7 @@ function Celebration({ event, onDone }: { event: SceneEvent; onDone: () => void 
         transition={{ type: "spring", stiffness: 380, damping: 20, delay: reduce ? 0 : 0.35 }}
       >
         <span className={scene.ribbonFace}>
-          <span className={scene.ribbonTitle}>{doneMessage(event.type, event.level)}</span>
+          <span className={scene.ribbonTitle}>{doneMessage(event.type, event.level, lang)}</span>
         </span>
       </motion.div>
     </div>
