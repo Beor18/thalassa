@@ -1,11 +1,13 @@
 "use client";
 
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { RESOURCE_INFO } from "@/game/data";
 import { fmtDuration } from "@/lib/format";
+import { useServerClock } from "@/lib/use-server-clock";
 import type { MapIsland } from "./island-marker";
-import { FLEET_COLOR } from "./fleets";
+import { FLEET_COLOR, FLEET_KIND_LABEL } from "./fleets";
+import type { FleetView } from "./types";
 
 const norm = (v: string) =>
   v
@@ -191,60 +193,150 @@ export function MapControls({ onZoomIn, onZoomOut, onHome }: { onZoomIn: () => v
   );
 }
 
-export function Legend({ fleets, originName }: { fleets: number; originName: string }) {
-  const [open, setOpen] = useState(false);
-  const items = (
-    <ul className="flex flex-col gap-1.5 text-[13px]">
-      <li className="flex items-center gap-2">
-        <span aria-hidden className="relative grid size-5 place-items-center">
-          <span className="absolute inset-0 rounded-full border-2 border-gold/90" />
-          <span className="size-1.5 rounded-full bg-gold" />
-        </span>
-        Isla de {originName}
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden className="h-3.5 w-5 rounded-[3px] bg-gradient-to-b from-[#fbe7a6] to-[#c9952f] ring-1 ring-bronze-dark" />
-        Tenés ciudades
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden className="flex w-5 justify-center gap-0.5">
-          {(["transport", "attack", "colonize"] as const).map((k) => (
-            <span key={k} className="h-3 w-1 rounded-full" style={{ background: FLEET_COLOR[k] }} />
-          ))}
-        </span>
-        {fleets === 0 ? "Sin flotas en el mar" : fleets === 1 ? "1 flota en el mar" : `${fleets} flotas en el mar`}
-      </li>
-      <li className="flex items-center gap-3 pl-0.5 text-foam/75">
-        {(
-          [
-            ["transport", "Transporte"],
-            ["attack", "Ataque"],
-            ["colonize", "Colonia"],
-          ] as const
-        ).map(([k, l]) => (
-          <span key={k} className="inline-flex items-center gap-1">
-            <span aria-hidden className="size-2 rounded-full" style={{ background: FLEET_COLOR[k] }} />
-            {l}
-          </span>
-        ))}
-      </li>
-    </ul>
-  );
+/** Popover attached to the dock: closes on Escape and on a press outside. */
+function usePopover<T extends string>() {
+  const [open, setOpen] = useState<T | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(null);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [open]);
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && open) {
+      e.stopPropagation();
+      setOpen(null);
+    }
+  };
+  return { open, setOpen, ref, onKeyDown };
+}
+
+function fleetLeg(f: FleetView) {
+  const back = f.status === "returning";
+  return {
+    back,
+    endsAt: back ? (f.returnsAt ?? f.arrivesAt) : f.arrivesAt,
+    islandId: back ? f.homeIslandId : f.targetIslandId,
+    title: back ? `Vuelve a ${f.originName}` : `${FLEET_KIND_LABEL[f.kind]} a ${f.targetLabel}`,
+  };
+}
+
+/**
+ * Bottom-left dock: your fleets at sea (count and next arrival, a tap opens the list) and the
+ * map references, both on demand so the sea stays clear.
+ */
+export function MapDock({
+  fleets,
+  originName,
+  serverNow,
+  shipIcon,
+  onPick,
+}: {
+  fleets: FleetView[];
+  originName: string;
+  serverNow: number;
+  shipIcon: string;
+  onPick: (islandId: number) => void;
+}) {
+  const { open, setOpen, ref, onKeyDown } = usePopover<"fleets" | "legend">();
+  const now = useServerClock(serverNow, 1000);
+  const listId = useId();
+  const legendId = useId();
+  const legs = fleets.map((f) => ({ f, ...fleetLeg(f) })).sort((a, b) => a.endsAt - b.endsAt);
+  const next = legs.find((l) => l.endsAt > now);
+  const left = (t: number) => (t > now ? fmtDuration(t - now) : "Llegando");
 
   return (
-    <div data-hud>
-      <div className={clsx("hidden rounded-xl px-3 py-2.5 md:block", glass)}>{items}</div>
-      <div className="md:hidden">
-        {open && <div className={clsx("mb-2 rounded-xl px-3 py-2.5", glass)}>{items}</div>}
+    <div data-hud ref={ref} onKeyDown={onKeyDown} className="relative flex items-end gap-2">
+      {open === "fleets" && legs.length > 0 && (
+        <div className={clsx("absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl p-1", glass)}>
+          <p className="px-2.5 pt-1.5 pb-1 text-xs font-extrabold tracking-wider text-foam/70 uppercase">Tus flotas</p>
+          <ul id={listId} className="flex max-h-64 flex-col overflow-y-auto overscroll-contain">
+            {legs.map(({ f, title, endsAt, islandId }) => (
+              <li key={f.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPick(islandId);
+                    setOpen(null);
+                  }}
+                  className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-1 text-left hover:bg-foam/10 focus-visible:ring-2 focus-visible:ring-gold"
+                >
+                  <span aria-hidden className="size-2.5 shrink-0 rounded-full ring-2 ring-foam/30" style={{ background: FLEET_COLOR[f.kind] }} />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-sm font-bold">{title}</span>
+                    <span className="block text-xs text-foam/70">{f.ships === 1 ? "1 barco" : `${f.ships} barcos`}</span>
+                  </span>
+                  <span className="tabular shrink-0 text-sm font-bold text-gold" suppressHydrationWarning>
+                    {left(endsAt)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {open === "legend" && (
+        <div id={legendId} className={clsx("absolute bottom-full left-0 mb-2 w-60 rounded-xl px-3 py-2.5", glass)}>
+          <ul className="flex flex-col gap-1.5 text-[13px]">
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="relative grid size-5 place-items-center">
+                <span className="absolute inset-0 rounded-full border-2 border-gold/90" />
+                <span className="size-1.5 rounded-full bg-gold" />
+              </span>
+              Isla de {originName}
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="h-3.5 w-5 rounded-[3px] bg-gradient-to-b from-[#fbe7a6] to-[#c9952f] ring-1 ring-bronze-dark" />
+              Tenés ciudades
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="tabular w-5 text-center text-[11px] font-bold text-foam/80">2/8</span>
+              Lugares ocupados
+            </li>
+            <li className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-foam/80">
+              {(["transport", "attack", "colonize"] as const).map((k) => (
+                <span key={k} className="inline-flex items-center gap-1">
+                  <span aria-hidden className="size-2 rounded-full" style={{ background: FLEET_COLOR[k] }} />
+                  {FLEET_KIND_LABEL[k]}
+                </span>
+              ))}
+            </li>
+          </ul>
+        </div>
+      )}
+      {legs.length > 0 && (
         <button
           type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-          className={clsx("flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-bold", glass)}
+          aria-expanded={open === "fleets"}
+          aria-controls={open === "fleets" ? listId : undefined}
+          aria-label={`${legs.length === 1 ? "1 flota" : `${legs.length} flotas`} en el mar${next ? `, la próxima llega en ${left(next.endsAt)}` : ""}`}
+          onClick={() => setOpen((o) => (o === "fleets" ? null : "fleets"))}
+          className={clsx("flex h-11 items-center gap-2 rounded-xl pr-3 pl-2 text-sm font-bold transition hover:bg-sea-700/90", glass)}
         >
-          {open ? "Ocultar referencias" : "Referencias"}
+          <span aria-hidden className="size-7 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${shipIcon})` }} />
+          <span className="tabular">{legs.length}</span>
+          {next && (
+            <span className="tabular border-l border-foam/20 pl-2 font-semibold text-gold" suppressHydrationWarning>
+              {left(next.endsAt)}
+            </span>
+          )}
         </button>
-      </div>
+      )}
+      <button
+        type="button"
+        aria-expanded={open === "legend"}
+        aria-controls={open === "legend" ? legendId : undefined}
+        aria-label="Referencias del mapa"
+        title="Referencias"
+        onClick={() => setOpen((o) => (o === "legend" ? null : "legend"))}
+        className={clsx("grid size-11 place-items-center rounded-xl text-base font-black transition hover:bg-sea-700/90", glass)}
+      >
+        <span aria-hidden>?</span>
+      </button>
     </div>
   );
 }

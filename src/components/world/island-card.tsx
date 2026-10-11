@@ -13,8 +13,16 @@ import type { MapIsland } from "./island-marker";
 import type { FleetKind, MyCity } from "./types";
 import { FLEET_COLOR } from "./fleets";
 
-export const CARD_WIDTH = 340;
-export const SHEET_HEIGHT = 236;
+export const CARD_WIDTH = 320;
+export const SHEET_HEIGHT = 200;
+
+const INCOMING: Record<FleetKind | "return", [string, string]> = {
+  attack: ["ataque en camino", "ataques en camino"],
+  transport: ["carga en camino", "cargas en camino"],
+  colonize: ["colonia en camino", "colonias en camino"],
+  return: ["flota vuelve", "flotas vuelven"],
+};
+const incomingLabel = (kind: FleetKind | "return", n: number) => `${n} ${INCOMING[kind][n === 1 ? 0 : 1]}`;
 
 export function IslandCard({
   island,
@@ -32,7 +40,7 @@ export function IslandCard({
   seconds: number;
   originName: string;
   myCities: MyCity[];
-  incoming: { kind: FleetKind; count: number }[];
+  incoming: { kind: FleetKind | "return"; count: number }[];
   desktop: boolean;
   reducedMotion: boolean;
   onClose: () => void;
@@ -64,26 +72,44 @@ export function IslandCard({
             initial={reducedMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="flex flex-col gap-2.5 md:gap-3"
+            className="flex flex-col gap-3"
           >
             <header className="flex items-start gap-3">
-              <span className="relative grid size-12 shrink-0 place-items-center rounded-xl bg-[radial-gradient(closest-side,rgb(111_179_230/0.45),transparent)] md:size-16">
-                <Image src={ISLAND_IMAGE[island.resource]} alt="" width={64} height={64} unoptimized className="size-12 md:size-16" />
+              <span className="relative grid size-14 shrink-0 place-items-center rounded-xl bg-[radial-gradient(closest-side,rgb(111_179_230/0.45),transparent)]">
+                <Image src={ISLAND_IMAGE[island.resource]} alt="" width={56} height={56} unoptimized className="size-14" />
               </span>
               <div className="min-w-0 flex-1 pt-0.5">
-                <h2 id="island-card-title" className="font-display text-lg leading-tight font-bold text-ink md:text-xl">
+                <h2 id="island-card-title" className="truncate font-display text-xl leading-tight font-bold text-ink">
                   {island.name}
                 </h2>
-                <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-ink-soft md:mt-1">
-                  <ResIcon kind={island.resource} size={18} />
-                  Isla de {RESOURCE_INFO[island.resource].label.toLowerCase()}
-                </p>
-                {(isCurrent || island.mine) && (
-                  <p className="mt-1.5 flex flex-wrap gap-1.5">
-                    {isCurrent && <span className="rounded-full bg-sea-900 px-2 py-0.5 text-xs font-extrabold text-gold">Estás acá</span>}
-                    {island.mine && <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-ink">Tenés ciudades</span>}
-                  </p>
-                )}
+                <ul aria-label="Datos de la isla" className="tabular mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-ink">
+                  <li className="inline-flex items-center gap-1" title={`Isla de ${RESOURCE_INFO[island.resource].label.toLowerCase()}`}>
+                    <ResIcon kind={island.resource} size={18} />
+                    {RESOURCE_INFO[island.resource].label}
+                  </li>
+                  <li className="inline-flex items-center gap-1" title="Lugares ocupados">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-ink-soft">
+                      <path d="M3 9l9-5 9 5H3z" />
+                      <path d="M5 9v9M9.5 9v9M14.5 9v9M19 9v9M3 21h18" />
+                    </svg>
+                    <span className="sr-only">Lugares ocupados:</span>
+                    {island.cityCount}/{ISLAND_PLOTS}
+                  </li>
+                  <li className="inline-flex items-center gap-1" title={isCurrent ? undefined : `Viaje desde ${originName}`}>
+                    {isCurrent ? (
+                      <span className="rounded-full bg-sea-900 px-2 py-0.5 text-xs font-extrabold text-gold">Estás acá</span>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden className="text-ink-soft">
+                          <circle cx="12" cy="12" r="8.5" />
+                          <path d="M12 7.5V12l3 2" />
+                        </svg>
+                        <span className="sr-only">Viaje desde {originName}:</span>
+                        {fmtDuration(seconds * 1000)}
+                      </>
+                    )}
+                  </li>
+                </ul>
               </div>
               <button
                 type="button"
@@ -97,46 +123,25 @@ export function IslandCard({
               </button>
             </header>
 
-            <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1.5 rounded-xl bg-parchment-2/60 px-3 py-2 text-sm ring-1 ring-parchment-3/70 md:gap-y-2.5 md:py-2.5">
-              <dt className="text-ink-soft">Lugares</dt>
-              <dd className="flex items-center gap-2">
-                <span className="flex gap-1" aria-hidden>
-                  {Array.from({ length: ISLAND_PLOTS }, (_, k) => (
-                    <span key={k} className={clsx("size-2.5 rounded-full ring-1", k < island.cityCount ? "bg-bronze ring-bronze-dark" : "bg-marble ring-parchment-3")} />
-                  ))}
-                </span>
-                <span className="tabular font-bold text-ink">
-                  {island.cityCount} de {ISLAND_PLOTS}
-                </span>
-              </dd>
-
-              <dt className="text-ink-soft">{isCurrent ? "Viaje" : `Desde ${originName}`}</dt>
-              <dd className="tabular font-bold text-ink">{isCurrent ? "Ya estás en esta isla" : fmtDuration(seconds * 1000)}</dd>
-
-              {myCities.length > 0 && (
-                <>
-                  <dt className="text-ink-soft">{myCities.length === 1 ? "Tu ciudad" : "Tus ciudades"}</dt>
-                  <dd className="truncate font-bold text-ink">{myCities.map((c) => c.name).join(", ")}</dd>
-                </>
-              )}
-
-              {incoming.length > 0 && (
-                <>
-                  <dt className="text-ink-soft">En camino</dt>
-                  <dd className="flex flex-wrap gap-x-3 gap-y-1 font-bold text-ink">
-                    {incoming.map((f) => (
-                      <span key={f.kind} className="inline-flex items-center gap-1.5">
-                        <span aria-hidden className="size-2.5 rounded-full ring-1 ring-ink/30" style={{ background: FLEET_COLOR[f.kind] }} />
-                        {f.count} {f.kind === "attack" ? (f.count === 1 ? "ataque" : "ataques") : f.kind === "transport" ? (f.count === 1 ? "transporte" : "transportes") : f.count === 1 ? "colonia" : "colonias"}
-                      </span>
-                    ))}
-                  </dd>
-                </>
-              )}
-            </dl>
+            {(myCities.length > 0 || incoming.length > 0) && (
+              <ul className="flex flex-wrap gap-1.5 text-xs font-extrabold">
+                {myCities.length > 0 && (
+                  <li className="max-w-full truncate rounded-full bg-gold px-2.5 py-1 text-ink" title={myCities.length === 1 ? "Tu ciudad" : "Tus ciudades"}>
+                    <span className="sr-only">{myCities.length === 1 ? "Tu ciudad: " : "Tus ciudades: "}</span>
+                    {myCities.map((c) => c.name).join(", ")}
+                  </li>
+                )}
+                {incoming.map((f) => (
+                  <li key={f.kind} className="inline-flex items-center gap-1.5 rounded-full bg-sea-900 px-2.5 py-1 text-foam">
+                    <span aria-hidden className="size-2 rounded-full" style={{ background: f.kind === "return" ? "#e6f3fb" : FLEET_COLOR[f.kind] }} />
+                    {incomingLabel(f.kind, f.count)}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <Link href={`/isla/${island.id}`} data-card-primary className={buttonClass("primary", desktop ? "lg" : "md", "w-full")}>
-              Navegar a {island.name}
+              Ver {island.name}
             </Link>
           </motion.div>
         </motion.section>

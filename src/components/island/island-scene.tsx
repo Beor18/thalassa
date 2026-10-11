@@ -12,6 +12,7 @@ import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { IconFlag, IconSwords, IconTemple } from "./icons";
 import { MINE_NAME } from "./names";
+import { LevelMedal, ResGlyph } from "./ui";
 import { Fleets, type FleetPath } from "./fleets";
 import { PanelLink } from "./panel-host";
 import { ScrollFrame } from "./scroll-frame";
@@ -40,6 +41,7 @@ function Label({ side = "below", tone, title, sub }: { side?: Side; tone: Tone; 
 /** Interactive spot over the painting: ground ring, sprite with a gold rim, life, ribbon. */
 function Spot({
   panel,
+  name,
   pos,
   width,
   focus,
@@ -49,6 +51,8 @@ function Spot({
   children,
 }: {
   panel: string;
+  /** what a screen reader announces for the spot */
+  name: string;
   pos: { x: number; y: number };
   width: number;
   focus?: boolean;
@@ -82,6 +86,7 @@ function Spot({
         <span className="relative grid w-full place-items-center">{children}</span>
         {life}
       </span>
+      <span className="sr-only">{name}</span>
       {label}
     </PanelLink>
   );
@@ -148,11 +153,14 @@ export function IslandScene({
   activeCityId,
   now,
   fleets,
+  idleSawmill = false,
 }: {
   island: IslandView;
   activeCityId: string;
   now: number;
   fleets: FleetPath[];
+  /** the player's city is here and nobody works the sawmill: call them over */
+  idleSawmill?: boolean;
 }) {
   const rebuilding = island.barbarians.rebuildingUntil;
   const hasActive = island.cities.some((c) => c.id === activeCityId);
@@ -182,10 +190,12 @@ export function IslandScene({
 
             <Spot
               panel="sawmill"
+              name={`Aserradero, nivel ${island.sawmill.level}${idleSawmill ? ", sin trabajadores" : ""}`}
               pos={ISLAND_FEATURES.sawmill}
               width={12}
+              focus={idleSawmill}
               image={ISLAND_FEATURE_IMAGE.sawmill}
-              label={<Label tone="parchment" title="Aserradero" sub={`Nivel ${island.sawmill.level}`} />}
+              label={<Label tone="parchment" title="Aserradero" />}
               life={<Smoke x={58} y={40} size={20} dur={4.6} peak={0.42} rise={-120} tint="sepia(0.6) saturate(1.2)" puffs={2} />}
             >
               <Sprite
@@ -197,14 +207,26 @@ export function IslandScene({
                   </Token>
                 }
               />
+              <LevelMedal level={island.sawmill.level} className="top-[6%] right-[8%]" />
+              {idleSawmill && (
+                <span aria-hidden className={clsx("absolute -top-[44%] left-1/2 -ml-5", fx.float)}>
+                  <span className="relative grid size-10 place-items-center rounded-full bg-gradient-to-b from-[#f7d77a] to-gold shadow-lg ring-2 ring-marble">
+                    <ResGlyph kind="citizens" size={24} />
+                    <span className="absolute -top-1 -right-1 grid size-4.5 place-items-center rounded-full bg-terracotta text-[11px] leading-none font-black text-marble ring-2 ring-marble">
+                      !
+                    </span>
+                  </span>
+                </span>
+              )}
             </Spot>
 
             <Spot
               panel="mine"
+              name={`${MINE_NAME[island.resource]}, nivel ${island.mine.level}`}
               pos={ISLAND_FEATURES.mine}
               width={12}
               image={ISLAND_FEATURE_IMAGE[island.resource]}
-              label={<Label tone="parchment" title={MINE_NAME[island.resource]} sub={`Nivel ${island.mine.level}`} />}
+              label={<Label tone="parchment" title={MINE_NAME[island.resource]} />}
               life={<MineLife resource={island.resource} />}
             >
               <Sprite
@@ -216,10 +238,12 @@ export function IslandScene({
                   </Token>
                 }
               />
+              <LevelMedal level={island.mine.level} className="top-[6%] right-[8%]" />
             </Spot>
 
             <Spot
               panel="camp"
+              name={`Campamento bárbaro, nivel ${island.barbarians.level}${rebuilding ? ", reconstruyendo" : ""}`}
               pos={ISLAND_FEATURES.barbarians}
               width={11}
               image={ISLAND_FEATURE_IMAGE.barbarians}
@@ -227,15 +251,7 @@ export function IslandScene({
                 <Label
                   tone={rebuilding ? "dark" : "parchment"}
                   title="Bárbaros"
-                  sub={
-                    rebuilding ? (
-                      <>
-                        Reconstruyendo · <Countdown endsAt={rebuilding} serverNow={now} />
-                      </>
-                    ) : (
-                      `Nivel ${island.barbarians.level}`
-                    )
-                  }
+                  sub={rebuilding ? <Countdown endsAt={rebuilding} serverNow={now} /> : undefined}
                 />
               }
               life={
@@ -260,12 +276,7 @@ export function IslandScene({
                   }
                 />
               </span>
-              <span
-                aria-hidden
-                className="tabular absolute top-[6%] right-[8%] grid size-7 place-items-center rounded-full bg-gradient-to-b from-[#d4643a] to-terracotta text-sm font-black text-marble shadow ring-2 ring-marble/80"
-              >
-                {island.barbarians.level}
-              </span>
+              <LevelMedal level={island.barbarians.level} tone="red" className="top-[6%] right-[8%]" />
             </Spot>
 
             {ISLAND_PLOT_POS.map((pos, slot) => {
@@ -320,6 +331,7 @@ export function IslandScene({
                 <Spot
                   key={slot}
                   panel={`plot-${slot}`}
+                  name={`${c.name}, ${c.isMine ? (isActive ? "tu ciudad, estás acá" : "tu ciudad") : `ciudad de ${c.playerName}`}`}
                   pos={pos}
                   width={CITY_WIDTH}
                   focus={focus}
@@ -329,7 +341,7 @@ export function IslandScene({
                       side={PLOT_LABEL_SIDE[slot]}
                       tone={c.isMine ? "gold" : "dark"}
                       title={c.name}
-                      sub={isActive ? `${c.playerName} · estás acá` : c.playerName}
+                      sub={c.isMine ? (isActive ? "Estás acá" : undefined) : c.playerName}
                     />
                   }
                 >
@@ -382,7 +394,7 @@ export function IslandScene({
           </div>
         </ParallaxScene>
       </ScrollFrame>
-      <p className="px-2 pt-1.5 pb-0.5 text-xs text-foam/75 md:hidden">Deslizá el mapa para ver toda la isla.</p>
+      <p className="px-2 pt-1.5 pb-0.5 text-xs text-foam/75 md:hidden">Deslizá para ver toda la isla</p>
     </div>
   );
 }

@@ -23,6 +23,6 @@ export function SceneFit({ children }: { children: ReactNode }) {
 export const CITY_GRID =
   "grid gap-3 lg:items-start lg:justify-center lg:grid-cols-[minmax(0,max(640px,calc(150cqh-2px)))_360px] xl:grid-cols-[minmax(0,max(640px,calc(150cqh-2px)))_420px]";
 
-/** Island: framed scene (padding + border) + panel column. */
+/** Island: framed scene (padding + border) + panel column (narrower on small laptops so the scene keeps more room). */
 export const ISLAND_GRID =
-  "grid items-start gap-3 lg:justify-center lg:grid-cols-[minmax(0,max(772px,calc(150cqh-8px)))_400px]";
+  "grid items-start gap-3 lg:justify-center lg:grid-cols-[minmax(0,max(772px,calc(150cqh-8px)))_360px] xl:grid-cols-[minmax(0,max(772px,calc(150cqh-8px)))_400px]";

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import clsx from "clsx";
 import type { WorldIsland } from "@/server/queries";
+import { SHIP_IMAGE } from "@/game/layout";
 import { fmtDuration } from "@/lib/format";
 import { Camera, type View } from "./camera";
 import { clamp, curvePath, layoutWorld, pointOnCurve, routeCurve, type Curve } from "./geometry";
 import { IslandMarker, type MapIsland } from "./island-marker";
 import { FleetTracks, Fleets, fleetRoutes } from "./fleets";
 import { CARD_WIDTH, IslandCard, SHEET_HEIGHT } from "./island-card";
-import { IslandSearch, Legend, MapControls } from "./hud";
+import { IslandSearch, MapControls, MapDock } from "./hud";
 import { CausticsLayers, CloudShadows, Clouds, Compass, Gulls, cloudField } from "./sea-fx";
 import type { FleetKind, FleetView, MyCity, WorldFx } from "./types";
 import { s } from "./styles";
@@ -423,15 +424,18 @@ export function WorldMap({
       : null;
   const routeMid = route ? pointOnCurve(route, 0.5) : null;
 
-  const incomingCounts = new Map<FleetKind, number>();
+  // Fleets sailing to the selected island; ships coming home count apart from new missions.
+  const incomingCounts = new Map<FleetKind | "return", number>();
   for (const f of selected ? fleets : []) {
-    const to = f.status === "returning" ? f.homeIslandId : f.targetIslandId;
-    if (to === selected?.id) incomingCounts.set(f.kind, (incomingCounts.get(f.kind) ?? 0) + 1);
+    const back = f.status === "returning";
+    const to = back ? f.homeIslandId : f.targetIslandId;
+    const key = back ? "return" : f.kind;
+    if (to === selected?.id) incomingCounts.set(key, (incomingCounts.get(key) ?? 0) + 1);
   }
   const incoming = [...incomingCounts].map(([kind, count]) => ({ kind, count }));
 
   const mineCount = islands.filter((i) => i.mine).length;
-  const fleetsAtSea = routes.length;
+  const fleetsAtSea = useMemo(() => routes.map((r) => r.fleet), [routes]);
 
   if (islands.length === 0) {
     return (
@@ -461,10 +465,11 @@ export function WorldMap({
 
       {/* HUD: title and island search come first in tab order */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-3 sm:gap-3 sm:p-4">
-        <div data-hud className={clsx(selected && !desktop && "hidden", "pointer-events-auto shrink-0 rounded-xl border border-foam/15 bg-sea-950/70 px-3 py-1.5 text-foam shadow-[0_8px_24px_-8px_rgb(4_18_38/0.8)] backdrop-blur-md sm:px-4 sm:py-2")}>
-          <h1 className="font-display text-lg leading-tight font-bold sm:text-2xl">El Egeo</h1>
-          <p className="text-xs text-foam/80 sm:text-sm">
-            {islands.length} islas<span className="hidden sm:inline">. Tenés ciudades en {mineCount}</span>
+        {/* Phones: the nav already says where you are, so the search gets the whole row. */}
+        <div data-hud className="pointer-events-auto shrink-0 rounded-xl border border-foam/15 bg-sea-950/70 px-4 py-1.5 text-foam shadow-[0_8px_24px_-8px_rgb(4_18_38/0.8)] backdrop-blur-md max-sm:sr-only">
+          <h1 className="font-display text-2xl leading-tight font-bold">El Egeo</h1>
+          <p className="tabular text-sm text-foam/80">
+            {islands.length} islas · {mineCount === 1 ? "1 tuya" : `${mineCount} tuyas`}
           </p>
         </div>
         <div className="pointer-events-auto ml-auto min-w-0 flex-1 sm:flex-none">
@@ -540,7 +545,7 @@ export function WorldMap({
       <div className={clsx("pointer-events-none absolute bottom-3 left-3 z-20 flex items-end gap-3 sm:bottom-4 sm:left-4", selected && !desktop && "invisible")}>
         <Compass src={fx.compass} className="relative hidden size-20 shrink-0 sm:block lg:size-24" />
         <div className="pointer-events-auto">
-          <Legend fleets={fleetsAtSea} originName={originName} />
+          <MapDock fleets={fleetsAtSea} originName={originName} serverNow={serverNow} shipIcon={SHIP_IMAGE} onPick={(id) => select(id)} />
         </div>
       </div>
 
@@ -560,7 +565,7 @@ export function WorldMap({
             "pointer-events-none absolute top-[4.75rem] left-1/2 z-10 w-max max-w-[calc(100%-2rem)] rounded-2xl border border-foam/15 bg-sea-950/75 px-4 py-2 text-center text-sm font-bold text-balance text-foam shadow-lg backdrop-blur-md lg:top-auto lg:bottom-6",
           )}
         >
-          Arrastrá para moverte y tocá una isla para ver el viaje
+          Tocá una isla para ver el viaje
         </p>
       )}
 

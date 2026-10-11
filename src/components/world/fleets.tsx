@@ -17,7 +17,7 @@ export const FLEET_COLOR: Record<FleetKind, string> = {
   colonize: "#e3b341",
 };
 
-const KIND_LABEL: Record<FleetKind, string> = {
+export const FLEET_KIND_LABEL: Record<FleetKind, string> = {
   transport: "Transporte",
   attack: "Ataque",
   colonize: "Colonia",
@@ -174,7 +174,7 @@ export function Fleets({
     const destination = back ? `Vuelve a ${f.originName}` : `Va a ${f.targetLabel}`;
     const left = pose.endsAt - now;
     const when = left > 0 ? `llega en ${fmtDuration(left)}` : "llegando";
-    const title = back ? `Regreso ${f.kind === "attack" ? "del ataque" : f.kind === "transport" ? "del transporte" : "de la colonia"}` : KIND_LABEL[f.kind];
+    const title = back ? `Regreso ${f.kind === "attack" ? "del ataque" : f.kind === "transport" ? "del transporte" : "de la colonia"}` : FLEET_KIND_LABEL[f.kind];
     const label = `${title}. ${destination}, ${when}. ${f.ships} ${f.ships === 1 ? "barco" : "barcos"}${loot ? ", con botín" : ""}.`;
     const angle = fx.shipTopDown ? first.angle : Math.cos(first.angle) > 0 ? first.angle : first.angle + Math.PI;
 

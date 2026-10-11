@@ -83,6 +83,39 @@ export const IconAxe = (p: IconProps) => (
   </Svg>
 );
 
+export const IconShield = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3l7 3v5.5c0 4.4-3 7.9-7 9.5-4-1.6-7-5.1-7-9.5V6l7-3z" />
+  </Svg>
+);
+
+export const IconClock = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Svg>
+);
+
+export const IconChevronDown = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 9l6 6 6-6" />
+  </Svg>
+);
+
+export const IconBox = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 8L12 4l8.5 4v8.5L12 20.5l-8.5-4V8z" />
+    <path d="M3.5 8L12 12l8.5-4M12 12v8.5" />
+  </Svg>
+);
+
+export const IconMap = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 4L3 6.5v13.5L9 17.5l6 2.5 6-2.5V4l-6 2.5L9 4z" />
+    <path d="M9 4v13.5M15 6.5V20" />
+  </Svg>
+);
+
 export const IconScroll = (p: IconProps) => (
   <Svg {...p}>
     <path d="M8 3h11a2 2 0 0 1 0 4h-2v12a2 2 0 0 1-2 2H6a2 2 0 0 1 0-4h2V3z" />

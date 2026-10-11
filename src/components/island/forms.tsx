@@ -11,9 +11,11 @@ import type { ActionResult } from "@/lib/action-result";
 import { Button, buttonClass } from "@/components/ui/button";
 import { reportResult } from "@/components/ui/action-button";
 import { ResIcon } from "@/components/ui/res";
-import { fmt, fmtDuration } from "@/lib/format";
+import { fmt, fmtDuration, fmtSigned } from "@/lib/format";
 import { UnitPortrait } from "@/components/military/units";
-import { IconCheck, IconCross } from "./icons";
+import { IconBox, IconCheck, IconClock, IconCross, IconShield, IconSwords } from "./icons";
+import { useClosePanel } from "./panel-host";
+import { Callout, ResGlyph, ShipGlyph, Stat, StatRow } from "./ui";
 
 // ---------------------------------------------------------------------------
 // Shared bits
@@ -24,15 +26,17 @@ const inputClass =
 
 const digits = (v: string) => v.replace(/[^0-9]/g, "").slice(0, 9);
 const toInt = (v: string) => (v ? Number.parseInt(v, 10) || 0 : 0);
+const plural = (n: number, one: string, many: string) => `${fmt(n)} ${n === 1 ? one : many}`;
 
-function useSubmit() {
+/** `inline`: the form confirms success itself, so no toast lands on top of its next button. */
+function useSubmit({ inline = false }: { inline?: boolean } = {}) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const submit = (run: () => Promise<ActionResult<unknown>>, onOk?: () => void) => {
     setError(null);
     start(async () => {
       const result = await run();
-      reportResult(result);
+      if (!(inline && result.ok)) reportResult(result);
       if (result.ok) onOk?.();
       else setError(result.error);
     });
@@ -63,15 +67,6 @@ function SmallButton({ children, onClick, disabled, label }: { children: ReactNo
   );
 }
 
-function Fact({ label, children, warn }: { label: string; children: ReactNode; warn?: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-ink-soft">{label}</dt>
-      <dd className={clsx("tabular text-right font-bold", warn && "text-danger")}>{children}</dd>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Workers (sawmill and luxury mine)
 // ---------------------------------------------------------------------------
@@ -86,6 +81,7 @@ export function WorkersForm({
   perWorker,
   resource,
   goldPerCitizen,
+  goldPerHour,
 }: {
   cityId: string;
   field: "woodWorkers" | "luxWorkers";
@@ -101,13 +97,20 @@ export function WorkersForm({
   resource: Resource;
   /** gold per hour a free citizen pays (already at game speed) */
   goldPerCitizen: number;
+  /** this city's gold balance per hour right now (taxes minus upkeep) */
+  goldPerHour: number;
 }) {
   // Nobody working yet: suggest half of the free citizens so the first click already does something useful.
   const [value, setValue] = useState(() => (current === 0 ? Math.min(max, Math.floor(free / 2)) : current));
-  const { pending, error, submit } = useSubmit();
+  const { pending, error, submit } = useSubmit({ inline: true });
+  const close = useClosePanel();
+  // Set once the server confirms: the form then says what changed and offers to close.
+  const [saved, setSaved] = useState(false);
   const rangeId = useId();
   const label = RESOURCE_INFO[resource].label.toLowerCase();
   const delta = value - current;
+  const goldAfter = goldPerHour - delta * goldPerCitizen;
+  const done = saved && delta === 0 && !pending;
   const set = (n: number) => setValue(Math.max(0, Math.min(max, n)));
 
   const submitLabel =
@@ -115,25 +118,18 @@ export function WorkersForm({
       ? current === 0
         ? "Asignar trabajadores"
         : "Sacar a todos los trabajadores"
-      : value === 1
-        ? "Asignar 1 trabajador"
-        : `Asignar ${fmt(value)} trabajadores`;
+      : `Asignar ${plural(value, "trabajador", "trabajadores")}`;
 
   if (max === 0) {
-    return (
-      <div className="rounded-xl bg-parchment-2/70 p-3 text-sm ring-1 ring-parchment-3">
-        <p className="font-bold">No tenés ciudadanos libres.</p>
-        <p className="text-ink-soft">Subí la Intendencia o esperá a que crezca la población.</p>
-      </div>
-    );
+    return <Callout title="Sin ciudadanos libres">Subí la Intendencia para que crezca la población.</Callout>;
   }
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
-        submit(() => setWorkersAction({ cityId, [field]: value }));
+        submit(() => setWorkersAction({ cityId, [field]: value }), () => setSaved(true));
       }}
     >
       <div className="flex items-baseline justify-between gap-3">
@@ -141,7 +137,7 @@ export function WorkersForm({
           Trabajadores
         </label>
         <span className="tabular text-sm text-ink-soft">
-          {fmt(current)} hoy · lugar para {fmt(capacity)}
+          Ahora {fmt(current)} · máx {fmt(capacity)}
         </span>
       </div>
       <div className="flex items-center gap-3">
@@ -167,26 +163,41 @@ export function WorkersForm({
           className={clsx(inputClass, "w-20 text-right")}
         />
       </div>
-      <dl className="flex flex-col gap-1 rounded-xl bg-parchment-2/60 p-3 text-sm ring-1 ring-parchment-3">
-        <Fact label={`Producción de ${label}`}>
-          <span className="inline-flex items-center gap-1">
-            <ResIcon kind={resource} size={16} />+{fmt(value * perWorker)}/h
-          </span>
-        </Fact>
-        <Fact label="Ciudadanos libres después">{fmt(free - delta)}</Fact>
-        {delta !== 0 && (
-          <Fact label={delta > 0 ? "Impuestos que dejás de cobrar" : "Impuestos que recuperás"} warn={delta > 0}>
-            <span className="inline-flex items-center gap-1">
-              <ResIcon kind="gold" size={16} />
-              {delta > 0 ? "−" : "+"}
-              {fmt(Math.abs(delta) * goldPerCitizen)}/h
-            </span>
-          </Fact>
-        )}
-      </dl>
-      <Button type="submit" disabled={pending || delta === 0} aria-busy={pending}>
-        {pending ? "Asignando…" : submitLabel}
-      </Button>
+      <StatRow>
+        <Stat
+          icon={<ResGlyph kind={resource} />}
+          label={`Producción de ${label} (${fmt(perWorker)} por trabajador)`}
+          tone={value > 0 ? "good" : "muted"}
+        >
+          +{fmt(value * perWorker)}/h
+        </Stat>
+        {/* The trade-off, calmly: what this city keeps earning in gold, not what it "loses". */}
+        <Stat
+          icon={<ResGlyph kind="gold" />}
+          label="Oro por hora de esta ciudad: quien trabaja no paga impuestos"
+          tone={goldAfter < 0 ? "bad" : "muted"}
+        >
+          {delta !== 0 && <span className="font-semibold text-ink-soft/80">{fmtSigned(goldPerHour)} →</span>}
+          {fmtSigned(goldAfter)}/h
+        </Stat>
+      </StatRow>
+      {done ? (
+        <>
+          <p role="status" className="flex items-center gap-2 rounded-xl bg-success/12 px-3 py-2 text-sm font-bold text-success">
+            <IconCheck size={18} className="shrink-0" />
+            {current === 0
+              ? "Nadie trabaja acá ahora"
+              : `${plural(current, "trabajador", "trabajadores")}: +${fmt(current * perWorker)} de ${label} por hora`}
+          </p>
+          <Button type="button" onClick={close}>
+            Volver a la isla
+          </Button>
+        </>
+      ) : (
+        <Button type="submit" disabled={pending || delta === 0} aria-busy={pending}>
+          {pending ? "Asignando…" : submitLabel}
+        </Button>
+      )}
       <InlineError>{error}</InlineError>
     </form>
   );
@@ -201,13 +212,11 @@ export function DonateForm({
   target,
   have,
   remaining,
-  nextLevel,
 }: {
   cityId: string;
   target: "sawmill" | "mine";
   have: number;
   remaining: number;
-  nextLevel: number;
 }) {
   const [amount, setAmount] = useState("");
   const { pending, error, submit } = useSubmit();
@@ -225,16 +234,14 @@ export function DonateForm({
         submit(() => donateAction({ cityId, target, amount: n }), () => setAmount(""));
       }}
     >
-      <label htmlFor={id} className="font-bold">
-        Donar madera
-      </label>
-      <p className="-mt-1.5 text-sm text-ink-soft">
-        Entre todos los vecinos se sube de nivel. Faltan <strong className="tabular text-ink">{fmt(remaining)}</strong> para el nivel{" "}
-        {nextLevel}.
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1">
         <span className="relative">
-          <ResIcon kind="wood" size={18} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2" />
+          <label htmlFor={id} className="sr-only">
+            Madera a donar
+          </label>
+          <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2">
+            <ResGlyph kind="wood" />
+          </span>
           <input
             id={id}
             type="text"
@@ -246,7 +253,7 @@ export function DonateForm({
             onChange={(e) => setAmount(digits(e.target.value))}
             aria-invalid={tooMuch || undefined}
             aria-describedby={tooMuch ? `${id}-err` : undefined}
-            className={clsx(inputClass, "w-32 pl-9")}
+            className={clsx(inputClass, "w-28 pl-9")}
           />
         </span>
         {presets.map((p) => (
@@ -254,11 +261,9 @@ export function DonateForm({
             {fmt(p)}
           </SmallButton>
         ))}
-        {remaining > 0 && remaining <= have && (
-          <SmallButton onClick={() => setAmount(String(remaining))}>Lo que falta</SmallButton>
-        )}
+        {remaining > 0 && remaining <= have && <SmallButton onClick={() => setAmount(String(remaining))}>Lo que falta</SmallButton>}
       </div>
-      {tooMuch && <InlineError id={`${id}-err`}>Tenés {fmt(have)} de madera en esta ciudad.</InlineError>}
+      {tooMuch && <InlineError id={`${id}-err`}>Tenés {fmt(have)} de madera.</InlineError>}
       <Button type="submit" variant="secondary" disabled={pending || n < 1 || tooMuch} aria-busy={pending}>
         {pending ? "Donando…" : n > 0 ? `Donar ${fmt(n)} de madera` : "Donar madera"}
       </Button>
@@ -320,6 +325,7 @@ export function AttackForm({
   const ships = total > 0 ? shipsForUnits(total) : 0;
   const lackShips = ships > shipsDocked;
   const preview = defender && total > 0 ? resolveCombat(units, defender.units, defender.wall) : null;
+  const defense = defender ? (preview ?? resolveCombat({}, defender.units, defender.wall)).defensePower : null;
   const lost = preview ? Object.values(preview.attackerLosses).reduce((s, n) => s + (n ?? 0), 0) : 0;
   // A defeat is not a button away: say it loud and make attacking anyway the quiet option.
   const losing = Boolean(preview && !preview.attackerWins);
@@ -338,32 +344,39 @@ export function AttackForm({
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         if (!total || lackShips || blocked) return;
         submit(() => attackAction({ originCityId, target, units }), () => setCounts({}));
       }}
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="font-bold">Tropas desde {originName}</p>
-        <SmallButton onClick={fillAll} disabled={shipsDocked === 0}>
-          Elegir todas
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate font-bold">
+          Tropas <span className="font-normal text-ink-soft">de {originName}</span>
+        </p>
+        <SmallButton onClick={fillAll} disabled={shipsDocked === 0} label="Elegir todas las tropas">
+          Todas
         </SmallButton>
       </div>
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-1.5">
         {available.map((u) => {
           const def = UNITS[u.type];
           const inputId = `${errId}-${u.type}`;
           const value = counts[u.type] ?? "";
           const over = toInt(value) > u.have;
           return (
-            <li key={u.type} className="flex items-center gap-2.5 rounded-xl bg-parchment-2/60 p-1.5 pr-2 ring-1 ring-parchment-3">
-              <UnitPortrait unit={u.type} size={44} className="bg-transparent" />
+            <li key={u.type} className="flex items-center gap-2 rounded-xl bg-parchment-2/60 py-1 pr-1 pl-1 ring-1 ring-parchment-3">
+              <UnitPortrait unit={u.type} size={40} className="bg-transparent" />
               <label htmlFor={inputId} className="min-w-0 flex-1 leading-tight">
-                <span className="block font-bold">{def.name}</span>
-                <span className="block text-xs text-ink-soft">
-                  En casa {fmt(u.have)} · ataque {def.attack}
+                <span className="block truncate font-bold">{def.name}</span>
+                <span className="tabular flex items-center gap-1.5 text-xs text-ink-soft">
+                  {fmt(u.have)} en casa
+                  <span className="inline-flex items-center gap-0.5" title="Ataque por soldado">
+                    <IconSwords size={12} />
+                    <span className="sr-only">ataque</span>
+                    {def.attack}
+                  </span>
                 </span>
               </label>
               <input
@@ -376,7 +389,7 @@ export function AttackForm({
                 value={value}
                 onChange={(e) => setCounts((c) => ({ ...c, [u.type]: digits(e.target.value) }))}
                 aria-invalid={over || undefined}
-                className={clsx(inputClass, "w-20 text-right")}
+                className={clsx(inputClass, "w-[4.5rem] text-right")}
               />
               <SmallButton label={`Usar todos (${def.name})`} onClick={() => setCounts((c) => ({ ...c, [u.type]: String(u.have) }))}>
                 Máx
@@ -386,35 +399,47 @@ export function AttackForm({
         })}
       </ul>
 
-      <dl className="flex flex-col gap-1 rounded-xl bg-parchment-2/60 p-3 text-sm ring-1 ring-parchment-3">
-        <Fact label="Soldados">{fmt(total)}</Fact>
-        <Fact label="Barcos" warn={lackShips}>
-          {fmt(ships)} de {fmt(shipsDocked)} en el puerto
-        </Fact>
-        <Fact label="Llegan en">{fmtDuration(travelSec * 1000)}</Fact>
-        <Fact label="Fuerza de ataque">{fmt(attack)}</Fact>
-        {preview && (
-          <>
-            <Fact label="Defensa enemiga">{fmt(preview.defensePower)}</Fact>
-            <Fact label="Botín máximo">{fmt(ships * BALANCE.shipCapacity)}</Fact>
-          </>
+      <StatRow>
+        <Stat
+          icon={<IconSwords size={16} />}
+          label="Tu fuerza de ataque"
+          tone={preview ? (preview.attackerWins ? "good" : "bad") : "default"}
+        >
+          {fmt(attack)}
+        </Stat>
+        {defense !== null ? (
+          <Stat icon={<IconShield size={16} />} label="Defensa enemiga">
+            {fmt(defense)}
+          </Stat>
+        ) : (
+          <Stat icon={<IconShield size={16} />} label="Defensa desconocida: mandá de más si dudás" tone="muted">
+            ?
+          </Stat>
         )}
-      </dl>
+        <Stat icon={<ShipGlyph />} label="Barcos que usás de los que hay en el puerto" tone={lackShips ? "bad" : "default"}>
+          {fmt(ships)}/{fmt(shipsDocked)}
+        </Stat>
+        <Stat icon={<IconClock size={16} />} label="Llegan en" tone="muted">
+          {fmtDuration(travelSec * 1000)}
+        </Stat>
+        {preview && preview.attackerWins && (
+          <Stat icon={<IconBox size={16} />} label={`Botín máximo (${fmt(BALANCE.shipCapacity)} por barco)`} tone="muted">
+            {fmt(ships * BALANCE.shipCapacity)}
+          </Stat>
+        )}
+      </StatRow>
 
       {preview && preview.attackerWins && (
         <p className="rounded-xl bg-success/12 px-3 py-2 text-sm font-bold text-success">
-          {lost > 0 ? `Pronóstico: ganás y perdés unos ${fmt(lost)} soldados.` : "Pronóstico: ganás sin bajas."}
+          {lost > 0 ? `Ganás · perdés unos ${fmt(lost)}` : "Ganás sin bajas"}
         </p>
       )}
       {preview && losing && (
         <div role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-danger/45 bg-danger/10 p-3">
-          <p className="font-display text-base font-bold text-danger">Con esta fuerza vas a perder</p>
+          <p className="font-display text-base leading-tight font-bold text-danger">Con esta fuerza perdés</p>
           <p className="text-sm text-ink">
-            Tu ataque suma <strong className="tabular">{fmt(preview.attackPower)}</strong> y su defensa{" "}
-            <strong className="tabular">{fmt(preview.defensePower)}</strong>. Perderías unos{" "}
-            <strong className="tabular">{fmt(lost)}</strong> de tus {fmt(total)} soldados y no traerías botín.
+            Caerían unos <strong className="tabular">{fmt(lost)}</strong> de tus {fmt(total)} soldados, sin botín.
           </p>
-          <p className="text-sm text-ink-soft">Sumá tropas o entrená más antes de zarpar.</p>
           {trainHref && (
             <Link href={trainHref} className={buttonClass("primary", "md", "w-full")}>
               Entrenar más tropas
@@ -422,13 +447,10 @@ export function AttackForm({
           )}
         </div>
       )}
-      {!defender && total > 0 && (
-        <p className="text-sm text-ink-soft">No sabés cuántas tropas defienden la ciudad. Mandá de más si dudás.</p>
-      )}
 
       {lackShips && (
         <InlineError>
-          Necesitás {fmt(ships)} barcos y tenés {fmt(shipsDocked)}. Cada barco lleva {BALANCE.unitsPerShip} soldados.
+          Necesitás {plural(ships, "barco", "barcos")} y hay {fmt(shipsDocked)}. Cada uno lleva {BALANCE.unitsPerShip}.
         </InlineError>
       )}
       {blocked && <p className="rounded-xl bg-parchment-2 px-3 py-2 text-sm font-bold text-ink-soft">{blocked}</p>}
@@ -440,7 +462,7 @@ export function AttackForm({
         disabled={pending || !total || lackShips || Boolean(blocked)}
         aria-busy={pending}
       >
-        {pending ? "Zarpando…" : losing ? "Atacar igual" : submitLabel}
+        {pending ? "Zarpando…" : losing ? "Atacar igual" : total > 0 ? `Atacar con ${plural(total, "soldado", "soldados")}` : submitLabel}
       </Button>
       <InlineError>{error}</InlineError>
     </form>
@@ -455,7 +477,6 @@ export function TransportForm({
   originCityId,
   originName,
   targetCityId,
-  targetName,
   have,
   shipsDocked,
   travelSec,
@@ -464,7 +485,6 @@ export function TransportForm({
   originCityId: string;
   originName: string;
   targetCityId: string;
-  targetName: string;
   have: Record<Resource, number>;
   shipsDocked: number;
   travelSec: number;
@@ -482,25 +502,13 @@ export function TransportForm({
   const lackShips = ships > shipsDocked;
   const room = shipsDocked * BALANCE.shipCapacity;
 
-  const label =
-    loaded.length === 0
-      ? "Mandar recursos"
-      : loaded.length === 1
-        ? `Mandar ${fmt(loaded[0][1])} de ${RESOURCE_INFO[loaded[0][0]].label.toLowerCase()}`
-        : `Mandar ${fmt(total)} de carga`;
-
   if (shipsDocked === 0) {
-    return (
-      <p className="rounded-xl bg-parchment-2/70 p-3 text-sm ring-1 ring-parchment-3">
-        <strong>No hay barcos en el puerto de {originName}.</strong>{" "}
-        <span className="text-ink-soft">Comprá uno en el Puerto o esperá a que vuelvan los que están en el mar.</span>
-      </p>
-    );
+    return <Callout title={`Sin barcos en ${originName}`}>Comprá uno en el Puerto o esperá a que vuelvan.</Callout>;
   }
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         if (!total || lackShips || over.length) return;
@@ -509,19 +517,21 @@ export function TransportForm({
         submit(() => transportAction({ originCityId, targetCityId, cargo: payload }), () => setCargo({}));
       }}
     >
-      <p className="font-bold">
-        Carga desde {originName} a {targetName}
+      <p className="min-w-0 truncate font-bold">
+        Carga <span className="font-normal text-ink-soft">de {originName}</span>
       </p>
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col gap-1">
         {RESOURCES.map((r) => {
           const inputId = `${baseId}-${r}`;
           const n = toInt(cargo[r] ?? "");
           return (
-            <li key={r} className="flex items-center gap-2.5">
-              <ResIcon kind={r} size={26} />
-              <label htmlFor={inputId} className="min-w-0 flex-1 leading-tight">
-                <span className="block font-bold">{RESOURCE_INFO[r].label}</span>
-                <span className="tabular block text-xs text-ink-soft">Tenés {fmt(have[r])}</span>
+            <li key={r} className="flex items-center gap-2">
+              <label htmlFor={inputId} className="flex min-w-0 flex-1 items-center gap-2">
+                <ResIcon kind={r} size={26} />
+                <span className="tabular text-sm text-ink-soft">
+                  <span className="sr-only">, tenés </span>
+                  {fmt(have[r])}
+                </span>
               </label>
               <input
                 id={inputId}
@@ -545,17 +555,21 @@ export function TransportForm({
           );
         })}
       </ul>
-      <dl className="flex flex-col gap-1 rounded-xl bg-parchment-2/60 p-3 text-sm ring-1 ring-parchment-3">
-        <Fact label="Carga">{fmt(total)}</Fact>
-        <Fact label="Barcos" warn={lackShips}>
-          {fmt(ships)} de {fmt(shipsDocked)} en el puerto
-        </Fact>
-        <Fact label="Llegan en">{fmtDuration(travelSec * 1000)}</Fact>
-      </dl>
-      {over.length > 0 && <InlineError>No tenés tanto {RESOURCE_INFO[over[0][0]].label.toLowerCase()} en {originName}.</InlineError>}
+      <StatRow>
+        <Stat icon={<IconBox size={16} />} label="Carga y lugar en los barcos del puerto">
+          {fmt(total)}/{fmt(room)}
+        </Stat>
+        <Stat icon={<ShipGlyph />} label="Barcos que usás de los que hay en el puerto" tone={lackShips ? "bad" : "default"}>
+          {fmt(ships)}/{fmt(shipsDocked)}
+        </Stat>
+        <Stat icon={<IconClock size={16} />} label="Llegan en" tone="muted">
+          {fmtDuration(travelSec * 1000)}
+        </Stat>
+      </StatRow>
+      {over.length > 0 && <InlineError>No tenés tanto {RESOURCE_INFO[over[0][0]].label.toLowerCase()}.</InlineError>}
       {lackShips && (
         <InlineError>
-          Necesitás {fmt(ships)} barcos y tenés {fmt(shipsDocked)}. Cada barco carga {fmt(BALANCE.shipCapacity)}.
+          Necesitás {plural(ships, "barco", "barcos")} y hay {fmt(shipsDocked)}. Cada uno carga {fmt(BALANCE.shipCapacity)}.
         </InlineError>
       )}
       <Button
@@ -564,7 +578,7 @@ export function TransportForm({
         disabled={pending || !total || lackShips || over.length > 0}
         aria-busy={pending}
       >
-        {pending ? "Cargando barcos…" : label}
+        {pending ? "Cargando barcos…" : total > 0 ? `Enviar ${plural(ships, "barco", "barcos")}` : "Elegí qué mandar"}
       </Button>
       <InlineError>{error}</InlineError>
     </form>
@@ -579,14 +593,17 @@ export interface Requirement {
   ok: boolean;
   label: string;
   href?: string;
+  /** short link text on the row */
   cta?: string;
+  /** full button text when this is the next thing to do */
+  action?: string;
 }
 
 export function RequirementList({ items }: { items: Requirement[] }) {
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="flex flex-col gap-1">
       {items.map((r) => (
-        <li key={r.label} className="flex items-center gap-2 text-sm">
+        <li key={r.label} className="flex min-h-8 items-center gap-2 text-sm">
           <span
             className={clsx(
               "grid size-6 shrink-0 place-items-center rounded-full",
@@ -598,7 +615,10 @@ export function RequirementList({ items }: { items: Requirement[] }) {
           </span>
           <span className={clsx("min-w-0 flex-1", r.ok ? "text-ink-soft" : "font-bold")}>{r.label}</span>
           {!r.ok && r.href && (
-            <Link href={r.href} className="shrink-0 rounded-md px-1.5 py-1 font-bold text-bronze-dark underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-bronze-dark">
+            <Link
+              href={r.href}
+              className="shrink-0 rounded-md px-1.5 py-1 font-bold text-bronze-dark underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-bronze-dark"
+            >
               {r.cta ?? "Ir"}
             </Link>
           )}
@@ -610,70 +630,74 @@ export function RequirementList({ items }: { items: Requirement[] }) {
 
 export function ColonizeForm({
   originCityId,
-  originName,
   islandId,
   islandName,
   slot,
-  requirements,
-  travelSec,
+  steps,
+  costOk,
 }: {
   originCityId: string;
-  originName: string;
   islandId: number;
   islandName: string;
   slot: number;
-  requirements: Requirement[];
-  travelSec: number;
+  /** what has to be in place besides the cost (research, palace, a ship) */
+  steps: Requirement[];
+  /** wood, gold and citizens are enough */
+  costOk: boolean;
 }) {
+  const fallback = `Nueva ${islandName}`.slice(0, 24).trim();
   const [name, setName] = useState("");
   const { pending, error, submit } = useSubmit();
   const id = useId();
-  const clean = name.trim().replace(/\s+/g, " ");
+  const clean = name.trim().replace(/\s+/g, " ") || fallback;
   const nameOk = clean.length >= 3 && clean.length <= 24;
-  const ready = requirements.every((r) => r.ok);
-  const missing = requirements.filter((r) => !r.ok).length;
+  const ready = costOk && steps.every((r) => r.ok);
+  // Not ready: the first thing to fix becomes the big button.
+  const next = steps.find((r) => !r.ok && r.href);
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         if (!ready || !nameOk) return;
         submit(() => colonizeAction({ originCityId, islandId, slot, name: clean }), () => setName(""));
       }}
     >
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={id} className="font-bold">
-          Nombre de la colonia
-        </label>
-        <input
-          id={id}
-          type="text"
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={24}
-          placeholder={`Nueva ${islandName}`}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-describedby={`${id}-hint`}
-          className={clsx(inputClass, "w-full font-normal")}
-        />
-        <p id={`${id}-hint`} className="text-xs text-ink-soft">
-          Entre 3 y 24 letras.
-        </p>
-      </div>
-      <div className="flex flex-col gap-2 rounded-xl bg-parchment-2/60 p-3 ring-1 ring-parchment-3">
-        <p className="text-sm font-bold">Los colonos salen de {originName}</p>
-        <RequirementList items={requirements} />
-        <p className="tabular text-sm text-ink-soft">Llegan en {fmtDuration(travelSec * 1000)}.</p>
-      </div>
-      <Button type="submit" size="lg" disabled={pending || !ready || !nameOk} aria-busy={pending}>
-        {pending ? "Zarpando…" : "Fundar colonia acá"}
-      </Button>
-      {!ready && (
-        <p className="text-sm text-ink-soft">
-          {missing === 1 ? "Te falta 1 requisito." : `Te faltan ${missing} requisitos.`}
-        </p>
+      {/* All set: the checklist would only be noise. */}
+      {steps.some((r) => !r.ok) && <RequirementList items={steps} />}
+      {ready ? (
+        <>
+          <div className="flex items-center gap-2">
+            <label htmlFor={id} className="shrink-0 font-bold">
+              Nombre
+            </label>
+            <input
+              id={id}
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={24}
+              placeholder={fallback}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={!nameOk || undefined}
+              className={clsx(inputClass, "min-w-0 flex-1 font-normal")}
+            />
+          </div>
+          {!nameOk && <InlineError>Entre 3 y 24 letras.</InlineError>}
+          <Button type="submit" size="lg" disabled={pending || !nameOk} aria-busy={pending}>
+            {pending ? "Zarpando…" : "Fundar colonia"}
+          </Button>
+        </>
+      ) : next ? (
+        <Link href={next.href!} className={buttonClass("primary", "lg", "w-full")}>
+          {next.action ?? next.cta}
+        </Link>
+      ) : (
+        <Button type="button" size="lg" disabled>
+          Faltan recursos
+        </Button>
       )}
       <InlineError>{error}</InlineError>
     </form>
@@ -691,20 +715,21 @@ export function PlotActions({ attack, transport }: { attack: ReactNode; transpor
       <div role="group" aria-label="Qué querés hacer" className="grid grid-cols-2 gap-1 rounded-xl bg-parchment-2 p-1 ring-1 ring-parchment-3">
         {(
           [
-            ["attack", "Atacar"],
-            ["transport", "Mandar recursos"],
+            ["attack", "Atacar", <IconSwords key="i" size={16} />],
+            ["transport", "Mandar recursos", <IconBox key="i" size={16} />],
           ] as const
-        ).map(([key, label]) => (
+        ).map(([key, label, icon]) => (
           <button
             key={key}
             type="button"
             aria-pressed={tab === key}
             onClick={() => setTab(key)}
             className={clsx(
-              "h-10 rounded-lg text-[15px] font-bold transition focus-visible:ring-2 focus-visible:ring-bronze-dark",
+              "inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[15px] font-bold transition focus-visible:ring-2 focus-visible:ring-bronze-dark",
               tab === key ? "bg-parchment text-ink shadow" : "text-ink-soft hover:text-ink",
             )}
           >
+            {icon}
             {label}
           </button>
         ))}

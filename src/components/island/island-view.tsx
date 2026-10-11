@@ -1,14 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ISLAND_PLOTS, RESOURCE_INFO } from "@/game/data";
-import { travelSeconds, type PlayerState } from "@/game/engine";
+import clsx from "clsx";
+import { BALANCE, ISLAND_PLOTS, RESOURCE_INFO } from "@/game/data";
+import { hasTech, luxuryMultiplier, travelSeconds, type PlayerState } from "@/game/engine";
 import type { Game } from "@/server/game-context";
 import type { IslandView as IslandData } from "@/server/queries";
 import { ISLAND_GRID, SceneFit } from "@/components/game/scene-layout";
-import { buttonClass } from "@/components/ui/button";
+import { Countdown } from "@/components/ui/countdown";
 import { ResIcon } from "@/components/ui/res";
-import { fmtDuration } from "@/lib/format";
-import { IconArrowRight, IconFlag, IconSwords } from "./icons";
+import { fmt, fmtDuration } from "@/lib/format";
+import { IconArrowRight, IconClock, IconFlag, IconLock, IconMap, IconPin, IconSwords, IconTemple } from "./icons";
 import { ISLAND_FEATURES, ISLAND_PLOT_POS } from "@/game/layout";
 import { troopMissions } from "@/components/city/troops-away";
 import type { FleetPath } from "./fleets";
@@ -44,44 +45,56 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
     camp: campPanel(ctx),
   };
   for (let slot = 0; slot < ISLAND_PLOTS; slot++) panels[`plot-${slot}`] = plotPanel(ctx, slot);
+  // Your city is here and nobody cuts wood: the sawmill is the thing to do.
+  const idleSawmill = city.islandId === island.id && city.woodWorkers === 0;
 
   return (
     <PanelProvider ids={Object.keys(panels)}>
       <div className="flex flex-col gap-3 lg:flex-1">
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-          <div className="min-w-0">
-            <h1 className="font-display text-2xl font-bold text-foam drop-shadow sm:text-3xl">{island.name}</h1>
-            <p className="inline-flex flex-wrap items-center gap-x-2 text-sm text-foam/85">
-              <span className="inline-flex items-center gap-1">
-                <ResIcon kind={island.resource} size={18} />
-                Isla de {RESOURCE_INFO[island.resource].label.toLowerCase()}
-              </span>
-              <span aria-hidden>·</span>
-              <span className="tabular">
-                Coordenadas {island.x}:{island.y}
-              </span>
-              <span aria-hidden>·</span>
-              <span className="tabular">
-                {island.cities.length} de {ISLAND_PLOTS} lugares ocupados
-              </span>
-            </p>
-          </div>
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h1 className="font-display text-2xl leading-none font-bold text-foam drop-shadow sm:text-3xl">{island.name}</h1>
+          <ul aria-label="Datos de la isla" className="order-last flex w-full flex-wrap gap-1.5 sm:order-none sm:w-auto">
+            <HeaderChip label={`Isla de ${RESOURCE_INFO[island.resource].label.toLowerCase()}`}>
+              <ResIcon kind={island.resource} size={18} />
+              {RESOURCE_INFO[island.resource].label}
+            </HeaderChip>
+            <HeaderChip label="Coordenadas">
+              <IconPin size={15} className="text-foam/70" />
+              {island.x}:{island.y}
+            </HeaderChip>
+            <HeaderChip label="Lugares ocupados">
+              <IconTemple size={15} className="text-foam/70" />
+              {island.cities.length}/{ISLAND_PLOTS}
+            </HeaderChip>
+          </ul>
           <Link
             href="/mundo"
-            className="inline-flex h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-foam/85 hover:bg-foam/10 hover:text-foam"
+            className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-foam/85 hover:bg-foam/10 hover:text-foam"
           >
-            Ver el mapa del Egeo
-            <IconArrowRight size={16} />
+            <IconMap size={17} />
+            Mapa del Egeo
           </Link>
-        </div>
+        </header>
         <SceneFit>
           <div className={ISLAND_GRID}>
-            <IslandScene island={island} activeCityId={city.id} now={snapshot.now} fleets={fleets} />
-            <PanelHost panels={panels} summary={<IslandSummary ctx={ctx} />} />
+            <IslandScene island={island} activeCityId={city.id} now={snapshot.now} fleets={fleets} idleSawmill={idleSawmill} />
+            <PanelHost panels={panels} summary={<IslandSummary ctx={ctx} idleSawmill={idleSawmill} />} />
           </div>
         </SceneFit>
       </div>
     </PanelProvider>
+  );
+}
+
+function HeaderChip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <li
+      title={label}
+      className="tabular inline-flex h-7 items-center gap-1.5 rounded-full bg-sea-950/55 px-2.5 text-sm font-bold text-foam ring-1 ring-foam/15 backdrop-blur-sm"
+    >
+      <span className="sr-only">{label}: </span>
+      {children}
+    </li>
   );
 }
 
@@ -120,80 +133,135 @@ function fleetPaths(missions: Game["snapshot"]["missions"], island: IslandData):
   });
 }
 
-function SummaryRow({ panel, icon, title, detail }: { panel: string; icon: ReactNode; title: string; detail: ReactNode }) {
+const rowClass = (alert?: boolean) =>
+  clsx(
+    "group flex min-h-12 items-center gap-2.5 rounded-xl px-2 py-1.5 transition focus-visible:ring-2 focus-visible:ring-bronze-dark",
+    alert ? "bg-gold/20 ring-2 ring-gold hover:bg-gold/30" : "hover:bg-parchment-2",
+  );
+
+function RowBody({ icon, title, level, right }: { icon: ReactNode; title: ReactNode; level?: number; right?: ReactNode }) {
+  return (
+    <>
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-parchment-2 ring-1 ring-parchment-3">{icon}</span>
+      <span className="min-w-0 flex-1 truncate leading-tight font-bold">
+        {title}
+        {level !== undefined && <span className="tabular ml-1.5 text-sm font-semibold text-ink-soft">Nv. {level}</span>}
+      </span>
+      {right && <span className="tabular inline-flex shrink-0 items-center gap-1 text-sm font-bold">{right}</span>}
+      <IconArrowRight size={16} className="shrink-0 text-bronze-dark transition group-hover:translate-x-0.5" />
+    </>
+  );
+}
+
+function SummaryRow({ panel, alert, ...body }: { panel: string; alert?: boolean } & Parameters<typeof RowBody>[0]) {
   return (
     <li>
-      <PanelLink
-        panel={panel}
-        className="group flex min-h-12 items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-parchment-2 focus-visible:ring-2 focus-visible:ring-bronze-dark"
-      >
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-parchment-2 ring-1 ring-parchment-3">{icon}</span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block font-bold">{title}</span>
-          <span className="block text-sm text-ink-soft">{detail}</span>
-        </span>
-        <IconArrowRight size={16} className="shrink-0 text-bronze-dark transition group-hover:translate-x-0.5" />
+      <PanelLink panel={panel} className={rowClass(alert)}>
+        <RowBody {...body} />
       </PanelLink>
     </li>
   );
 }
 
-function IslandSummary({ ctx }: { ctx: IslandCtx }) {
-  const { island, city, myCities, travelSec } = ctx;
+function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: boolean }) {
+  const { island, city, myCities, travelSec, speed, player, now } = ctx;
+  const here = city.islandId === island.id;
   const mineHere = myCities.filter((c) => c.islandId === island.id);
   const freeSlots = Array.from({ length: ISLAND_PLOTS }, (_, i) => i).filter((s) => !island.cities.some((c) => c.slot === s));
   const rebuilding = island.barbarians.rebuildingUntil;
+  const wealth = hasTech(player, "wealth");
+  const woodRate = city.woodWorkers * BALANCE.woodPerWorker * speed;
+  const luxRate = city.luxWorkers * BALANCE.luxuryPerWorker * speed * luxuryMultiplier(city);
+  const kicker = "px-2 text-xs font-extrabold tracking-wider text-bronze-dark uppercase";
 
   return (
-    <section aria-label={`Resumen de ${island.name}`} className="panel flex flex-col gap-4 p-4">
-      <div>
-        <p className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">Qué hay en la isla</p>
-        <p className="text-[15px] text-ink-soft">Tocá un lugar del mapa para ver qué podés hacer ahí.</p>
-      </div>
-      <ul className="-mx-2 flex flex-col">
-        <SummaryRow panel="sawmill" icon={<ResIcon kind="wood" size={22} />} title="Aserradero" detail={`Nivel ${island.sawmill.level}`} />
+    <section aria-label={`Resumen de ${island.name}`} className="panel flex flex-col gap-1.5 p-3">
+      <h2 className={kicker}>En la isla</h2>
+      <ul className="flex flex-col gap-0.5">
+        <SummaryRow
+          panel="sawmill"
+          alert={idleSawmill}
+          icon={<ResIcon kind="wood" size={22} />}
+          title="Aserradero"
+          level={island.sawmill.level}
+          right={
+            idleSawmill ? (
+              <span className="rounded-full bg-terracotta px-2 py-0.5 text-xs font-extrabold text-marble">Sin trabajadores</span>
+            ) : here ? (
+              <span className="text-success" title="Tu producción de madera">
+                <span className="sr-only">Producción: </span>+{fmt(woodRate)}/h
+              </span>
+            ) : null
+          }
+        />
         <SummaryRow
           panel="mine"
           icon={<ResIcon kind={island.resource} size={22} />}
           title={MINE_NAME[island.resource]}
-          detail={`Nivel ${island.mine.level}`}
+          level={island.mine.level}
+          right={
+            !wealth ? (
+              <span title="Necesita Riqueza" className="text-ink-soft">
+                <IconLock size={16} />
+                <span className="sr-only">Bloqueado: necesita Riqueza</span>
+              </span>
+            ) : here ? (
+              <span className={luxRate > 0 ? "text-success" : "text-ink-soft"} title={`Tu producción de ${RESOURCE_INFO[island.resource].label.toLowerCase()}`}>
+                <span className="sr-only">Producción: </span>+{fmt(luxRate)}/h
+              </span>
+            ) : null
+          }
         />
         <SummaryRow
           panel="camp"
           icon={<IconSwords size={18} className="text-terracotta" />}
-          title="Campamento bárbaro"
-          detail={rebuilding ? `Nivel ${island.barbarians.level} · reconstruyendo` : `Nivel ${island.barbarians.level}`}
+          title="Bárbaros"
+          level={island.barbarians.level}
+          right={
+            rebuilding ? (
+              <span className="inline-flex items-center gap-1 text-ink-soft" title="Se rearman en">
+                <IconClock size={15} />
+                <span className="sr-only">Se rearman en </span>
+                <Countdown endsAt={rebuilding} serverNow={now} />
+              </span>
+            ) : null
+          }
         />
         {freeSlots.length > 0 && (
           <SummaryRow
             panel={`plot-${freeSlots[0]}`}
             icon={<IconFlag size={16} className="text-bronze-dark" />}
             title={freeSlots.length === 1 ? "1 lugar libre" : `${freeSlots.length} lugares libres`}
-            detail="Fundá una colonia"
           />
         )}
       </ul>
 
-      <div className="flex flex-col gap-2 border-t border-parchment-3 pt-3">
-        <p className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">Tus ciudades acá</p>
+      <div className="flex flex-col gap-1 border-t border-parchment-3 pt-2">
+        <h2 className={kicker}>Tus ciudades</h2>
         {mineHere.length ? (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-0.5">
             {mineHere.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3">
-                <span className="min-w-0 truncate font-bold">
-                  {c.name}
-                  {c.id === city.id && <span className="ml-1.5 text-sm font-normal text-ink-soft">(estás acá)</span>}
-                </span>
-                <Link href={`/ciudad/${c.id}`} className={buttonClass("secondary", "sm")}>
-                  Ir a {c.name}
+              <li key={c.id}>
+                <Link href={`/ciudad/${c.id}`} className={rowClass()}>
+                  <RowBody
+                    icon={<IconTemple size={18} className={c.id === city.id ? "text-bronze-dark" : "text-ink-soft"} />}
+                    title={c.name}
+                    right={
+                      c.id === city.id ? (
+                        <span className="rounded-full bg-sea-900 px-2 py-0.5 text-xs font-extrabold text-gold">Estás acá</span>
+                      ) : null
+                    }
+                  />
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink-soft">
-            Todavía no tenés ciudades en {island.name}. Desde {city.name} llegás en{" "}
-            <strong className="tabular text-ink">{fmtDuration(travelSec * 1000)}</strong>.
+          <p className="flex items-center gap-1.5 px-2 py-1 text-sm text-ink-soft">
+            <IconClock size={16} className="shrink-0" />
+            <span>
+              <strong className="tabular text-ink">{fmtDuration(travelSec * 1000)}</strong> desde {city.name}
+            </span>
           </p>
         )}
       </div>

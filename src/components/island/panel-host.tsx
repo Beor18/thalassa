@@ -29,6 +29,11 @@ function usePanels() {
   return ctx;
 }
 
+/** Closes the open panel (or sheet), e.g. from a "Listo" button after an action worked. */
+export function useClosePanel() {
+  return usePanels().close;
+}
+
 export function PanelProvider({ ids, children }: { ids: string[]; children: ReactNode }) {
   const searchParams = useSearchParams();
   const raw = searchParams.get("panel");
@@ -100,7 +105,9 @@ export function PanelLink({
 
 export interface PanelDef {
   title: string;
-  kicker?: string;
+  kicker?: ReactNode;
+  /** sprite next to the title, so the body can start with the action */
+  icon?: ReactNode;
   body: ReactNode;
 }
 
@@ -158,7 +165,7 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
             tabIndex={-1}
             aria-label="Cerrar panel"
             onClick={close}
-            className="fixed inset-0 z-40 cursor-default bg-sea-950/60 lg:hidden"
+            className="fixed inset-0 z-[70] cursor-default bg-sea-950/60 lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -195,7 +202,7 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
               transition={SPRING}
               className={clsx(
                 // Same look as .panel, written as utilities so the corners can change per breakpoint.
-                "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] text-ink outline-none",
+                "fixed inset-x-0 bottom-0 z-[71] max-h-[85dvh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] text-ink outline-none",
                 "rounded-t-[14px] border border-b-0 border-parchment-3 bg-parchment bg-[linear-gradient(180deg,rgb(255_255_255/0.35),transparent_40%)] shadow-panel",
                 // Tablets: a centered sheet instead of a full-width slab.
                 "md:max-lg:right-auto md:max-lg:left-1/2 md:max-lg:w-xl md:max-lg:-translate-x-1/2",
@@ -203,12 +210,17 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
               )}
             >
               <header
-                className="sticky top-0 z-10 flex touch-none items-start gap-3 rounded-t-[14px] border-b border-parchment-3 bg-parchment px-4 pt-3 pb-3 lg:touch-auto"
+                className="sticky top-0 z-10 flex touch-none items-center gap-3 rounded-t-[14px] border-b border-parchment-3 bg-parchment px-4 pt-3 pb-2.5 lg:touch-auto"
                 onPointerDown={(e) => {
                   if (isSheet && e.pointerType !== "mouse") drag.start(e);
                 }}
               >
                 <span aria-hidden className="absolute top-1.5 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/25 lg:hidden" />
+                {panel.icon && (
+                  <span aria-hidden className="-my-1 grid size-12 shrink-0 place-items-center">
+                    {panel.icon}
+                  </span>
+                )}
                 <div className="min-w-0 flex-1 pt-1">
                   {panel.kicker && <p className="text-xs font-extrabold tracking-wider text-bronze-dark uppercase">{panel.kicker}</p>}
                   <h2
@@ -236,7 +248,7 @@ export function PanelHost({ panels, summary }: { panels: Record<string, PanelDef
                 </a>
               </header>
               {/* Keyed by panel: switching spots replays the short cascade. */}
-              <div key={current} className={clsx("flex flex-col gap-4 p-4", hydrated && !reduce && fx.stagger)}>
+              <div key={current} className={clsx("flex flex-col gap-3 p-4", hydrated && !reduce && fx.stagger)}>
                 {panel.body}
               </div>
             </motion.section>
