@@ -10,7 +10,7 @@ import {
 } from "@solana/kit";
 import { z } from "zod";
 import { db } from "@/db";
-import { authNonces } from "@/db/schema";
+import { authNonces, cities } from "@/db/schema";
 import { createSession } from "@/server/session";
 import { findOrCreatePlayer } from "@/server/world";
 import { onLogin } from "@/server/growth/login";
@@ -83,7 +83,11 @@ export async function POST(request: Request) {
     const player = await findOrCreatePlayer(wallet);
     await createSession({ playerId: player.id, wallet });
     await onLogin({ id: player.id, wallet, created: player.created }); // growth hook: funnel + referral (never throws)
-    return Response.json({ ok: true, redirect: "/ciudad", created: player.created }, { headers: { "cache-control": "no-store" } });
+    // A new player has one city: send them straight to it and skip the /ciudad redirect.
+    // Returning players go through /ciudad, which opens the city they had in focus.
+    const [home] = player.created ? await db.select({ id: cities.id }).from(cities).where(eq(cities.playerId, player.id)).limit(1) : [];
+    const redirect = home ? `/ciudad/${home.id}` : "/ciudad";
+    return Response.json({ ok: true, redirect, created: player.created }, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     console.error("[thalassa] login failed", err);
     return fail("No pudimos abrir tu polis. Probá de nuevo en un momento.", 500);

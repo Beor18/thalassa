@@ -69,7 +69,7 @@ No, jugar es gratis. El néctar es opcional y se compra con SOL de prueba, que e
 No. El néctar solo ahorra tiempo: termina obras antes y llama al mercader. No compra tropas, barcos, investigación ni puntos, y tiene topes diarios.
 
 **¿Necesito una billetera?**
-No. Jugar ahora te guarda una llave de juego en este navegador. Si ya tenés una billetera de Solana, podés entrar con ella.
+No. Jugar ahora te guarda una llave de juego en este navegador. Si ya tenés una billetera, podés entrar con ella.
 
 **¿Y si borro los datos del navegador?**
 Perdés la llave y, con ella, tu polis. Para jugar en varios equipos, entrá con tu billetera.

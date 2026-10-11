@@ -465,11 +465,11 @@ export function WorldMap({
 
       {/* HUD: title and island search come first in tab order */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-3 sm:gap-3 sm:p-4">
-        {/* Phones: the nav already says where you are, so the search gets the whole row. */}
-        <div data-hud className="pointer-events-auto shrink-0 rounded-xl border border-foam/15 bg-sea-950/70 px-4 py-1.5 text-foam shadow-[0_8px_24px_-8px_rgb(4_18_38/0.8)] backdrop-blur-md max-sm:sr-only">
-          <h1 className="font-display text-2xl leading-tight font-bold">El Egeo</h1>
-          <p className="tabular text-sm text-foam/80">
-            {islands.length} islas · {mineCount === 1 ? "1 tuya" : `${mineCount} tuyas`}
+        {/* The section tab already says where you are: the title stays for screen readers and the sea stays clear. */}
+        <div className="sr-only">
+          <h1>El Egeo</h1>
+          <p>
+            {islands.length} islas, {mineCount === 1 ? "1 tuya" : `${mineCount} tuyas`}
           </p>
         </div>
         <div className="pointer-events-auto ml-auto min-w-0 flex-1 sm:flex-none">

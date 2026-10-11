@@ -34,7 +34,7 @@ export interface UnitOption {
 }
 
 /**
- * Barracks: a row of unit portraits (count at home, lock when not available) and one form for the
+ * Barracks: unit tiles (name, count at home, lock when not available) and one form for the
  * picked unit. One button, always saying what it trains.
  */
 export function TrainingPicker({
@@ -59,7 +59,7 @@ export function TrainingPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label="Tropa" className="grid grid-cols-6 gap-1.5">
+      <div role="radiogroup" aria-label="Tropa" className="grid grid-cols-3 gap-1.5">
         {units.map((o) => (
           <label key={o.unit} className="relative cursor-pointer">
             <input
@@ -73,28 +73,24 @@ export function TrainingPicker({
             <span
               aria-hidden
               className={clsx(
-                "relative grid aspect-square place-items-center rounded-lg bg-marble/70 ring-1 ring-parchment-3 transition-[background-color,box-shadow] duration-100",
+                "flex min-h-11 items-center gap-1 rounded-lg bg-marble/70 py-1 pr-1 pl-0.5 ring-1 ring-parchment-3 transition-[background-color,box-shadow] duration-100",
                 "hover:bg-parchment-2 peer-checked:bg-gold/25 peer-checked:ring-2 peer-checked:ring-bronze peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold",
               )}
             >
               <Image
                 src={o.image}
                 alt=""
-                width={96}
-                height={96}
-                sizes="56px"
-                className={clsx("size-[88%] object-contain", o.lock ? "opacity-55 grayscale-[70%]" : "sprite")}
+                width={80}
+                height={80}
+                sizes="32px"
+                className={clsx("size-8 shrink-0 object-contain", o.lock ? "opacity-55 grayscale-[70%]" : "sprite")}
               />
-              {o.lock && (
-                <span className="absolute top-0.5 right-0.5 grid size-4 place-items-center rounded-full bg-sea-950/85 text-gold">
-                  <IconLock size={10} strokeWidth={2.6} />
+              <span className="flex min-w-0 flex-col">
+                <span className={clsx("truncate text-[11.5px] leading-tight font-bold", o.lock ? "text-ink-soft" : "text-ink")}>{o.name}</span>
+                <span className="inline-flex items-center gap-0.5 text-[11px] leading-tight font-bold text-ink-soft tabular">
+                  {o.lock ? <IconLock size={11} strokeWidth={2.6} className="text-bronze-dark" /> : o.home > 0 ? `×${fmt(o.home)}` : "×0"}
                 </span>
-              )}
-              {o.home > 0 && (
-                <span className="absolute -right-1 -bottom-1 min-w-5 rounded-full bg-sea-950 px-1 text-center text-[11px] leading-[18px] font-extrabold text-gold tabular ring-1 ring-gold/60">
-                  {fmt(o.home)}
-                </span>
-              )}
+              </span>
             </span>
             <span className="sr-only">
               {o.name}

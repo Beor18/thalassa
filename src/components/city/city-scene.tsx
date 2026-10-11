@@ -10,7 +10,7 @@ import { ParallaxScene } from "@/components/fx/parallax";
 import { SceneRibbon } from "@/components/fx/ribbon";
 import { fx as scene } from "@/components/fx/classes";
 import type { GameCity } from "@/server/game-context";
-import { IconUp } from "./icons";
+import { IconColumns, IconUp } from "./icons";
 import { NameCityPrompt } from "./name-city-prompt";
 import { emptySlotLabel, plotId, slotHref } from "./lib";
 import { SceneFrame } from "./scene-frame";
@@ -55,14 +55,18 @@ export function CityScene({
       aria-labelledby="city-title"
       className="relative overflow-hidden rounded-2xl border border-sea-300/30 bg-sea-900 shadow-[0_18px_40px_-18px_rgb(6_26_48/0.9)]"
     >
-      {/* Phones: a title bar above the painting, so it never hides a plot. Wider: a plaque over the scene. */}
-      <div className="relative z-[60] border-b border-sea-300/20 bg-sea-950/70 px-3 py-2 md:pointer-events-none md:absolute md:inset-x-0 md:top-0 md:border-0 md:bg-transparent md:p-3">
-        <div className="min-w-0 md:pointer-events-auto md:inline-block md:max-w-[75%] md:rounded-[14px] md:border md:border-sea-300/25 md:bg-gradient-to-b md:from-sea-800/90 md:to-sea-950/95 md:px-3 md:py-1.5 md:shadow-lg md:backdrop-blur-sm">
-          <h1 id="city-title" className="font-display truncate text-lg leading-tight font-bold text-foam sm:text-xl">
+      {/* The header's city switcher already shows the name: the plaque only says where the city stands.
+          Phones: a slim bar above the painting, so it never hides a plot. Wider: a small plaque over the scene. */}
+      <div className="relative z-[60] border-b border-sea-300/20 bg-sea-950/70 px-3 py-1.5 md:pointer-events-none md:absolute md:inset-x-0 md:top-0 md:border-0 md:bg-transparent md:p-3">
+        <div className="min-w-0 md:pointer-events-auto md:inline-block md:max-w-[75%] md:rounded-[12px] md:border md:border-sea-300/25 md:bg-gradient-to-b md:from-sea-800/90 md:to-sea-950/95 md:px-2.5 md:py-1 md:shadow-lg md:backdrop-blur-sm">
+          <h1 id="city-title" className="sr-only">
             {city.name}
           </h1>
-          <p className="truncate text-xs text-foam/75 sm:text-sm">
-            {city.isCapital ? "Capital" : "Colonia"} en {city.island.name}
+          <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-foam/85">
+            {city.isCapital && <IconColumns size={15} className="shrink-0 text-gold" />}
+            <span className="truncate">
+              {city.isCapital ? "Capital" : "Colonia"} en {city.island.name}
+            </span>
           </p>
           {nameIt && <NameCityPrompt cityId={city.id} name={city.name} />}
         </div>

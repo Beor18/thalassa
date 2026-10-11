@@ -4,9 +4,8 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { BuildingType } from "@/game/data";
 import { ActionButton } from "@/components/ui/action-button";
-import { SHEET_QUERY } from "@/components/fx/hooks";
 import { buildAction } from "@/server/actions";
-import { cityHref, plotId } from "./lib";
+import { CITY_SHEET_QUERY, cityHref, plotId } from "./lib";
 
 /**
  * Starts a construction (new building or next level). On phones the panel is a sheet over the
@@ -40,7 +39,7 @@ export function BuildButton({
       pendingLabel="Arrancando obra…"
       action={() => buildAction({ cityId, slot, type: type ?? null })}
       onDone={(result) => {
-        if (!result.ok || !window.matchMedia(SHEET_QUERY).matches) return;
+        if (!result.ok || !window.matchMedia(CITY_SHEET_QUERY).matches) return;
         router.replace(cityHref(cityId), { scroll: false });
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         // Wait for the sheet to start leaving, then bring the plot to the middle of the scene.

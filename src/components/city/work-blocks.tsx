@@ -100,7 +100,7 @@ export function BusyNotice({ game }: { game: Game }) {
       <p className="min-w-0 flex-1 text-sm leading-tight text-ink">
         <span className="font-bold">Obra en curso:</span> {def.name}
         {work.targetLevel > 1 ? ` nv ${work.targetLevel}` : ""} ·{" "}
-        <strong className="tabular">
+        <strong className="whitespace-nowrap tabular">
           <Countdown endsAt={work.endsAt} serverNow={game.snapshot.now} />
         </strong>
       </p>

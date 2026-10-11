@@ -29,22 +29,37 @@ const buildingFirst = (c: CityState, type: CityState["buildings"][number]["type"
 
 export type ForcesStep =
   | { kind: "link"; eyebrow: string; title: string; cta: string; href: string; art: string }
-  | { kind: "wait"; eyebrow: string; title: string; endsAt: number; href: string; art: string };
+  | { kind: "wait"; eyebrow: string; title: string; endsAt: number; waitLabel: string; href: string; art: string };
 
 /**
  * What a player should do next with the city in focus, in the order the game unlocks it:
- * Cuartel, first troops, Puerto, a ship, then the barbarian camp of the island.
+ * Cuartel, first troops, Puerto, a ship, then the barbarian camp of the island (unless an attack
+ * is already on its way there or the camp is rearming after a defeat).
  */
-export function nextForcesStep(city: GameCity, shipsAtSea: number, soldiersAway: number): ForcesStep {
+export function nextForcesStep({
+  city,
+  shipsAtSea,
+  soldiersAway,
+  missions,
+  campRearmsAt,
+}: {
+  city: GameCity;
+  shipsAtSea: number;
+  soldiersAway: number;
+  missions: MissionView[];
+  /** When the barbarians of this island are back, if they were beaten recently. */
+  campRearmsAt: number | null;
+}): ForcesStep {
   const home = countUnits(city.units);
   const training = city.training.reduce((s, b) => s + b.count, 0);
   const barracksSlot = slotOf(city, "barracks");
   const portSlot = slotOf(city, "port");
+  const camp = `/isla/${city.islandId}?panel=camp`;
 
   if (barracksSlot === undefined) {
     const raising = buildingFirst(city, "barracks");
     return raising
-      ? { kind: "wait", eyebrow: "Cuartel en obra", title: "Tus tropas, en breve", endsAt: raising.endsAt, href: `/ciudad/${city.id}`, art: "/assets/b-barracks.webp" }
+      ? { kind: "wait", eyebrow: "Cuartel en obra", title: "Tus tropas, en breve", endsAt: raising.endsAt, waitLabel: "Termina en", href: `/ciudad/${city.id}`, art: "/assets/b-barracks.webp" }
       : { kind: "link", eyebrow: "Primer paso", title: "Sin Cuartel no hay tropas", cta: "Construir Cuartel", href: `/ciudad/${city.id}?slot=${freeLandSlot(city)}`, art: "/assets/b-barracks.webp" };
   }
   if (home + training + soldiersAway === 0) {
@@ -53,26 +68,35 @@ export function nextForcesStep(city: GameCity, shipsAtSea: number, soldiersAway:
   if (portSlot === undefined) {
     const raising = buildingFirst(city, "port");
     return raising
-      ? { kind: "wait", eyebrow: "Puerto en obra", title: "Tus barcos, en breve", endsAt: raising.endsAt, href: `/ciudad/${city.id}`, art: "/assets/b-port.webp" }
+      ? { kind: "wait", eyebrow: "Puerto en obra", title: "Tus barcos, en breve", endsAt: raising.endsAt, waitLabel: "Termina en", href: `/ciudad/${city.id}`, art: "/assets/b-port.webp" }
       : { kind: "link", eyebrow: "Sin Puerto", title: "Sin barcos no zarpa nadie", cta: "Construir Puerto", href: `/ciudad/${city.id}?slot=${freeCoastSlot(city)}`, art: "/assets/b-port.webp" };
   }
   if (city.ships + shipsAtSea === 0) {
     return { kind: "link", eyebrow: "Sin barcos", title: "Llevan tropas, colonos y recursos", cta: "Comprar un barco", href: `/ciudad/${city.id}?slot=${portSlot}`, art: "/assets/u-ship.webp" };
   }
+  const attack = missions.find((m) => m.kind === "attack" && m.status === "outbound" && m.targetIslandId === city.islandId);
+  if (attack) {
+    return { kind: "wait", eyebrow: "Ataque en camino", title: attack.targetLabel, endsAt: attack.arrivesAt, waitLabel: "Llega en", href: camp, art: "/assets/f-barbarians.webp" };
+  }
   if (home === 0) {
     return { kind: "link", eyebrow: "Nadie en casa", title: "Sumá tropas mientras vuelven", cta: "Entrenar tropas", href: `/ciudad/${city.id}?slot=${barracksSlot}`, art: "/assets/u-spearman.webp" };
   }
-  return {
-    kind: "link",
-    eyebrow: "Botín a la vista",
-    title: `Bárbaros de ${city.island.name}`,
-    cta: "Ir al campamento",
-    href: `/isla/${city.islandId}?panel=camp`,
-    art: "/assets/f-barbarians.webp",
-  };
+  if (campRearmsAt !== null) {
+    return {
+      kind: "wait",
+      eyebrow: "Campamento rearmándose",
+      title: `Bárbaros de ${city.island.name}`,
+      endsAt: campRearmsAt,
+      waitLabel: "Vuelven en",
+      href: camp,
+      art: "/assets/f-barbarians.webp",
+    };
+  }
+  return { kind: "link", eyebrow: "Botín a la vista", title: `Bárbaros de ${city.island.name}`, cta: "Ir al campamento", href: camp, art: "/assets/f-barbarians.webp" };
 }
 
-export function ForcesStepCard({ step, now }: { step: ForcesStep; now: number }) {
+/** `cityName`: with more than one city, says which one the step is about. */
+export function ForcesStepCard({ step, now, cityName }: { step: ForcesStep; now: number; cityName?: string }) {
   return (
     <div
       className="pop-in relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-parchment p-2.5 pl-2 text-ink shadow-[0_8px_20px_-10px_rgb(0_0_0/0.6)] ring-1 ring-gold/60 lg:w-[28rem] lg:shrink-0"
@@ -80,7 +104,9 @@ export function ForcesStepCard({ step, now }: { step: ForcesStep; now: number })
     >
       <Image src={step.art} alt="" width={48} height={48} loading="eager" className="sprite size-12 shrink-0 motion-safe:animate-float" />
       <div className="min-w-[9rem] flex-1">
-        <p className="text-[11px] font-extrabold tracking-wider text-bronze-dark uppercase">{step.eyebrow}</p>
+        <p className="text-[11px] font-extrabold tracking-wider text-bronze-dark uppercase">
+          {cityName ? `${cityName} · ${step.eyebrow}` : step.eyebrow}
+        </p>
         <p className="font-display text-base leading-tight font-bold sm:text-lg">{step.title}</p>
       </div>
       {step.kind === "link" ? (
@@ -88,12 +114,12 @@ export function ForcesStepCard({ step, now }: { step: ForcesStep; now: number })
           {step.cta}
         </Link>
       ) : (
-        <p className="shrink-0 text-right leading-tight">
-          <span className="block text-[11px] font-bold text-ink-soft uppercase">Termina en</span>
+        <Link href={step.href} className="shrink-0 rounded-lg text-right leading-tight hover:text-bronze-dark">
+          <span className="block text-[11px] font-bold text-ink-soft uppercase">{step.waitLabel}</span>
           <strong className="font-display text-lg">
             <Countdown endsAt={step.endsAt} serverNow={now} doneLabel="un momento" />
           </strong>
-        </p>
+        </Link>
       )}
     </div>
   );
@@ -212,10 +238,9 @@ export function CityForces({
               {hasPort ? (
                 <Meta
                   icon={<ShipPortrait size={24} />}
-                  title={`${fmt(city.ships)} en el puerto de ${fmt(city.rates.maxShips)} amarras${shipsAtSea ? `, ${fmt(shipsAtSea)} en el mar` : ""}`}
+                  title={`${fmt(city.ships)} ${city.ships === 1 ? "barco" : "barcos"} en el puerto (amarras para ${fmt(city.rates.maxShips)})${shipsAtSea ? `, ${fmt(shipsAtSea)} en el mar` : ""}`}
                 >
-                  {fmt(city.ships)}/{fmt(city.rates.maxShips)}
-                  <span className="sr-only"> barcos en el puerto</span>
+                  {fmt(city.ships)} <span className="font-normal">en puerto</span>
                   {shipsAtSea > 0 && <span className="font-normal text-ink-soft"> · {fmt(shipsAtSea)} en el mar</span>}
                 </Meta>
               ) : portRaising ? (

@@ -102,9 +102,11 @@ export async function findOrCreatePlayer(wallet: string): Promise<{ id: string; 
       units: {},
       training: [],
     });
+    // Born read: the advice is there when they open Informes, without a badge pulling them off the first build.
     await tx.insert(reports).values({
       playerId: player.id,
       kind: "system",
+      read: true,
       title: "Bienvenido al Egeo",
       body: {
         text: "Fundaste tu polis. Mandá ciudadanos al aserradero, levantá una Academia y prepará la flota. Antes de atacar a los bárbaros de la isla, mirá cuántos son.",

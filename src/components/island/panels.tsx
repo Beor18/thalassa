@@ -361,7 +361,8 @@ export function campPanel(ctx: IslandCtx): PanelDef {
             ))}
             <Stat
               icon={<IconShield size={16} />}
-              label={army.wall > 0 ? `Defensa total, con empalizada nivel ${army.wall} (+${army.wall * 10}%)` : "Defensa total, sin empalizada"}
+              label="Defensa total"
+              hint={army.wall > 0 ? `Empalizada nivel ${army.wall}, +${army.wall * 10}%` : "Sin empalizada"}
             >
               {fmt(defense)}
             </Stat>

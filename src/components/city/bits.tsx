@@ -63,6 +63,7 @@ const toneClass = (tone?: Tone) =>
 /**
  * Compact stat tile: icon, big number, short label under it. `tip` adds details on demand:
  * a bubble on hover, focus or tap, and the same text read inline by screen readers.
+ * In a three-across grid the icon shrinks into the number's line so the label keeps the full width.
  */
 export function Stat({
   icon,
@@ -89,13 +90,13 @@ export function Stat({
     <li
       tabIndex={tip ? 0 : undefined}
       className={clsx(
-        "group/tip relative flex min-w-0 items-center gap-2 rounded-lg bg-marble/55 px-2.5 py-1.5 ring-1 ring-parchment-3/80 outline-offset-2",
+        "group/tip relative flex min-w-0 items-center gap-2 rounded-lg bg-marble/55 px-2.5 py-1.5 ring-1 ring-parchment-3/80 outline-offset-2 group-data-[cols=3]/stats:px-2",
         tip && "cursor-help",
         wide && "col-span-full",
       )}
     >
       {icon && (
-        <span aria-hidden className="grid size-6 shrink-0 place-items-center">
+        <span aria-hidden className="grid size-6 shrink-0 place-items-center group-data-[cols=3]/stats:hidden">
           {icon}
         </span>
       )}
@@ -104,8 +105,13 @@ export function Stat({
           {label}
           {tip && <span className="sr-only">. {tip}</span>}
         </span>
-        <span data-value className={clsx("truncate text-[17px] leading-tight font-extrabold tabular", toneClass(tone))}>
-          {value}
+        <span className={clsx("flex min-w-0 items-center gap-1 text-[17px] leading-tight font-extrabold tabular", toneClass(tone))}>
+          {icon && (
+            <span aria-hidden className="hidden size-4 shrink-0 place-items-center group-data-[cols=3]/stats:grid [&_img]:size-4 [&_svg]:size-4">
+              {icon}
+            </span>
+          )}
+          <span className="truncate">{value}</span>
         </span>
       </span>
       {children}
@@ -115,15 +121,8 @@ export function Stat({
 }
 
 export function StatGrid({ children, cols = 2, className }: { children: ReactNode; cols?: 2 | 3; className?: string }) {
-  // Three across gets tight on phones: slightly smaller numbers and padding there.
   return (
-    <ul
-      className={clsx(
-        "grid gap-1.5",
-        cols === 3 ? "grid-cols-3 max-sm:[&>li]:gap-1.5 max-sm:[&>li]:px-2 max-sm:[&_[data-value]]:text-base" : "grid-cols-2",
-        className,
-      )}
-    >
+    <ul data-cols={cols} className={clsx("group/stats grid gap-1.5", cols === 3 ? "grid-cols-3" : "grid-cols-2", className)}>
       {children}
     </ul>
   );

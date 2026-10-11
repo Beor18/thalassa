@@ -169,7 +169,7 @@ export function IslandScene({
   return (
     <div className="panel-dark min-w-0 p-1.5">
       <ScrollFrame
-        label={`Mapa de ${island.name}. Deslizá para ver toda la isla.`}
+        label={`Mapa de ${island.name}`}
         className="overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-[10px] [scrollbar-color:rgb(111_179_230/0.5)_transparent] [scrollbar-width:thin]"
       >
         {/* Fixed minimum width keeps labels legible: narrow screens pan inside the frame, the page never scrolls sideways. */}
@@ -394,7 +394,6 @@ export function IslandScene({
           </div>
         </ParallaxScene>
       </ScrollFrame>
-      <p className="px-2 pt-1.5 pb-0.5 text-xs text-foam/75 md:hidden">Deslizá para ver toda la isla</p>
     </div>
   );
 }

@@ -22,23 +22,26 @@ export function ShipGlyph({ size = 20 }: { size?: number }) {
 
 type Tone = "default" | "good" | "bad" | "muted";
 
-/** Icon + value chip. `label` is read by screen readers and shown as a tooltip on hover. */
+/** Icon + value chip. `label` is read by screen readers and shown (with `hint`) as a tooltip on hover. */
 export function Stat({
   icon,
   label,
+  hint,
   tone = "default",
   className,
   children,
 }: {
   icon?: ReactNode;
   label: string;
+  /** extra sentence for the hover tooltip only */
+  hint?: string;
   tone?: Tone;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <span
-      title={label}
+      title={hint ? `${label}. ${hint}` : label}
       className={clsx(
         "tabular inline-flex h-8 items-center gap-1.5 rounded-lg bg-parchment-2/70 px-2 text-sm font-bold whitespace-nowrap ring-1 ring-parchment-3",
         tone === "good" && "text-success",

@@ -210,6 +210,7 @@ async function Content() {
                         <div className="rise-in" style={delay}>
                           <TechCard
                             tech={tech}
+                            suggested={tech.id === ready?.id}
                             researched={isDone}
                             unlocked={!tech.requires || researched.has(tech.requires)}
                             points={p.research}
@@ -308,7 +309,9 @@ function NextResearch({
             </strong>
           </p>
         ) : (
-          <p className="shrink-0 text-sm font-bold text-terracotta tabular">Faltan {fmt(Math.ceil(next.cost - points))}</p>
+          <p className="shrink-0 text-sm font-bold text-terracotta tabular">
+            Faltan {fmt(Math.ceil(next.cost - points))} {Math.ceil(next.cost - points) === 1 ? "punto" : "puntos"}
+          </p>
         )}
       </div>
     );
@@ -323,6 +326,7 @@ function NextResearch({
 
 function TechCard({
   tech,
+  suggested,
   researched,
   unlocked,
   points,
@@ -330,6 +334,8 @@ function TechCard({
   now,
 }: {
   tech: TechDef;
+  /** The research the hero already offers: no second button for it here. */
+  suggested: boolean;
   researched: boolean;
   unlocked: boolean;
   points: number;
@@ -370,7 +376,15 @@ function TechCard({
       </div>
       <p className={clsx("text-sm leading-snug", status === "done" || status === "locked" ? "text-ink-soft" : "text-ink")}>{tech.effect}</p>
       {status === "locked" && requires && <span className="sr-only">Bloqueada: requiere {requires}.</span>}
-      {status === "ready" && (
+      {status === "ready" && suggested && (
+        <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold tracking-wide text-bronze-dark uppercase">
+          <svg viewBox="0 0 16 16" aria-hidden className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" />
+          </svg>
+          Investigala arriba
+        </p>
+      )}
+      {status === "ready" && !suggested && (
         <ActionButton
           action={researchAction.bind(null, { tech: tech.id })}
           variant="secondary"

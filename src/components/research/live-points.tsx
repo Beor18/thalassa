@@ -56,7 +56,7 @@ export function TechProgress({ cost, points, perHour, serverNow }: { cost: numbe
         />
       </span>
       <span className="tabular shrink-0 font-bold text-terracotta" suppressHydrationWarning>
-        Faltan {fmt(missing)}
+        Faltan {fmt(missing)} {missing === 1 ? "punto" : "puntos"}
       </span>
       {perHour > 0 && (
         <span className="shrink-0 text-ink-soft">

@@ -2,8 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import clsx from "clsx";
-import { CITY_GRID, SceneFit } from "@/components/game/scene-layout";
+import { CITY_GRID } from "@/components/game/scene-layout";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
+import { CityFit } from "@/components/city/city-fit";
 import { CityScene } from "@/components/city/city-scene";
 import { CityStatus } from "@/components/city/city-status";
 import { readyUpgrades } from "@/components/city/effects";
@@ -30,22 +31,23 @@ async function CityContent({ params, searchParams }: Pick<PageProps<"/ciudad/[id
   const slot = parseSlot(query.slot);
   const ready = readyUpgrades(asPlayer(game.snapshot), game.city, game.snapshot.speed).map((o) => o.slot);
   // New capitals are called "Polis" + the first letters of the account: invite the player to name it.
-  const nameIt = game.city.isCapital && game.city.name === `Polis ${game.snapshot.player.wallet.slice(0, 4)}`;
+  // Hidden while the town hall panel (slot 0) is open: it has its own rename, one entry point at a time.
+  const nameIt = slot !== 0 && game.city.isCapital && game.city.name === `Polis ${game.snapshot.player.wallet.slice(0, 4)}`;
 
   return (
     <GameShell game={game}>
-      <SceneFit>
+      <CityFit>
         <div className={CITY_GRID}>
           <CityScene city={game.city} serverNow={game.snapshot.now} selected={slot} ready={ready} nameIt={nameIt} />
-          {/* Desktop: the column is exactly as tall as the scene; an open panel fills it and scrolls inside. */}
-          <aside aria-label="Detalle de la ciudad" className="flex min-w-0 flex-col gap-3 lg:relative lg:self-stretch">
-            <div className={clsx("lg:sticky lg:top-3", slot != null && "lg:hidden")}>
+          {/* Wide screens: the column is exactly as tall as the scene; an open panel fills it and scrolls inside. */}
+          <aside aria-label="Detalle de la ciudad" className="flex min-w-0 flex-col gap-3 xl:relative xl:self-stretch">
+            <div className={clsx("xl:sticky xl:top-3", slot != null && "xl:hidden")}>
               <CityStatus game={game} />
             </div>
             <SlotPresence open={slot != null}>{slot != null && <SlotPanel game={game} slot={slot} />}</SlotPresence>
           </aside>
         </div>
-      </SceneFit>
+      </CityFit>
     </GameShell>
   );
 }

@@ -14,6 +14,8 @@ export interface Destination {
   name: string;
   label: string;
   mine: boolean;
+  /** on the same island as the port (short trips) */
+  near?: boolean;
 }
 
 export function TransportForm({
@@ -31,7 +33,8 @@ export function TransportForm({
   destinations: Destination[];
 }) {
   const own = destinations.filter((d) => d.mine);
-  const others = destinations.filter((d) => !d.mine);
+  const near = destinations.filter((d) => !d.mine && d.near);
+  const others = destinations.filter((d) => !d.mine && !d.near);
   // Default to one of your own cities; never pre-pick a stranger's.
   const [target, setTarget] = useState(own[0]?.id ?? "");
   const [cargo, setCargo] = useState<ResourceBag>(emptyBag);
@@ -79,8 +82,17 @@ export function TransportForm({
               ))}
             </optgroup>
           )}
+          {near.length > 0 && (
+            <optgroup label="En tu isla">
+              {near.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </optgroup>
+          )}
           {others.length > 0 && (
-            <optgroup label="Otras ciudades">
+            <optgroup label="Otras islas">
               {others.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}

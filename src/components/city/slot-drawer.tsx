@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { fx } from "@/components/fx/classes";
-import { SHEET_QUERY, useHydrated, useMediaQuery, useSheetDialog } from "@/components/fx/hooks";
+import { useHydrated, useMediaQuery, useSheetDialog } from "@/components/fx/hooks";
 import { IconInfo } from "./icons";
-import { plotId } from "./lib";
+import { CITY_SHEET_QUERY, plotId } from "./lib";
 
 const SPRING = { type: "spring", stiffness: 420, damping: 40, mass: 0.9 } as const;
 
@@ -31,8 +31,8 @@ export function SlotPresence({ open, children }: { open: boolean; children: Reac
 }
 
 /**
- * Chrome for the plot panel: bottom sheet on phones and tablets, a column next to the scene on
- * desktop. The content is rendered on the server; this wrapper handles opening and closing
+ * Chrome for the plot panel: bottom sheet below xl, a column next to the scene on
+ * wide screens. The content is rendered on the server; this wrapper handles opening and closing
  * (Escape, backdrop, close button, swipe down), focus, and the modal behavior of the sheet.
  */
 export function SlotDrawer({
@@ -64,7 +64,7 @@ export function SlotDrawer({
   const router = useRouter();
   const panelRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const isSheet = useMediaQuery(SHEET_QUERY);
+  const isSheet = useMediaQuery(CITY_SHEET_QUERY);
   const hydrated = useHydrated();
   const reduce = useReducedMotion();
   const drag = useDragControls();
@@ -121,7 +121,7 @@ export function SlotDrawer({
     <>
       <motion.div
         aria-hidden
-        className="fixed inset-0 z-[70] lg:hidden"
+        className="fixed inset-0 z-[70] xl:hidden"
         initial={animateIn ? { opacity: 0 } : false}
         animate={{ opacity: closing ? 0 : 1 }}
         exit={{ opacity: 0, transition: { duration: 0.2 } }}
@@ -137,7 +137,7 @@ export function SlotDrawer({
         />
       </motion.div>
       {/* Desktop: fills the column next to the scene; the panel sticks to the top while the page scrolls. */}
-      <div className="lg:absolute lg:inset-0">
+      <div className="xl:absolute xl:inset-0">
         <motion.section
           ref={panelRef}
           role={isSheet ? "dialog" : undefined}
@@ -169,18 +169,18 @@ export function SlotDrawer({
             "rounded-t-[14px] border border-b-0 border-parchment-3 bg-parchment bg-[linear-gradient(180deg,rgb(255_255_255/0.35),transparent_40%)] shadow-panel",
             "pb-[max(1rem,env(safe-area-inset-bottom))] text-ink",
             // Desktop: as tall as the scene at most (and never taller than the window), scrolls on its own.
-            "lg:sticky lg:top-3 lg:bottom-auto lg:z-auto lg:max-h-[min(100%,calc(100dvh-1.5rem))] lg:max-w-none lg:rounded-[14px] lg:border-b lg:pb-4",
+            "xl:sticky xl:top-3 xl:bottom-auto xl:z-auto xl:max-h-[min(100%,calc(100dvh-1.5rem))] xl:max-w-none xl:rounded-[14px] xl:border-b xl:pb-4",
           )}
         >
           {/* Grab the handle or the header to swipe the sheet down. */}
           <div
-            className="sticky top-0 z-10 touch-none rounded-t-[14px] bg-parchment/95 backdrop-blur-sm lg:touch-auto"
+            className="sticky top-0 z-10 touch-none rounded-t-[14px] bg-parchment/95 backdrop-blur-sm xl:touch-auto"
             onPointerDown={(e) => {
               if (isSheet && e.pointerType !== "mouse") drag.start(e);
             }}
           >
-            <div aria-hidden className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-ink/25 lg:hidden" />
-            <header className="flex items-center gap-3 border-b border-parchment-3/70 py-2 pr-2 pl-3 lg:pt-2.5">
+            <div aria-hidden className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-ink/25 xl:hidden" />
+            <header className="flex items-center gap-2 border-b border-parchment-3/70 py-2 pr-2 pl-3 xl:pt-2.5">
               {image ? (
                 <Image
                   key={image}
@@ -189,10 +189,10 @@ export function SlotDrawer({
                   width={128}
                   height={128}
                   sizes="56px"
-                  className={clsx("sprite -my-1 size-14 shrink-0 object-contain", animateIn && "motion-safe:animate-pop")}
+                  className={clsx("sprite -my-1 size-12 shrink-0 object-contain", animateIn && "motion-safe:animate-pop")}
                 />
               ) : (
-                icon && <span className="grid size-14 shrink-0 place-items-center">{icon}</span>
+                icon && <span className="grid size-12 shrink-0 place-items-center">{icon}</span>
               )}
               <div className="min-w-0 flex-1">
                 <h2
@@ -201,7 +201,7 @@ export function SlotDrawer({
                   tabIndex={-1}
                   // Focus lands here by script when the panel opens; an underline is enough of a cue.
                   style={{ outline: "none" }}
-                  className="font-display truncate text-xl leading-tight font-bold text-ink decoration-bronze underline-offset-4 focus-visible:underline"
+                  className="font-display truncate text-xl leading-tight font-bold text-ink decoration-bronze underline-offset-4 focus-visible:underline xl:text-lg"
                 >
                   {title}
                 </h2>
@@ -221,7 +221,7 @@ export function SlotDrawer({
                   title="Cómo funciona"
                   onClick={() => setInfoFor(infoOpen ? null : slot)}
                   className={clsx(
-                    "grid size-11 shrink-0 place-items-center rounded-full transition-colors duration-100",
+                    "grid size-10 shrink-0 place-items-center rounded-full transition-colors duration-100",
                     infoOpen ? "bg-bronze-dark text-marble" : "text-bronze-dark hover:bg-ink/10 hover:text-ink",
                   )}
                 >
@@ -234,7 +234,7 @@ export function SlotDrawer({
                 scroll={false}
                 aria-label="Cerrar panel"
                 onClick={() => setClosing(true)}
-                className="grid size-11 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
+                className="grid size-10 shrink-0 place-items-center rounded-full text-2xl leading-none text-ink-soft transition-colors duration-100 hover:bg-ink/10 hover:text-ink"
               >
                 <span aria-hidden>×</span>
               </Link>

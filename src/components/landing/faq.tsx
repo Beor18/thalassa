@@ -12,7 +12,7 @@ const QUESTIONS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "¿Necesito una billetera?",
-    a: "No. Jugar ahora te guarda una llave de juego en este navegador. Si ya tenés una billetera de Solana, podés entrar con ella.",
+    a: "No. Jugar ahora te guarda una llave de juego en este navegador. Si ya tenés una billetera, podés entrar con ella.",
   },
   {
     q: "¿Y si borro los datos del navegador?",

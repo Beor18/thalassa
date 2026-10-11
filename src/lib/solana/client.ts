@@ -129,9 +129,9 @@ export function friendlySolanaError(err: unknown): string {
       return "La red de prueba está saturada. Esperá unos segundos y probá de nuevo.";
     }
     if (/failed to fetch|network ?error|load failed/i.test(message)) {
-      return "No pudimos hablar con la red de Solana. Revisá tu conexión.";
+      return "No pudimos hablar con la red de prueba. Revisá tu conexión.";
     }
     e = (e as { cause?: unknown }).cause;
   }
-  return "La red de Solana devolvió un error. Probá de nuevo en un rato.";
+  return "La red de prueba devolvió un error. Probá de nuevo en un rato.";
 }

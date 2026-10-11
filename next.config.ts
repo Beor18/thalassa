@@ -8,6 +8,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Bottom-left would cover the phone tab bar.
+  devIndicators: { position: "top-left" },
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,

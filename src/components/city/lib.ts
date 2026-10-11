@@ -6,6 +6,9 @@ import { fmt } from "@/lib/format";
 /** Pure helpers shared by the city view (server and client safe). */
 
 export const cityHref = (cityId: string) => `/ciudad/${cityId}`;
+
+/** Below xl the city has no side column: plot panels open as a bottom sheet (see CITY_GRID). */
+export const CITY_SHEET_QUERY = "(max-width: 1279.98px)";
 export const slotHref = (cityId: string, slot: number) => `/ciudad/${cityId}?slot=${slot}`;
 export const plotId = (slot: number) => `plot-${slot}`;
 

@@ -4,6 +4,7 @@ import Image from "next/image";
 import clsx from "clsx";
 import { countUnits, militaryPower, unitUpkeep } from "@/game/engine";
 import { getGame } from "@/server/game-context";
+import { getIsland } from "@/server/queries";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { IconSwords } from "@/components/island/icons";
 import { ResIcon } from "@/components/ui/res";
@@ -36,7 +37,15 @@ async function MilitaryContent() {
   const upkeep = (snapshot.cities.reduce((s, c) => s + unitUpkeep(c.units), 0) + snapshot.player.awayUpkeep) * snapshot.speed;
   const shipsAtSeaFrom = (cityId: string) => missions.filter((m) => m.originCityId === cityId).reduce((s, m) => s + m.ships, 0);
   const awayFrom = (cityId: string) => missions.filter((m) => m.originCityId === cityId).reduce((s, m) => s + countUnits(m.units), 0);
-  const step = nextForcesStep(city, shipsAtSeaFrom(city.id), awayFrom(city.id));
+  // Read only for the camp's rearm timer, so the hero never sends troops to an empty camp.
+  const island = await getIsland(city.islandId, snapshot.player.id);
+  const step = nextForcesStep({
+    city,
+    shipsAtSea: shipsAtSeaFrom(city.id),
+    soldiersAway: awayFrom(city.id),
+    missions,
+    campRearmsAt: island?.barbarians.rebuildingUntil ?? null,
+  });
   const many = snapshot.cities.length > 1;
 
   return (
@@ -62,15 +71,23 @@ async function MilitaryContent() {
             <div className="grid w-full grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
               <HeroStat
                 icon={<UnitPortrait unit="spearman" size={30} className="bg-transparent" />}
-                value={away > 0 ? `${fmt(home)} +${fmt(away)}` : fmt(home)}
-                label={away > 0 ? "Casa + mar" : "Soldados"}
-                hint={`${fmt(home)} soldados en casa${away > 0 ? ` y ${fmt(away)} en el mar` : ""}${training > 0 ? `, ${fmt(training)} entrenando` : ""}`}
+                value={fmt(home)}
+                label="En casa"
+                hint={`${fmt(home)} ${home === 1 ? "soldado" : "soldados"} en casa`}
               />
+              {away > 0 && (
+                <HeroStat
+                  icon={<UnitPortrait unit="spearman" size={30} className="bg-transparent opacity-70" />}
+                  value={fmt(away)}
+                  label="En el mar"
+                  hint={`${fmt(away)} ${away === 1 ? "soldado navegando" : "soldados navegando"}`}
+                />
+              )}
               <HeroStat
                 icon={<ShipPortrait size={30} />}
-                value={atSea > 0 ? `${fmt(docked)} +${fmt(atSea)}` : fmt(docked)}
-                label={atSea > 0 ? "Puerto + mar" : "Barcos"}
-                hint={`${fmt(docked)} barcos en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`}
+                value={fmt(docked)}
+                label="En puerto"
+                hint={`${fmt(docked)} ${docked === 1 ? "barco" : "barcos"} en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`}
               />
               {training > 0 && (
                 <HeroStat icon={<IconSwords size={20} className="text-gold" />} value={fmt(training)} label="Entrenando" hint={`${fmt(training)} soldados entrenando`} />
@@ -78,14 +95,10 @@ async function MilitaryContent() {
               <HeroStat
                 icon={<ResIcon kind="gold" size={24} />}
                 value={
-                  upkeep > 0 ? (
-                    <>
-                      −{fmt(upkeep)}
-                      <span className="font-body text-xs font-bold">/h</span>
-                    </>
-                  ) : (
-                    "0"
-                  )
+                  <>
+                    {upkeep > 0 ? `−${fmt(upkeep)}` : "0"}
+                    <span className="font-body text-xs font-bold">/h</span>
+                  </>
                 }
                 label="Sueldos"
                 hint="Oro por hora que cobran tus tropas"
@@ -93,7 +106,7 @@ async function MilitaryContent() {
               />
             </div>
           </div>
-          <ForcesStepCard step={step} now={snapshot.now} />
+          <ForcesStepCard step={step} now={snapshot.now} cityName={many ? city.name : undefined} />
         </section>
 
         <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] 2xl:grid-cols-[minmax(0,1fr)_30rem]">

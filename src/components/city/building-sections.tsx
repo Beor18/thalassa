@@ -457,12 +457,14 @@ async function PortSection({ game }: { game: Game }) {
   const full = city.ships >= r.maxShips;
   const broke = snapshot.player.gold < price;
   const rows = await getDestinations(snapshot.player.id);
+  // Own cities first, then neighbours on this island, then the rest of the world (by island).
   const destinations: Destination[] = rows
     .filter((d) => d.id !== city.id)
     .map((d) => ({
       id: d.id,
       name: d.name,
       mine: Boolean(d.isMine),
+      near: d.islandId === city.islandId,
       label: d.isMine ? `${d.name} · ${d.islandName}` : `${d.name} (${d.playerName}) · ${d.islandName}`,
     }));
 

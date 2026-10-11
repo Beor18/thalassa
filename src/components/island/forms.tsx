@@ -166,7 +166,8 @@ export function WorkersForm({
       <StatRow>
         <Stat
           icon={<ResGlyph kind={resource} />}
-          label={`Producción de ${label} (${fmt(perWorker)} por trabajador)`}
+          label={`Producción de ${label}`}
+          hint={`${fmt(perWorker)} por trabajador`}
           tone={value > 0 ? "good" : "muted"}
         >
           +{fmt(value * perWorker)}/h
@@ -174,7 +175,8 @@ export function WorkersForm({
         {/* The trade-off, calmly: what this city keeps earning in gold, not what it "loses". */}
         <Stat
           icon={<ResGlyph kind="gold" />}
-          label="Oro por hora de esta ciudad: quien trabaja no paga impuestos"
+          label="Oro por hora de esta ciudad"
+          hint="Quien trabaja no paga impuestos"
           tone={goldAfter < 0 ? "bad" : "muted"}
         >
           {delta !== 0 && <span className="font-semibold text-ink-soft/80">{fmtSigned(goldPerHour)} →</span>}
@@ -412,7 +414,7 @@ export function AttackForm({
             {fmt(defense)}
           </Stat>
         ) : (
-          <Stat icon={<IconShield size={16} />} label="Defensa desconocida: mandá de más si dudás" tone="muted">
+          <Stat icon={<IconShield size={16} />} label="Defensa enemiga" hint="No se conoce. Si dudás, mandá de más" tone="muted">
             ?
           </Stat>
         )}
@@ -423,7 +425,7 @@ export function AttackForm({
           {fmtDuration(travelSec * 1000)}
         </Stat>
         {preview && preview.attackerWins && (
-          <Stat icon={<IconBox size={16} />} label={`Botín máximo (${fmt(BALANCE.shipCapacity)} por barco)`} tone="muted">
+          <Stat icon={<IconBox size={16} />} label="Botín máximo" hint={`${fmt(BALANCE.shipCapacity)} por barco`} tone="muted">
             {fmt(ships * BALANCE.shipCapacity)}
           </Stat>
         )}
@@ -599,7 +601,8 @@ export interface Requirement {
   action?: string;
 }
 
-export function RequirementList({ items }: { items: Requirement[] }) {
+/** `primary`: the step shown as the big button below, so its row doesn't repeat the link. */
+export function RequirementList({ items, primary }: { items: Requirement[]; primary?: Requirement }) {
   return (
     <ul className="flex flex-col gap-1">
       {items.map((r) => (
@@ -614,7 +617,7 @@ export function RequirementList({ items }: { items: Requirement[] }) {
             <span className="sr-only">{r.ok ? "Cumplido:" : "Falta:"}</span>
           </span>
           <span className={clsx("min-w-0 flex-1", r.ok ? "text-ink-soft" : "font-bold")}>{r.label}</span>
-          {!r.ok && r.href && (
+          {!r.ok && r.href && r !== primary && (
             <Link
               href={r.href}
               className="shrink-0 rounded-md px-1.5 py-1 font-bold text-bronze-dark underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-bronze-dark"
@@ -665,7 +668,7 @@ export function ColonizeForm({
       }}
     >
       {/* All set: the checklist would only be noise. */}
-      {steps.some((r) => !r.ok) && <RequirementList items={steps} />}
+      {steps.some((r) => !r.ok) && <RequirementList items={steps} primary={ready ? undefined : next} />}
       {ready ? (
         <>
           <div className="flex items-center gap-2">

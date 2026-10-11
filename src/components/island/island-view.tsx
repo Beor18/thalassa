@@ -58,9 +58,8 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
               <ResIcon kind={island.resource} size={18} />
               {RESOURCE_INFO[island.resource].label}
             </HeaderChip>
-            <HeaderChip label="Coordenadas">
-              <IconPin size={15} className="text-foam/70" />
-              {island.x}:{island.y}
+            <HeaderChip label="Coordenadas en el mapa">
+              <IconPin size={15} className="text-foam/70" />[{island.x}:{island.y}]
             </HeaderChip>
             <HeaderChip label="Lugares ocupados">
               <IconTemple size={15} className="text-foam/70" />
@@ -176,7 +175,11 @@ function IslandSummary({ ctx, idleSawmill }: { ctx: IslandCtx; idleSawmill: bool
 
   return (
     <section aria-label={`Resumen de ${island.name}`} className="panel flex flex-col gap-1.5 p-3">
-      <h2 className={kicker}>En la isla</h2>
+      <div className="flex items-baseline justify-between gap-3 pr-8">
+        <h2 className={kicker}>En la isla</h2>
+        {/* The numbers in the rows are the active city's, not the island's. */}
+        {here && <p className="min-w-0 truncate text-xs font-semibold text-ink-soft">Producción de {city.name}</p>}
+      </div>
       <ul className="flex flex-col gap-0.5">
         <SummaryRow
           panel="sawmill"

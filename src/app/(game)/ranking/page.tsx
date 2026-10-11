@@ -197,7 +197,8 @@ const PODIUM = [
 /** The three best arcontes on marble pedestals; the champion gets the laurel. */
 function Podium({ rows, me }: { rows: RankingRow[]; me: string }) {
   return (
-    <section aria-label="Podio" className="panel-dark rise-in relative flex flex-col justify-end overflow-hidden px-3 pt-5 sm:px-6" style={stagger(1, 80, 4, 60)}>
+    // Phones skip the podium: the table right below already crowns the top three.
+    <section aria-label="Podio" className="panel-dark rise-in relative hidden flex-col justify-end overflow-hidden px-3 pt-5 sm:flex sm:px-6" style={stagger(1, 80, 4, 60)}>
       <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 mx-auto h-48 w-2/3 rounded-full bg-gold/15 blur-3xl" />
       <ol className="relative mx-auto grid w-full max-w-xl grid-cols-3 items-end gap-2 sm:gap-4">
         {PODIUM.map(({ place, height, medal, order }, i) => {

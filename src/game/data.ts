@@ -174,7 +174,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   },
   stonemason: {
     type: "stonemason",
-    name: "Cantería",
+    name: "Cantero",
     description: "Sus maestros suman 3% de producción del recurso de lujo de la isla por nivel.",
     image: "/assets/b-stonemason.webp",
     slotKind: "land",
@@ -351,7 +351,7 @@ export const TECH_BRANCHES: Record<TechBranch, string> = {
 export const TECHS: Record<TechId, TechDef> = {
   conservation: { id: "conservation", name: "Conservación", branch: "economy", cost: 30, effect: "+20% de capacidad en los depósitos." },
   pulley: { id: "pulley", name: "Poleas", branch: "economy", cost: 60, requires: "conservation", effect: "-10% de madera en todas las obras." },
-  wealth: { id: "wealth", name: "Riqueza", branch: "economy", cost: 90, requires: "conservation", effect: "Habilita trabajadores en la mina de lujo de la isla y la Cantería." },
+  wealth: { id: "wealth", name: "Riqueza", branch: "economy", cost: 90, requires: "conservation", effect: "Habilita trabajadores en la mina de lujo de la isla y el Cantero." },
   wine_culture: { id: "wine_culture", name: "Viticultura", branch: "economy", cost: 150, requires: "wealth", effect: "Las tabernas gastan 20% menos vino." },
   geometry: { id: "geometry", name: "Geometría", branch: "economy", cost: 260, requires: "pulley", effect: "-10% de mármol en todas las obras." },
   architecture: { id: "architecture", name: "Arquitectura", branch: "economy", cost: 520, requires: "geometry", effect: "Las obras terminan 10% más rápido." },

@@ -48,7 +48,7 @@ function useChainData(owner: string) {
       },
       (err) => {
         if (!alive) return;
-        console.error("[thalassa] chain read failed", err);
+        console.warn("[thalassa] chain read failed", err);
         setState({ status: "error", message: friendlySolanaError(err) });
         setRefreshing(false);
       },
@@ -320,7 +320,7 @@ function ShopBody({
       if (isUserRejection(err)) {
         toast("Cancelaste la compra. No se movió nada.");
       } else {
-        console.error("[thalassa] purchase failed", err);
+        console.warn("[thalassa] purchase failed", err);
         setError(friendlySolanaError(err));
       }
     } finally {
