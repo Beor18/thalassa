@@ -4,6 +4,7 @@ import { ISLAND_PLOTS, RESOURCE_INFO } from "@/game/data";
 import { travelSeconds, type PlayerState } from "@/game/engine";
 import type { Game } from "@/server/game-context";
 import type { IslandView as IslandData } from "@/server/queries";
+import { ISLAND_GRID, SceneFit } from "@/components/game/scene-layout";
 import { buttonClass } from "@/components/ui/button";
 import { ResIcon } from "@/components/ui/res";
 import { fmtDuration } from "@/lib/format";
@@ -46,7 +47,7 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
 
   return (
     <PanelProvider ids={Object.keys(panels)}>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:flex-1">
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
           <div className="min-w-0">
             <h1 className="font-display text-2xl font-bold text-foam drop-shadow sm:text-3xl">{island.name}</h1>
@@ -73,10 +74,12 @@ export function IslandView({ game, island }: { game: Game; island: IslandData })
             <IconArrowRight size={16} />
           </Link>
         </div>
-        <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_400px]">
-          <IslandScene island={island} activeCityId={city.id} now={snapshot.now} fleets={fleets} />
-          <PanelHost panels={panels} summary={<IslandSummary ctx={ctx} />} />
-        </div>
+        <SceneFit>
+          <div className={ISLAND_GRID}>
+            <IslandScene island={island} activeCityId={city.id} now={snapshot.now} fleets={fleets} />
+            <PanelHost panels={panels} summary={<IslandSummary ctx={ctx} />} />
+          </div>
+        </SceneFit>
       </div>
     </PanelProvider>
   );

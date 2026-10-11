@@ -59,7 +59,7 @@ export function CityScene({ city, serverNow, selected }: { city: GameCity; serve
               alt=""
               fill
               preload
-              sizes="(min-width: 1280px) 840px, (min-width: 1024px) 62vw, (min-width: 768px) 100vw, 720px"
+              sizes="(min-width: 1024px) 72vw, (min-width: 768px) 100vw, 720px"
               className="pointer-events-none object-cover select-none"
               draggable={false}
             />
@@ -229,7 +229,7 @@ function Plot({
             aria-hidden
             width={512}
             height={512}
-            sizes="(min-width: 1024px) 128px, 112px"
+            sizes="(min-width: 1024px) 10vw, 112px"
             className={clsx(scene.rim, selected && scene.rimOn)}
             draggable={false}
           />
@@ -240,7 +240,7 @@ function Plot({
                 alt=""
                 width={512}
                 height={512}
-                sizes="(min-width: 1024px) 128px, 112px"
+                sizes="(min-width: 1024px) 10vw, 112px"
                 className="sprite pointer-events-none h-auto w-full select-none"
                 draggable={false}
               />

@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { usePathname } from "next/navigation";
 import { CompassLoader } from "@/components/motion/compass";
+import { CITY_GRID, ISLAND_GRID, SceneFit } from "./scene-layout";
 
 type Variant = "city" | "island" | "world" | "research" | "military" | "reports" | "ranking" | "treasury" | "default";
 
@@ -64,21 +65,34 @@ function Body({ variant }: { variant: Variant }) {
   switch (variant) {
     case "city":
       return (
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="skel-dark grid aspect-[3/2] place-items-center">
-            <CompassLoader size={72} label="Cargando la ciudad" />
+        <SceneFit>
+          <div className={CITY_GRID}>
+            <div className="skel-dark grid aspect-[3/2] place-items-center">
+              <CompassLoader size={72} label="Cargando la ciudad" />
+            </div>
+            <div className="skel flex flex-col gap-4 p-4">
+              <Lines widths={["w-24 h-5", "w-full h-16"]} />
+              <Lines widths={["w-32 h-5", "w-3/4", "w-2/3", "w-3/4", "w-1/2"]} />
+            </div>
           </div>
-          <div className="skel flex flex-col gap-4 p-4">
-            <Lines widths={["w-24 h-5", "w-full h-16"]} />
-            <Lines widths={["w-32 h-5", "w-3/4", "w-2/3", "w-3/4", "w-1/2"]} />
-          </div>
-        </div>
+        </SceneFit>
       );
     case "island":
       return (
-        <div className="skel-dark grid aspect-[4/3] place-items-center sm:aspect-[16/10]">
-          <CompassLoader size={72} label="Cargando la isla" />
-        </div>
+        <>
+          <Title />
+          <SceneFit>
+            <div className={ISLAND_GRID}>
+              <div className="skel-dark grid aspect-[3/2] place-items-center">
+                <CompassLoader size={72} label="Cargando la isla" />
+              </div>
+              <div className="skel flex flex-col gap-4 p-4">
+                <Lines widths={["w-32 h-5", "w-full h-16"]} />
+                <Lines widths={["w-3/4", "w-2/3", "w-1/2"]} />
+              </div>
+            </div>
+          </SceneFit>
+        </>
       );
     case "world":
       return (

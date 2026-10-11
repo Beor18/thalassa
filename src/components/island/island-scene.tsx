@@ -173,7 +173,7 @@ export function IslandScene({
               fill
               preload
               draggable={false}
-              sizes="(min-width: 1280px) 820px, (min-width: 1024px) 60vw, 760px"
+              sizes="(min-width: 1024px) 72vw, 760px"
               className="pointer-events-none object-cover select-none"
             />
 
