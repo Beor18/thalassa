@@ -4,23 +4,32 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { BUILDING_TYPES, RESOURCES, TECH_IDS, UNIT_TYPES } from "@/game/data";
 import { GameError } from "@/game/engine";
+import type { Text } from "@/i18n/config";
+import type { I18n } from "@/i18n/i18n";
+import { getRequestI18n } from "@/i18n/request";
 import type { ActionResult } from "@/lib/action-result";
 import { readSession } from "./session";
 import * as cmd from "./commands";
 import { track, trackFirst } from "./growth/analytics";
 
-async function run<T>(fn: (playerId: string) => Promise<T>, message?: string | ((r: T) => string)): Promise<ActionResult<T>> {
+type Message<T> = string | Text | ((r: T, i: I18n) => string | Text);
+
+/** Runs a command for the signed-in player and answers in their language (cookie, English by default). */
+async function run<T>(fn: (playerId: string) => Promise<T>, message?: Message<T>): Promise<ActionResult<T>> {
+  const i = await getRequestI18n();
+  const say = (m: string | Text) => (typeof m === "string" ? m : i.t(m));
   const session = await readSession();
-  if (!session) return { ok: false, error: "Tu sesión expiró. Volvé a entrar." };
+  if (!session) return { ok: false, error: i.t({ en: "Your session expired. Sign in again.", es: "Tu sesión expiró. Volvé a entrar." }) };
   try {
     const data = await fn(session.playerId);
     refresh();
-    return { ok: true, data, message: typeof message === "function" ? message(data) : message };
+    const resolved = typeof message === "function" ? message(data, i) : message;
+    return { ok: true, data, message: resolved === undefined ? undefined : say(resolved) };
   } catch (err) {
-    if (err instanceof GameError) return { ok: false, error: err.message };
-    if (err instanceof z.ZodError) return { ok: false, error: "Datos inválidos." };
+    if (err instanceof GameError) return { ok: false, error: i.t(err.text) };
+    if (err instanceof z.ZodError) return { ok: false, error: i.t({ en: "Invalid data.", es: "Datos inválidos." }) };
     console.error("[thalassa] action failed", err);
-    return { ok: false, error: "Algo salió mal. Probá de nuevo." };
+    return { ok: false, error: i.t({ en: "Something went wrong. Try again.", es: "Algo salió mal. Probá de nuevo." }) };
   }
 }
 

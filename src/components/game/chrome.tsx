@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import type { AdvisorHint } from "@/game/engine";
+import { useI18n } from "@/i18n/client";
 import { buttonClass } from "@/components/ui/button";
 import { useAnchoredPopover } from "@/components/ui/popover";
 import { markShellMount } from "@/components/motion/late-mount";
@@ -85,7 +86,7 @@ export function GameChrome({
                   transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <AnimatePresence initial={false} mode="wait">
-                    <Advisor key={shownAdvisor.title} advisor={shownAdvisor} quiet={fromCache} />
+                    <Advisor key={shownAdvisor.title.en} advisor={shownAdvisor} quiet={fromCache} />
                   </AnimatePresence>
                 </motion.div>
               )}
@@ -219,11 +220,12 @@ const WIDE = "(min-width: 1536px)";
  */
 function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   // A hint this tab has not shown yet gets an entrance and a few gentle pulses; a known one sits still.
-  const [fresh] = useState(() => !quiet && isNewAdvisor(advisor.title));
+  const [fresh] = useState(() => !quiet && isNewAdvisor(advisor.title.en));
   useEffect(() => {
-    if (!quiet) markAdvisorSeen(advisor.title);
-  }, [advisor.title, quiet]);
+    if (!quiet) markAdvisorSeen(advisor.title.en);
+  }, [advisor.title.en, quiet]);
   const bubble = useAnchoredPopover<HTMLAnchorElement>({
     hover: true,
     align: "start",
@@ -260,8 +262,8 @@ function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
           <OwlIcon className="size-6" />
         </span>
         <span className="min-w-0 flex-1 truncate">
-          <span className="font-display text-sm font-bold sm:text-[15px]">{advisor.title}</span>
-          <span className="sr-only 2xl:not-sr-only 2xl:ml-2 2xl:text-sm 2xl:text-ink-soft">{advisor.body}</span>
+          <span className="font-display text-sm font-bold sm:text-[15px]">{t(advisor.title)}</span>
+          <span className="sr-only 2xl:not-sr-only 2xl:ml-2 2xl:text-sm 2xl:text-ink-soft">{t(advisor.body)}</span>
         </span>
         <span className={buttonClass("secondary", "sm", "shrink-0 px-2.5 text-bronze-dark group-hover:text-ink lg:h-9")}>
           {advisorCta(advisor.href, pathname)}
@@ -280,7 +282,7 @@ function Advisor({ advisor, quiet }: { advisor: AdvisorHint; quiet: boolean }) {
         </span>
       </Link>
       <div {...bubble.popoverProps} className="hud-pop pointer-events-none">
-        {bubble.open && <p className="hud-bubble max-w-72 px-3 py-2 text-sm leading-snug text-ink">{advisor.body}</p>}
+        {bubble.open && <p className="hud-bubble max-w-72 px-3 py-2 text-sm leading-snug text-ink">{t(advisor.body)}</p>}
       </div>
     </motion.div>
   );

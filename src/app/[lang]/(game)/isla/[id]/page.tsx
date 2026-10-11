@@ -9,7 +9,7 @@ import { IslandView } from "@/components/island/island-view";
 
 export const metadata: Metadata = { title: "Isla" };
 
-export default function Page({ params }: PageProps<"/isla/[id]">) {
+export default function Page({ params }: PageProps<"/[lang]/isla/[id]">) {
   return (
     <Suspense fallback={<GameSkeleton />}>
       <IslandContent params={params} />
@@ -17,7 +17,7 @@ export default function Page({ params }: PageProps<"/isla/[id]">) {
   );
 }
 
-async function IslandContent({ params }: Pick<PageProps<"/isla/[id]">, "params">) {
+async function IslandContent({ params }: Pick<PageProps<"/[lang]/isla/[id]">, "params">) {
   const { id } = await params;
   const game = await getGame();
   const islandId = Number(id);

@@ -1,5 +1,6 @@
 // Deterministic game simulation. No I/O: the server loads state, advances it to
 // "now", applies a command and persists. Same input always yields same output.
+import type { Text } from "@/i18n/config";
 import {
   BALANCE,
   BUILDINGS,
@@ -19,10 +20,14 @@ import {
   type UnitType,
 } from "./data";
 
+/** A rule the player broke. Carries its message in every language; the action layer picks one. */
 export class GameError extends Error {
-  constructor(message: string) {
-    super(message);
+  readonly text: Text;
+  constructor(message: string | Text) {
+    const text = typeof message === "string" ? { en: message, es: message } : message;
+    super(text.en);
     this.name = "GameError";
+    this.text = text;
   }
 }
 
@@ -684,8 +689,8 @@ export function cityScore(city: CityState) {
 // ---------------------------------------------------------------------------
 
 export interface AdvisorHint {
-  title: string;
-  body: string;
+  title: Text;
+  body: Text;
   href: string;
 }
 
@@ -698,35 +703,35 @@ export function advisorHint(p: PlayerState, city: CityState, speed: number): Adv
   // Suggest building X only when nothing is under construction (one obra at a time).
   const canSuggest = (type: BuildingType) => !city.construction && building !== type;
   if (city.woodWorkers === 0) {
-    return { title: "Poné gente a talar", body: "Sin madera no hay obras. Mandá ciudadanos al aserradero de la isla.", href: `${island}?panel=sawmill` };
+    return { title: { en: "Put people to work", es: "Poné gente a talar" }, body: { en: "No wood, no buildings. Send citizens to the island sawmill.", es: "Sin madera no hay obras. Mandá ciudadanos al aserradero de la isla." }, href: `${island}?panel=sawmill` };
   }
   if (canSuggest("academy") && buildingLevel(city, "academy") === 0) {
-    return { title: "Levantá una Academia", body: "Los científicos destraban mejoras para toda tu polis.", href: `${cityHref}?slot=${freeSlot}` };
+    return { title: { en: "Build an Academy", es: "Levantá una Academia" }, body: { en: "Scientists unlock upgrades for your whole polis.", es: "Los científicos destraban mejoras para toda tu polis." }, href: `${cityHref}?slot=${freeSlot}` };
   }
   if (buildingLevel(city, "academy") > 0 && city.scientists === 0 && rates.freeCitizens > 4) {
     const academy = city.buildings.find((b) => b.type === "academy")!;
-    return { title: "Sentá científicos", body: "Asigná ciudadanos a la Academia para sumar investigación.", href: `${cityHref}?slot=${academy.slot}` };
+    return { title: { en: "Seat your scientists", es: "Sentá científicos" }, body: { en: "Assign citizens to the Academy to earn research.", es: "Asigná ciudadanos a la Academia para sumar investigación." }, href: `${cityHref}?slot=${academy.slot}` };
   }
   if (canSuggest("warehouse") && sumLevels(city, "warehouse") === 0) {
-    return { title: "Hacé un Depósito", body: "Más lugar para guardar y menos para que te saqueen.", href: `${cityHref}?slot=${freeSlot}` };
+    return { title: { en: "Build a Warehouse", es: "Hacé un Depósito" }, body: { en: "More room to store, less for raiders to take.", es: "Más lugar para guardar y menos para que te saqueen." }, href: `${cityHref}?slot=${freeSlot}` };
   }
   if (p.techs.length === 0 && p.research >= 30) {
-    return { title: "Investigá tu primera mejora", body: "Ya tenés puntos para Conservación.", href: "/investigacion" };
+    return { title: { en: "Research your first upgrade", es: "Investigá tu primera mejora" }, body: { en: "You have enough points for Conservation.", es: "Ya tenés puntos para Conservación." }, href: "/investigacion" };
   }
   if (canSuggest("town_hall") && buildingLevel(city, "town_hall") < 2) {
-    return { title: "Ampliá la Intendencia", body: "Más viviendas, más ciudadanos, más oro.", href: `${cityHref}?slot=0` };
+    return { title: { en: "Upgrade the Town Hall", es: "Ampliá la Intendencia" }, body: { en: "More housing, more citizens, more gold.", es: "Más viviendas, más ciudadanos, más oro." }, href: `${cityHref}?slot=0` };
   }
   if (canSuggest("tavern") && buildingLevel(city, "tavern") === 0 && buildingLevel(city, "town_hall") >= 2) {
-    return { title: "Abrí una Taberna", body: "Con vino el pueblo crece más rápido.", href: `${cityHref}?slot=${freeSlot}` };
+    return { title: { en: "Open a Tavern", es: "Abrí una Taberna" }, body: { en: "With wine flowing, your people grow faster.", es: "Con vino el pueblo crece más rápido." }, href: `${cityHref}?slot=${freeSlot}` };
   }
   if (canSuggest("barracks") && buildingLevel(city, "barracks") === 0 && buildingLevel(city, "town_hall") >= 2) {
-    return { title: "Construí un Cuartel", body: "Los bárbaros de la isla guardan un botín.", href: `${cityHref}?slot=${freeSlot}` };
+    return { title: { en: "Build Barracks", es: "Construí un Cuartel" }, body: { en: "The island's barbarians are sitting on loot.", es: "Los bárbaros de la isla guardan un botín." }, href: `${cityHref}?slot=${freeSlot}` };
   }
   if (canSuggest("port") && sumLevels(city, "port") === 0) {
-    return { title: "Hacé un Puerto", body: "Sin barcos no salís de la isla.", href: `${cityHref}?slot=12` };
+    return { title: { en: "Build a Port", es: "Hacé un Puerto" }, body: { en: "No ships, no leaving the island.", es: "Sin barcos no salís de la isla." }, href: `${cityHref}?slot=12` };
   }
   if (p.ambrosia === 0 && !building) {
-    return { title: "Probá el néctar", body: "Se compra con SOL de prueba y termina cualquier obra al instante.", href: "/tesoro" };
+    return { title: { en: "Try Nectar", es: "Probá el néctar" }, body: { en: "Bought with test SOL, it finishes any building instantly.", es: "Se compra con SOL de prueba y termina cualquier obra al instante." }, href: "/tesoro" };
   }
   return null;
 }

@@ -15,7 +15,7 @@ import { getGame } from "@/server/game-context";
 
 export const metadata: Metadata = { title: "Ciudad" };
 
-export default function CityPage({ params, searchParams }: PageProps<"/ciudad/[id]">) {
+export default function CityPage({ params, searchParams }: PageProps<"/[lang]/ciudad/[id]">) {
   return (
     <Suspense fallback={<GameSkeleton />}>
       <CityContent params={params} searchParams={searchParams} />
@@ -23,7 +23,7 @@ export default function CityPage({ params, searchParams }: PageProps<"/ciudad/[i
   );
 }
 
-async function CityContent({ params, searchParams }: Pick<PageProps<"/ciudad/[id]">, "params" | "searchParams">) {
+async function CityContent({ params, searchParams }: Pick<PageProps<"/[lang]/ciudad/[id]">, "params" | "searchParams">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const game = await getGame(id);
   // Unknown or foreign city id: getGame fell back to one of the player's cities.

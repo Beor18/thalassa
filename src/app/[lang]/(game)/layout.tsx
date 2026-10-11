@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
   in globals.css), so it can never sit under a finished page. It is not anchored for view
   transitions: the section's own header keeps that name.
 */
-export default function GameLayout({ children }: LayoutProps<"/">) {
+export default function GameLayout({ children }: LayoutProps<"/[lang]">) {
   return (
     <>
       <div className="game-stage">{children}</div>

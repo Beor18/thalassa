@@ -9,7 +9,7 @@ import { LegalLinks } from "@/components/growth/legal-links";
 import { fmt } from "@/lib/format";
 import { RESOURCE_LABEL, getPublicCity, type PublicCity } from "@/server/growth/public-city";
 
-export async function generateMetadata({ params }: PageProps<"/polis/[id]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/[lang]/polis/[id]">): Promise<Metadata> {
   const { id } = await params;
   const city = await getPublicCity(id);
   if (!city) return { title: "Polis no encontrada", robots: { index: false } };
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/polis/[id]">): Pr
 }
 
 /** A shared polis: what a friend built, then one button to found yours next to it. */
-export default function PolisPage({ params }: PageProps<"/polis/[id]">) {
+export default function PolisPage({ params }: PageProps<"/[lang]/polis/[id]">) {
   return (
     <main className="relative isolate flex flex-1 flex-col">
       <Image src="/assets/scene-city.webp" alt="" fill preload sizes="100vw" className="-z-20 object-cover object-center opacity-60" />
@@ -49,7 +49,7 @@ export default function PolisPage({ params }: PageProps<"/polis/[id]">) {
   );
 }
 
-async function PolisContent({ params }: Pick<PageProps<"/polis/[id]">, "params">) {
+async function PolisContent({ params }: Pick<PageProps<"/[lang]/polis/[id]">, "params">) {
   const { id } = await params;
   const city = await getPublicCity(id);
   if (!city) notFound();
