@@ -12,6 +12,8 @@
     "db:up": "docker start thalassa-db 2>/dev/null || docker run -d --name thalassa-db --restart unless-stopped -e POSTGRES_USER=thalassa -e POSTGRES_PASSWORD=thalassa -e POSTGRES_DB=thalassa -p 5434:5432 -v thalassa-pg:/var/lib/postgresql/data postgres:17-alpine",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:deploy": "tsx scripts/migrate.mts",
+    "vercel-build": "pnpm db:deploy && next build",
     "db:studio": "drizzle-kit studio",
     "dev:session": "tsx --conditions=react-server scripts/dev-session.mts",
     "smoke": "tsx --conditions=react-server scripts/smoke.mts",

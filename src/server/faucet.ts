@@ -35,10 +35,12 @@ const rpcSubscriptions = createSolanaRpcSubscriptions(
   devnet(process.env.SOLANA_WS_URL ?? SOLANA_RPC_URL.replace(/^http/, "ws")),
 );
 
+/** The faucet key comes inline (FAUCET_KEYPAIR, a JSON byte array, for hosts without files) or from a file. */
 async function faucetSigner() {
+  const inline = process.env.FAUCET_KEYPAIR;
   const file = process.env.FAUCET_KEYPAIR_PATH;
-  if (!file) throw new GameError("La canilla de SOL de prueba no está configurada.");
-  const bytes = JSON.parse(await readFile(path.resolve(file), "utf8")) as number[];
+  if (!inline && !file) throw new GameError("La canilla de SOL de prueba no está configurada.");
+  const bytes = JSON.parse(inline ?? (await readFile(path.resolve(file!), "utf8"))) as number[];
   return createKeyPairSignerFromBytes(new Uint8Array(bytes));
 }
 
