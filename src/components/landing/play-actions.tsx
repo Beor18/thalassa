@@ -57,7 +57,7 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="flex flex-col items-start gap-2.5">
       <span className="ld-cta-glow relative inline-flex rounded-xl">
         <Button
           size="lg"
@@ -70,10 +70,9 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
           {phase !== "idle" ? PHASE_LABEL[phase] : navigating ? "Zarpando…" : "Jugar ahora"}
         </Button>
       </span>
-      <p className="max-w-sm text-sm text-foam/85">
-        {hasKey
-          ? "Seguís con la llave de juego guardada en este navegador."
-          : "Sin mail, sin contraseña y sin plata real. Tu llave de juego queda en este navegador."}
+      {/* Hidden (not removed) while busy: the key appears mid-flow and the hint would flip under the spinner. */}
+      <p aria-hidden={busy} className={clsx("max-w-sm text-[15px] text-foam/90 [text-shadow:0_1px_6px_rgb(6_26_48/0.9)]", busy && "invisible")}>
+        {hasKey ? "Seguís con tu polis de este navegador." : "Gratis. Sin mail ni contraseña."}
       </p>
       {error && (
         <p role="alert" className="max-w-md rounded-lg bg-danger px-3 py-2 text-sm font-bold text-marble">
@@ -86,11 +85,18 @@ export function PlayActions({ where = "hero" }: { where?: "hero" | "final" }) {
         disabled={busy}
         data-track="wallet_choose"
         data-track-prop-where={where}
-        className="-mx-1 min-h-10 rounded px-1 py-2 text-[15px] font-bold text-foam underline decoration-gold/70 underline-offset-4 transition-colors hover:text-gold disabled:opacity-50"
+        className="-mx-1 -mt-1 min-h-10 rounded px-1 text-[15px] font-bold text-foam/90 underline decoration-gold/70 underline-offset-4 transition-colors hover:text-gold disabled:opacity-50"
       >
         Entrar con mi billetera
       </button>
-      <WalletDialog dialogRef={dialogRef} onEnter={(redirect) => startNavigation(() => router.push(redirect))} />
+      <WalletDialog
+        dialogRef={dialogRef}
+        onEnter={(redirect) => startNavigation(() => router.push(redirect))}
+        onPlay={() => {
+          dialogRef.current?.close();
+          void play();
+        }}
+      />
     </div>
   );
 }
@@ -105,9 +111,12 @@ const STEP_LABEL: Record<Step, string> = {
 function WalletDialog({
   dialogRef,
   onEnter,
+  onPlay,
 }: {
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   onEnter: (redirect: string) => void;
+  /** No wallet here: close and play with the in-browser key instead. */
+  onPlay: () => void;
 }) {
   const wallets = useSolanaWallets();
   const [busy, setBusy] = useState<{ name: string; step: Step } | null>(null);
@@ -164,9 +173,9 @@ function WalletDialog({
             </button>
           </form>
         </div>
-        <p className="mt-1 text-[15px] text-ink-soft">
-          Vas a firmar un mensaje para confirmar que la cuenta es tuya. No cuesta nada ni mueve fondos.
-        </p>
+        {wallets.length > 0 && (
+          <p className="mt-1 text-[15px] text-ink-soft">Firmás un mensaje que prueba que la cuenta es tuya. No cuesta nada ni mueve fondos.</p>
+        )}
 
         {wallets.length > 0 ? (
           <ul className="mt-4 flex flex-col gap-2">
@@ -196,16 +205,16 @@ function WalletDialog({
             })}
           </ul>
         ) : (
-          <div className="mt-4 rounded-xl border border-parchment-3 bg-marble/60 p-4">
-            <p className="font-bold">No encontramos billeteras de Solana en este navegador.</p>
-            <p className="mt-1 text-[15px] text-ink-soft">
-              Instalá una, recargá esta página y elegila acá. O cerrá esto y tocá Jugar ahora: no hace falta billetera.
-            </p>
+          <div className="mt-2 flex flex-col items-start gap-3">
+            <p className="text-[15px] text-ink-soft">No encontramos una billetera en este navegador. No hace falta: podés jugar sin ella.</p>
+            <Button size="lg" onClick={onPlay} data-track="play_click" data-track-prop-where="wallet_dialog" className="w-full">
+              Jugar sin billetera
+            </Button>
             <a
               href={INSTALL_WALLET_URL}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex min-h-10 items-center font-bold text-bronze-dark underline underline-offset-4 hover:text-ink"
+              className="inline-flex min-h-10 items-center text-[15px] font-bold text-bronze-dark underline underline-offset-4 hover:text-ink"
             >
               Instalar Phantom
               <span className="sr-only"> (se abre en otra pestaña)</span>

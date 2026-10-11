@@ -1,37 +1,30 @@
 import type { ReactNode } from "react";
 
+// Short answers; the details live in Términos and Privacidad. Keep in sync with docs/negocio/landing-copy.md.
 const QUESTIONS: { q: string; a: ReactNode }[] = [
   {
     q: "¿Cuesta plata?",
-    a: "No. Jugar no cuesta nada. Hoy todo pasa en la red de prueba de Solana, donde nada vale plata real. El néctar es opcional y se compra con SOL de prueba, que el juego te manda cada 12 horas.",
-  },
-  {
-    q: "¿Qué es la red de prueba?",
-    a: "Una versión de Solana para probar. Funciona igual que la de verdad, pero sus monedas no valen nada. Así jugás sin arriesgar un peso.",
-  },
-  {
-    q: "¿Necesito una billetera?",
-    a: "No. Jugar ahora te crea una llave de juego en este navegador. Si ya tenés una billetera de Solana, podés entrar con ella.",
-  },
-  {
-    q: "¿Qué pasa si borro los datos del navegador?",
-    a: "Perdés la llave y con ella el acceso a tu polis. Si vas a jugar desde varios equipos, entrá con tu propia billetera.",
+    a: "No, jugar es gratis. El néctar es opcional y se compra con SOL de prueba, que el juego te manda cada 12 horas (100 de néctar = 0,05 SOL de prueba). Nada de esto es plata real.",
   },
   {
     q: "¿Se gana pagando?",
-    a: "No. El néctar compra tiempo: termina obras y entrenamientos antes y llama al mercader. No compra tropas, barcos, investigación ni puntos. Y tiene topes diarios: nadie gana solo por pagar.",
+    a: "No. El néctar solo ahorra tiempo: termina obras antes y llama al mercader. No compra tropas, barcos, investigación ni puntos, y tiene topes diarios.",
+  },
+  {
+    q: "¿Necesito una billetera?",
+    a: "No. Jugar ahora te guarda una llave de juego en este navegador. Si ya tenés una billetera de Solana, podés entrar con ella.",
+  },
+  {
+    q: "¿Y si borro los datos del navegador?",
+    a: "Perdés la llave y, con ella, tu polis. Para jugar en varios equipos, entrá con tu billetera.",
   },
   {
     q: "¿Se juega en el celular?",
-    a: "Sí, desde el navegador. También la podés instalar como app desde el menú del navegador.",
+    a: "Sí, desde el navegador. También la podés instalar como app.",
   },
   {
-    q: "¿Mi polis pasa a la versión final?",
-    a: "No. Cuando haya una versión con plata real, arranca un mundo nuevo y te avisamos antes.",
-  },
-  {
-    q: "¿Quién está detrás?",
-    a: "Un jugador de los de antes, desde Argentina. Thalassa es independiente: sin inversores y sin monedas para especular.",
+    q: "¿Mi polis es para siempre?",
+    a: "Este es un mundo de prueba. Cuando haya una versión con plata real, arranca un mundo nuevo y te avisamos antes.",
   },
 ];
 
@@ -41,7 +34,7 @@ export function Faq() {
     <div className="panel divide-y divide-parchment-3/80 overflow-hidden">
       {QUESTIONS.map(({ q, a }) => (
         <details key={q} className="group">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 font-display text-lg font-bold text-ink transition-colors hover:bg-parchment-2/60 sm:px-5 [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between gap-4 px-4 py-2.5 font-display text-[17px] leading-snug font-bold text-ink transition-colors hover:bg-parchment-2/60 sm:px-5 [&::-webkit-details-marker]:hidden">
             {q}
             <svg
               viewBox="0 0 16 16"
@@ -56,7 +49,7 @@ export function Faq() {
               <path d="m4 6 4 4 4-4" />
             </svg>
           </summary>
-          <p className="max-w-3xl px-4 pb-4 text-[16px] leading-relaxed text-ink-soft sm:px-5">{a}</p>
+          <p className="max-w-prose px-4 pb-4 text-[16px] leading-snug text-ink-soft sm:px-5">{a}</p>
         </details>
       ))}
     </div>

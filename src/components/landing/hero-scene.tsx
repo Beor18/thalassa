@@ -100,7 +100,7 @@ export function HeroScene() {
         <div className="ld-ship-lane">
           <div className="ld-ship">
             <span className="ld-wake" />
-            <Image src="/assets/u-ship.webp" alt="" width={192} height={192} className="ld-ship-sprite" />
+            <Image src="/assets/u-ship.webp" alt="" width={192} height={192} loading="eager" className="ld-ship-sprite" />
           </div>
         </div>
       </motion.div>
@@ -130,7 +130,6 @@ export function HeroScene() {
       {/* Warm light from the sun, then the scrims that keep the copy readable */}
       <div className="ld-sun-rays" />
       <div className="absolute inset-0 bg-gradient-to-t from-sea-950 via-sea-950/55 to-sea-950/5" />
-      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-sea-950/70 via-sea-950/25 to-transparent" />
       <div className="absolute inset-0 hidden bg-gradient-to-r from-sea-950/85 via-sea-950/30 to-transparent md:block" />
 
       {/* Golden dust floats in front of everything, catching the light */}

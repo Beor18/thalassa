@@ -6,21 +6,24 @@ import { LegalLinks } from "./legal-links";
 export function LegalPage({ title, updated, intro, children }: { title: string; updated: string; intro: string; children: ReactNode }) {
   return (
     <main className="flex flex-1 flex-col">
-      <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 pt-4 sm:px-6 sm:pt-6">
-        <Link href="/" className="font-display text-lg font-black tracking-[0.22em] text-gold drop-shadow">
+      <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 pt-3 sm:px-6 sm:pt-5">
+        <Link
+          href="/"
+          className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 font-display text-lg font-black tracking-[0.22em] text-gold [text-shadow:0_1px_0_var(--color-bronze-deep),0_2px_10px_rgb(6_26_48/0.9)]"
+        >
           THALASSA
         </Link>
-        <Link href="/" className="text-sm font-bold text-foam/85 underline-offset-4 hover:text-gold hover:underline">
+        <Link href="/" className="-mx-2 inline-flex min-h-10 items-center rounded-lg px-2 text-sm font-bold text-foam/85 underline-offset-4 hover:text-gold hover:underline">
           Volver al inicio
         </Link>
       </header>
-      <article className="panel mx-auto mt-6 mb-8 w-[calc(100%-2rem)] max-w-3xl p-5 sm:p-8 [&_a]:font-bold [&_a]:text-bronze-dark [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-7 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-bold [&_li]:mt-1.5 [&_p]:mt-3 [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-5">
+      <article className="panel mx-auto mt-4 mb-6 w-[calc(100%-2rem)] max-w-3xl p-5 sm:mt-6 sm:p-8 [&_a]:font-bold [&_a]:text-bronze-dark [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-bold [&_li]:mt-1.5 [&_p]:mt-3 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
         <h1 className="font-display text-3xl font-bold sm:text-4xl">{title}</h1>
         <p className="!mt-1 text-sm text-ink-soft">Última actualización: {updated}</p>
-        <p className="text-[17px] leading-relaxed">{intro}</p>
+        <p className="text-[17px] leading-snug">{intro}</p>
         <div className="text-[16px] leading-relaxed">{children}</div>
       </article>
-      <footer className="mx-auto mt-auto w-full max-w-3xl px-4 pb-8 sm:px-6">
+      <footer className="mx-auto mt-auto w-full max-w-3xl px-4 pb-6 sm:px-6">
         <LegalLinks />
       </footer>
     </main>

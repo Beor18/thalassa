@@ -336,10 +336,11 @@
   }
 }
 
+/* Keep in sync with WORD_START_MS / WORD_STEP_MS in src/app/page.tsx. */
 .ld-word {
   display: inline-block;
-  animation: ld-wordRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--i) * 45ms + 520ms);
+  animation: ld-wordRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 35ms + 380ms);
 }
 
 .ld-fade-up {
@@ -378,14 +379,12 @@
 
 /* ---- Beats ---------------------------------------------------------------- */
 
-/* Positioned by the markup (absolute inset-0 inside a 4:3 box). */
+/* Positioned by the markup (absolute inset-0 inside a 4:3 box), set into a parchment card. */
 .ld-stage {
   overflow: hidden;
-  border-radius: 1.25rem;
-  border: 1px solid rgb(111 179 230 / 0.28);
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.12) inset,
-    0 30px 60px -30px rgb(2 10 20 / 0.9);
+  border-radius: 9px;
+  border: 1px solid rgb(122 79 24 / 0.45);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.12) inset;
   isolation: isolate;
 }
 
@@ -478,7 +477,7 @@
   border-radius: 14px;
   pointer-events: none;
   border: 2px solid rgb(227 179 65 / 0.8);
-  animation: ld-ctaPulse 2.2s cubic-bezier(0.22, 1, 0.36, 1) 2.4s 3 both;
+  animation: ld-ctaPulse 2.2s cubic-bezier(0.22, 1, 0.36, 1) 1.9s 3 both;
 }
 
 @keyframes ld-ctaPulse {

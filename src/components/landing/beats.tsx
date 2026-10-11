@@ -29,8 +29,8 @@ const fade: Variants = {
   show: { opacity: 1, transition: { duration: 0.6, ease: EASE } },
 };
 const textVariants: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE, delay: 0.15 } },
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE, delay: 0.2 } },
 };
 
 type Beat = { numeral: string; title: string; text: string; stage: ReactNode; alt: string };
@@ -38,53 +38,72 @@ type Beat = { numeral: string; title: string; text: string; stage: ReactNode; al
 const BEATS: Beat[] = [
   {
     numeral: "I",
-    title: "Tu polis arranca con cuarenta ciudadanos.",
-    text: "Los mandás al aserradero, levantás una Academia y te vas. La obra sigue sin vos.",
-    alt: "Ayuntamiento, academia y depósito que se levantan sobre una plaza de mármol",
+    title: "Fundá tu polis",
+    text: "Ordenás la obra y te vas. Se levanta sin vos.",
+    alt: "Intendencia, academia y depósito que se levantan sobre una plaza",
     stage: <FoundStage />,
   },
   {
     numeral: "II",
-    title: "Las islas se necesitan.",
+    title: "Comerciá entre islas",
     text: "La tuya da vino y la de al lado, mármol. Tus barcos llevan lo que falta.",
     alt: "Un trirreme navega entre una isla de viñedos y una isla de mármol",
     stage: <TradeStage />,
   },
   {
     numeral: "III",
-    title: "El mar no es de nadie.",
-    text: "Hoplitas, arqueros y catapultas. Primero los bárbaros de tu isla, después quien se anime.",
+    title: "Conquistá el mar",
+    text: "Primero los bárbaros de tu isla. Después, quien se anime.",
     alt: "Lanceros, hoplitas, arqueros y una catapulta avanzan hacia un campamento bárbaro",
     stage: <ConquerStage />,
   },
 ];
 
-/** The three beats of a game, each one plays its little scene when it scrolls into view. */
+/**
+ * The three beats of a game as cards; each plays its little scene when it comes into view.
+ * Phones swipe through them (the next card peeks in), wider screens see the three in a row.
+ */
 export function Beats() {
+  const list = useRef<HTMLOListElement>(null);
+  // Keyboard users can scroll the row only while it actually scrolls (phones); on wide screens it's a plain grid.
+  useEffect(() => {
+    const el = list.current;
+    if (!el) return;
+    const sync = () => {
+      if (el.scrollWidth > el.clientWidth + 1) el.tabIndex = 0;
+      else el.removeAttribute("tabindex");
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <ol className="flex flex-col gap-10 sm:gap-14">
-      {BEATS.map((beat, i) => (
+    <ol
+      ref={list}
+      aria-label="Cómo se juega, en tres momentos"
+      className="scrollbar-none -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:scroll-px-6 sm:gap-4 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0"
+    >
+      {BEATS.map((beat) => (
         <motion.li
           key={beat.numeral}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, amount: 0.35 }}
-          className="grid items-center gap-5 md:grid-cols-2 md:gap-10"
+          viewport={{ once: true, amount: 0.4 }}
+          className="panel flex w-[84%] shrink-0 snap-start flex-col p-2 sm:w-[46%] lg:w-auto"
         >
-          <motion.div
-            variants={stageVariants}
-            role="img"
-            aria-label={beat.alt}
-            className={clsx("relative aspect-[4/3] w-full", i % 2 === 1 && "md:order-2")}
-          >
+          <motion.div variants={stageVariants} role="img" aria-label={beat.alt} className="relative aspect-[4/3] w-full">
             {beat.stage}
           </motion.div>
-          <motion.div variants={textVariants} className="panel relative flex flex-col gap-2 p-5 sm:p-6">
-            <span aria-hidden className="font-display text-4xl leading-none font-black text-bronze/35">
-              {beat.numeral}
-            </span>
-            <h3 className="font-display text-2xl font-bold text-ink sm:text-3xl">{beat.title}</h3>
-            <p className="max-w-prose text-[17px] leading-relaxed text-ink-soft">{beat.text}</p>
+          <motion.div variants={textVariants} className="flex flex-col gap-1 px-2 pt-3 pb-2">
+            <h3 className="font-display text-xl leading-tight font-bold text-ink">
+              <span aria-hidden className="mr-2 text-bronze/60">
+                {beat.numeral}
+              </span>
+              {beat.title}
+            </h3>
+            <p className="text-[16px] leading-snug text-ink-soft">{beat.text}</p>
           </motion.div>
         </motion.li>
       ))}
