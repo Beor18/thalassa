@@ -5,6 +5,7 @@ import {
   createKeyPairSignerFromPrivateKeyBytes,
   getAddressEncoder,
   getBase58Decoder,
+  getBase58Encoder,
   lamports,
   signBytes,
   type Address,
@@ -110,6 +111,50 @@ export async function loadOrCreateLocalWallet(): Promise<{ signer: KeyPairSigner
   s.setItem(LOCAL_WALLET_KEY, JSON.stringify(Array.from(full)));
   seed.fill(0);
   return { signer, created: true };
+}
+
+/*
+  Moving the account to another device: the 64 stored bytes travel as base58 in a link's fragment
+  (/llevar#<code>), which browsers never send to a server.
+*/
+
+/** The game key as a transfer code, or null when this browser has none. */
+export function exportLocalWalletCode(): string | null {
+  const bytes = readStoredBytes();
+  return bytes ? getBase58Decoder().decode(bytes) : null;
+}
+
+const BAD_CODE = {
+  en: "This link is incomplete or damaged. Copy it again from your other device.",
+  es: "Este link está incompleto o dañado. Copialo de nuevo desde tu otro dispositivo.",
+};
+
+/** Address a transfer code belongs to, without importing it. Throws when it can't be a game key. */
+export function transferCodeAddress(code: string): string {
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(getBase58Encoder().encode(code.trim()));
+  } catch {
+    throw new FriendlyError(BAD_CODE);
+  }
+  if (bytes.length !== 64) throw new FriendlyError(BAD_CODE);
+  return getBase58Decoder().decode(bytes.subarray(32));
+}
+
+/** Checks a transfer code (the key must match its address) and saves it as this browser's game key. */
+export async function importLocalWallet(code: string): Promise<KeyPairSigner> {
+  const s = storage();
+  transferCodeAddress(code);
+  const bytes = new Uint8Array(getBase58Encoder().encode(code.trim()));
+  let signer: KeyPairSigner;
+  try {
+    signer = await createKeyPairSignerFromBytes(bytes);
+  } catch {
+    throw new FriendlyError(BAD_CODE);
+  }
+  s.setItem(LOCAL_WALLET_KEY, JSON.stringify(Array.from(bytes)));
+  bytes.fill(0);
+  return signer;
 }
 
 export async function signMessageWithLocal(signer: KeyPairSigner, message: string): Promise<Uint8Array> {

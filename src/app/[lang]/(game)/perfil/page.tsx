@@ -102,10 +102,10 @@ async function Content() {
               {cities.map((city) => (
                 <li key={city.id} className="flex items-center gap-2 rounded-xl border border-parchment-3 bg-marble/60 py-1.5 pr-1.5 pl-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold">
-                      {city.name}
+                    <p className="flex min-w-0 items-center gap-1.5 font-bold">
+                      <span className="truncate">{city.name}</span>
                       {city.isCapital && (
-                        <span className="ml-1.5 rounded-full bg-gold/25 px-1.5 py-0.5 align-middle text-[11px] font-bold text-bronze-dark">
+                        <span className="shrink-0 rounded-full bg-gold/25 px-1.5 py-0.5 text-[11px] font-bold text-bronze-dark">
                           {t({ en: "Capital", es: "Capital" })}
                         </span>
                       )}

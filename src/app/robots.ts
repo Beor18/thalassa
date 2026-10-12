@@ -24,6 +24,7 @@ export default function robots(): MetadataRoute.Robots {
         "/tesoro",
         "/invitar",
         "/perfil",
+        "/llevar",
       ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
