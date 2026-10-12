@@ -1,11 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { buildingName, resourceLabel } from "@/game/names";
 import { makeI18n, toLocale } from "@/i18n/i18n";
+import { OG_SEA, OG_SIZE as size, buildingArt, ogFonts } from "@/server/growth/og-card";
 import { getPublicCity } from "@/server/growth/public-city";
 
-const size = { width: 1200, height: 630 };
 const contentType = "image/png";
 
 /** One card per polis; this only exists to give the image its alt text in the page's language. */
@@ -14,43 +12,17 @@ export function generateImageMetadata({ params }: { params: { lang: string } }) 
   return [{ id: "card", size, contentType, alt: t({ en: "A Thalassa polis in the Aegean", es: "Una polis de Thalassa en el Egeo" }) }];
 }
 
-// File reads live in cached helpers: with Cache Components a route can't do uncached IO.
-async function fontData() {
-  "use cache";
-  const root = process.cwd();
-  const [cinzel, alegreya] = await Promise.all([
-    readFile(join(root, "src/server/growth/og-assets/cinzel-700.woff"), "base64"),
-    readFile(join(root, "src/server/growth/og-assets/alegreya-sans-700.woff"), "base64"),
-  ]);
-  return { cinzel, alegreya };
-}
-
-/** PNG copy of the building art (the renderer can't draw WebP). See og-assets/NOTES.txt. */
-async function buildingArt(type: string) {
-  "use cache";
-  if (!/^[a-z_]+$/.test(type)) return null;
-  try {
-    const data = await readFile(join(process.cwd(), "src/server/growth/og-assets/buildings", `b-${type}.png`), "base64");
-    return `data:image/png;base64,${data}`;
-  } catch {
-    return null;
-  }
-}
-
 // Route handler: root params aren't available here, so the language comes from the route's params.
 export default async function Image({ params }: { params: Promise<{ lang: string; id: string }> }) {
   const { lang: rawLang, id } = await params;
   const { lang, t, fmt } = makeI18n(toLocale(rawLang));
-  const [fonts, city] = await Promise.all([fontData(), getPublicCity(id)]);
-  const cinzel = Buffer.from(fonts.cinzel, "base64");
-  const alegreya = Buffer.from(fonts.alegreya, "base64");
+  const [fonts, city] = await Promise.all([ogFonts(), getPublicCity(id)]);
   const main = city?.topBuildings[0];
   const art = await buildingArt(main?.type ?? "town_hall");
 
   return new ImageResponse(
     (
-      // Flat sea and one painted building: a photo-like background would weigh 1.5 MB as PNG and
-      // messaging apps (WhatsApp first) drop previews that heavy.
+      // Flat sea and one painted building, light enough for WhatsApp previews.
       <div
         style={{
           width: "100%",
@@ -58,8 +30,7 @@ export default async function Image({ params }: { params: Promise<{ lang: string
           display: "flex",
           position: "relative",
           fontFamily: "Alegreya",
-          backgroundColor: "#0b2a4a",
-          backgroundImage: "radial-gradient(circle at 78% 58%, #1f6fb2 0%, #134a7c 28%, #0b2a4a 55%, #061a30 100%)",
+          ...OG_SEA,
         }}
       >
         <div style={{ position: "absolute", left: 0, top: 0, width: 1200, height: 10, display: "flex", backgroundColor: "#e3b341" }} />
@@ -93,13 +64,7 @@ export default async function Image({ params }: { params: Promise<{ lang: string
         )}
       </div>
     ),
-    {
-      ...size,
-      fonts: [
-        { name: "Cinzel", data: cinzel, style: "normal", weight: 700 },
-        { name: "Alegreya", data: alegreya, style: "normal", weight: 700 },
-      ],
-    },
+    { ...size, fonts },
   );
 }
 

@@ -5,6 +5,8 @@ export const CLIENT_EVENTS = [
   "wallet_choose",
   "invite_copy",
   "invite_share",
+  "invite_whatsapp",
+  "invite_x",
   "polis_view",
   "polis_cta_click",
 ] as const;

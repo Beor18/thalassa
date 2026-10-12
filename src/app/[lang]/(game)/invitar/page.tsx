@@ -10,6 +10,7 @@ import { HowItWorks, SECTION_NARROW } from "@/components/tesoro/section-ui";
 import { ResIcon } from "@/components/ui/res";
 import { buildingName } from "@/game/names";
 import { getI18n } from "@/i18n/server";
+import { inviteImagePath, invitePath } from "@/lib/growth/invite-share";
 import { SITE_URL } from "@/lib/site";
 import { requirePlayerId } from "@/server/auth";
 import { getGame } from "@/server/game-context";
@@ -42,6 +43,7 @@ async function Content() {
   const townHall = buildingName("town_hall", lang);
   const { snapshot, city } = game;
   const rewarded = invitees.filter((i) => i.rewarded).length;
+  const code = referralCode(snapshot.player.id);
 
   return (
     <GameShell game={game}>
@@ -67,7 +69,7 @@ async function Content() {
             </div>
           </div>
           <div className="relative">
-            <InviteLink path={`/r/${referralCode(snapshot.player.id)}`} fallbackOrigin={SITE_URL} tone="dark" />
+            <InviteLink path={invitePath(code, lang)} fallbackOrigin={SITE_URL} tone="dark" />
           </div>
         </section>
 
@@ -106,6 +108,20 @@ async function Content() {
           </section>
 
           <div className="rise-in flex flex-col gap-3" style={stagger(2, 80, 3, 40)}>
+            <figure className="panel flex flex-col gap-2 p-3">
+              <figcaption className="text-sm font-bold text-ink-soft">
+                {t({ en: "What your friends see in the chat", es: "Así lo ven tus amigos en el chat" })}
+              </figcaption>
+              {/* The same card WhatsApp and X draw from the link; unoptimized so it is exactly that file. */}
+              <Image
+                src={inviteImagePath(code, lang)}
+                alt={t({ en: "Preview of your invite card", es: "Vista previa de tu tarjeta de invitación" })}
+                width={1200}
+                height={630}
+                unoptimized
+                className="aspect-[1200/630] w-full rounded-lg border border-parchment-3 bg-sea-900 object-cover"
+              />
+            </figure>
             <HowItWorks className="bg-parchment/90" title={t({ en: "How does it work?", es: "¿Cómo funciona?" })}>
               <p>
                 {t({
