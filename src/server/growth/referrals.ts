@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, between, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, transaction } from "@/db";
 import { ambrosiaLedger, cities, players, referrals, reports } from "@/db/schema";
 import { REPORT_TEXTS, REPORT_TITLES } from "../report-text";
 import { track } from "./analytics";
@@ -77,7 +77,7 @@ export async function settleReferral(inviteeId: string): Promise<number> {
       settled.add(inviteeId);
       return 0;
     }
-    const credited = await db.transaction(async (tx) => {
+    const credited = await transaction("settle-referral", async (tx) => {
       // Serialize settlements per referrer so the daily cap holds under concurrency.
       await tx.execute(sql`select pg_advisory_xact_lock(4244, hashtext(${row.referrerId}))`);
       const [{ n }] = await tx

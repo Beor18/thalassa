@@ -20,7 +20,7 @@ import {
   signTransactionMessageWithSigners,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { db } from "@/db";
+import { db, transaction } from "@/db";
 import { players } from "@/db/schema";
 import { GameError } from "@/game/engine";
 import { fmtDuration } from "@/lib/format";
@@ -50,7 +50,7 @@ async function faucetSigner() {
  */
 export async function claimFaucet(playerId: string) {
   const now = Date.now();
-  const claim = await db.transaction(async (tx) => {
+  const claim = await transaction("faucet", async (tx) => {
     const [p] = await tx
       .select({ wallet: players.wallet, claimedAt: players.faucetClaimedAt })
       .from(players)

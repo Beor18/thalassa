@@ -1,6 +1,6 @@
 import "server-only";
 import { and, count, eq, gt, like, ne, sql } from "drizzle-orm";
-import { db, type Tx } from "@/db";
+import { db, transaction, type Tx } from "@/db";
 import { ambrosiaLedger, cities, islands, missions, players } from "@/db/schema";
 import { BALANCE, ISLAND_PLOTS, RESOURCES, type BuildingType, type Resource, type ResourceBag, type TechId, type UnitBag, type UnitType } from "@/game/data";
 import {
@@ -56,8 +56,8 @@ interface Ctx {
 
 /** Load the account under a row lock, advance it to now, run `fn`, persist. */
 export async function withPlayer<T>(playerId: string, fn: (p: PlayerState, ctx: Ctx) => Promise<T> | T): Promise<T> {
-  await processDueMissions();
-  return db.transaction(async (tx) => {
+  await processDueMissions({ wait: true });
+  return transaction("command", async (tx) => {
     const p = await loadPlayer(tx, playerId, { lock: true });
     if (!p) throw new GameError({ en: "Your account doesn't exist. Sign in again.", es: "Tu cuenta no existe. Volvé a entrar." });
     const now = Date.now();
@@ -356,7 +356,7 @@ export async function syncAmbrosia(playerId: string) {
   const [row] = await db.select({ wallet: players.wallet }).from(players).where(eq(players.id, playerId));
   if (!row) throw new GameError({ en: "Your account doesn't exist.", es: "Tu cuenta no existe." });
   const onchain = await readCitizenAmbrosia(row.wallet);
-  return db.transaction(async (tx) => {
+  return transaction("sync-ambrosia", async (tx) => {
     const [p] = await tx.select().from(players).where(eq(players.id, playerId)).for("update");
     const delta = onchain - p.ambrosiaSynced;
     if (delta <= 0) return { credited: 0, total: p.ambrosia, onchain };

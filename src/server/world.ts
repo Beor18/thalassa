@@ -1,6 +1,6 @@
 import "server-only";
 import { count, eq, sql } from "drizzle-orm";
-import { db, type Tx } from "@/db";
+import { db, transaction, type Tx } from "@/db";
 import { cities, islands, players, reports } from "@/db/schema";
 import { BALANCE, ISLAND_PLOTS, LUXURY_RESOURCES } from "@/game/data";
 import { REPORT_TEXTS, REPORT_TITLES } from "./report-text";
@@ -79,7 +79,7 @@ export async function findOrCreatePlayer(wallet: string): Promise<{ id: string; 
   if (existing) return { id: existing.id, created: false };
   await ensureWorld();
 
-  return db.transaction(async (tx) => {
+  return transaction("found-player", async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(4243)`);
     const [again] = await tx.select({ id: players.id }).from(players).where(eq(players.wallet, wallet));
     if (again) return { id: again.id, created: false };

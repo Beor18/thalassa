@@ -73,12 +73,12 @@ try {
   // Fast-forward: make every mission arrive now, then return now.
   const past = new Date(Date.now() - 1000);
   await db.update(missions).set({ arrivesAt: past }).where(inArray(missions.playerId, ids));
-  await processDueMissions();
+  await processDueMissions({ wait: true });
   const afterArrival = await db.select().from(missions).where(inArray(missions.playerId, ids));
   check(afterArrival.every((m) => m.status !== "outbound"), "all missions resolved");
 
   await db.update(missions).set({ returnsAt: past }).where(inArray(missions.playerId, ids));
-  await processDueMissions();
+  await processDueMissions({ wait: true });
   const afterReturn = await db.select().from(missions).where(inArray(missions.playerId, ids));
   check(afterReturn.every((m) => m.status === "done"), "all missions back home");
 
@@ -133,7 +133,7 @@ try {
   await cmd.sendColonists(a.id, cityA.id, cityB.islandId, freeSlot, "Nueva Atenas");
   // Only this run's players: never fast-forward anyone else's colonists.
   await db.update(missions).set({ arrivesAt: past }).where(and(eq(missions.kind, "colonize"), inArray(missions.playerId, ids)));
-  await processDueMissions();
+  await processDueMissions({ wait: true });
   const colonies = await db.select().from(cities).where(eq(cities.playerId, a.id));
   check(colonies.length === 2, "colony founded");
 } catch (err) {

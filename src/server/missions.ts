@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, lte, or, sql } from "drizzle-orm";
-import { db, type Tx } from "@/db";
+import { db, isLockTimeout, transaction, type Tx } from "@/db";
 import { cities, islands, missions, players, reports } from "@/db/schema";
 import { BALANCE, emptyBag, type UnitBag } from "@/game/data";
 import {
@@ -33,14 +33,30 @@ const dueFilter = (now: Date) =>
  * Resolve every mission event (arrival or return) that is due, in time order.
  * Runs at the start of each request; a transaction-scoped advisory lock keeps
  * concurrent requests from resolving the same battle twice.
+ * Page reads don't queue for that lock: if another request is already resolving, they go on (the
+ * next refresh shows the result). Commands pass `wait` so they act on resolved state.
  */
-export async function processDueMissions(nowMs = Date.now()) {
+export async function processDueMissions({ wait = false, nowMs = Date.now() }: { wait?: boolean; nowMs?: number } = {}) {
   const now = new Date(nowMs);
   const [any] = await db.select({ id: missions.id }).from(missions).where(dueFilter(now)).limit(1);
   if (!any) return;
 
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(4242)`);
+  try {
+    await resolveDue(now, wait);
+  } catch (err) {
+    // Another request has held the lock for 5 s: go on with the request, the next one resolves them.
+    if (!isLockTimeout(err)) throw err;
+    console.warn("[thalassa] missions busy, skipped resolving them for this request");
+  }
+}
+
+async function resolveDue(now: Date, wait: boolean) {
+  await transaction("missions", async (tx) => {
+    if (wait) await tx.execute(sql`select pg_advisory_xact_lock(4242)`);
+    else {
+      const [row] = await tx.execute<{ locked: boolean }>(sql`select pg_try_advisory_xact_lock(4242) as locked`);
+      if (!row?.locked) return;
+    }
     for (let i = 0; i < 500; i++) {
       const due = await tx.select().from(missions).where(dueFilter(now));
       if (!due.length) break;
