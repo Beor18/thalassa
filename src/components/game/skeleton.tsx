@@ -19,6 +19,7 @@ const ROUTES: [string, Variant][] = [
   ["/ranking", "ranking"],
   ["/tesoro", "treasury"],
   ["/invitar", "invite"],
+  ["/perfil", "invite"],
 ];
 
 /**

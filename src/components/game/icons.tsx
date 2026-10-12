@@ -147,6 +147,22 @@ export const IconLeave: HudIcon = ({ className }) => (
   </Line>
 );
 
+/** Bust: the player's profile. */
+export const IconUser: HudIcon = ({ className }) => (
+  <Line className={className}>
+    <circle cx="12" cy="8.5" r="3.8" />
+    <path d="M4.8 19.5c1.2-3.3 3.9-5.2 7.2-5.2s6 1.9 7.2 5.2" />
+  </Line>
+);
+
+/** Key: how this browser signs in. */
+export const IconKey: HudIcon = ({ className }) => (
+  <Line className={className}>
+    <circle cx="8" cy="15" r="3.8" />
+    <path d="m10.8 12.2 8.2-8.2M16 7l2.5 2.5M13.8 9.2l2 2" />
+  </Line>
+);
+
 /** Globe: the language the game speaks. */
 export const IconLanguage: HudIcon = ({ className }) => (
   <Line className={className}>

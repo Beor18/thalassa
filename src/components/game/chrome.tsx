@@ -13,7 +13,7 @@ import { LanguageSwitch } from "@/components/ui/language-switch";
 import { useAnchoredPopover } from "@/components/ui/popover";
 import { markShellMount } from "@/components/motion/late-mount";
 import { isNewAdvisor, markAdvisorSeen, readChrome, rememberChrome, subscribeNever, type ChromeData } from "./chrome-cache";
-import { IconChevron, IconLanguage, IconLeave, OwlIcon } from "./icons";
+import { IconChevron, IconLanguage, IconLeave, IconUser, OwlIcon } from "./icons";
 import { CitySwitcher, GameNav, NavPlaceholder, TabBar, TabBarPlaceholder } from "./nav";
 import { ResourceBar, ResourceBarPlaceholder } from "./resource-bar";
 
@@ -154,7 +154,7 @@ function SkipLink() {
   );
 }
 
-/** Player coin with the game speed; opens the name, what the test network means, the language and Log out. */
+/** Player coin with the game speed; opens the name, what the test network means, the profile, the language and Log out. */
 function AccountMenu({ name, speed }: { name: string; speed: number }) {
   const { t, lang } = useI18n();
   const pop = useAnchoredPopover<HTMLButtonElement>({ align: "end", gap: 6 });
@@ -204,6 +204,14 @@ function AccountMenu({ name, speed }: { name: string; speed: number }) {
               )}
             </p>
           </div>
+          <Link
+            href="/perfil"
+            onClick={() => pop.hide()}
+            className="flex min-h-11 items-center gap-2.5 rounded-lg border-t border-parchment-3/70 px-2.5 font-bold text-ink transition-colors hover:bg-parchment-2 focus-visible:bg-parchment-2"
+          >
+            <IconUser className="size-5 text-bronze-dark" />
+            {t({ en: "Profile and settings", es: "Perfil y configuración" })}
+          </Link>
           <div className="flex min-h-11 items-center gap-2.5 border-t border-parchment-3/70 px-2.5 py-1">
             <IconLanguage className="size-5 text-bronze-dark" />
             <span className="flex-1 font-bold text-ink">{t({ en: "Language", es: "Idioma" })}</span>

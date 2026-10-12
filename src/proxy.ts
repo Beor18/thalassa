@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // not imported to keep the proxy light.
 const SESSION_COOKIE = "thalassa_session";
 const LOCALE_COOKIE = "thalassa_lang";
-const GAME_SECTIONS = /^\/(ciudad|isla|mundo|investigacion|militar|informes|ranking|tesoro|invitar)(\/|$)/;
+const GAME_SECTIONS = /^\/(ciudad|isla|mundo|investigacion|militar|informes|ranking|tesoro|invitar|perfil)(\/|$)/;
 const PREFIX = /^\/(en|es)(?=\/|$)/;
 
 /**

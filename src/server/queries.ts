@@ -270,6 +270,12 @@ export async function getRanking(): Promise<RankingRow[]> {
   return rows.sort((a, b) => b.score - a.score);
 }
 
+/** When the account was created (ms), for the profile. */
+export async function getPlayerJoinedAt(playerId: string): Promise<number | null> {
+  const [row] = await db.select({ createdAt: players.createdAt }).from(players).where(eq(players.id, playerId));
+  return row ? row.createdAt.getTime() : null;
+}
+
 /** Cities the player can pick as a destination for transports (own ones + everyone on known islands). */
 export async function getDestinations(playerId: string) {
   return db

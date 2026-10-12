@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import clsx from "clsx";
 import { GameShell, GameSkeleton } from "@/components/game/shell";
 import { LaurelIcon } from "@/components/game/icons";
 import { stagger } from "@/components/motion/reveal";
-import { RenameForm } from "@/components/ranking/rename-form";
 import { HowItWorks, SECTION_NARROW } from "@/components/tesoro/section-ui";
 import type { Locale } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
@@ -99,17 +99,15 @@ async function Content() {
             ) : (
               <p className="relative text-foam/85">{t({ en: "You're not on the board yet.", es: "Todavía no figurás en el ranking." })}</p>
             )}
-            <details className="group relative mt-auto">
-              <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg text-sm font-bold text-sea-300 select-none hover:text-foam [&::-webkit-details-marker]:hidden">
-                <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10.5 2.5l3 3L6 13H3v-3z" />
-                </svg>
-                {t({ en: "Change name", es: "Cambiar nombre" })}
-              </summary>
-              <div className="rise-in pt-1">
-                <RenameForm currentName={game.snapshot.player.name} />
-              </div>
-            </details>
+            <Link
+              href="/perfil"
+              className="relative mt-auto inline-flex min-h-10 items-center gap-1.5 self-start rounded-lg text-sm font-bold text-sea-300 hover:text-foam"
+            >
+              <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.5 2.5l3 3L6 13H3v-3z" />
+              </svg>
+              {t({ en: "Change name", es: "Cambiar nombre" })}
+            </Link>
           </section>
 
           {ranking.length > 0 && <Podium rows={ranking.slice(0, 3)} me={me} lang={lang} />}
