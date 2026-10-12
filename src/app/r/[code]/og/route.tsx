@@ -58,14 +58,15 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/r/[co
         </div>
         {art && (
           // eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element -- rendered to a PNG by next/og
-          <img src={art} width={420} height={420} style={{ position: "absolute", right: 28, bottom: 84 }} />
+          <img src={art} width={380} height={380} style={{ position: "absolute", right: 48, bottom: 100 }} />
         )}
       </div>
     ),
     {
       ...OG_SIZE,
       fonts,
-      // Chats fetch previews again and again; names and cities change slowly.
+      // Chats fetch previews again and again; names and cities change slowly. Keep it under ~300 KB
+      // (the art at its native 380px): WhatsApp skips heavier preview images.
       headers: { "cache-control": "public, max-age=600, s-maxage=3600, stale-while-revalidate=86400" },
     },
   );
