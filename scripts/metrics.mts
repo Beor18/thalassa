@@ -17,7 +17,7 @@ const AMBROSIA_PER_PACK = 100;
 const SOL_PER_PACK = 0.05;
 
 type Row = Record<string, unknown>;
-const rows = async (q: ReturnType<typeof sql>) => (await db.execute(q)) as unknown as Row[];
+const rows = async (q: ReturnType<typeof sql>) => (await db.execute(q)).rows as Row[];
 const one = async (q: ReturnType<typeof sql>) => (await rows(q))[0] ?? {};
 const n = (v: unknown) => Number(v ?? 0);
 const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : "–");

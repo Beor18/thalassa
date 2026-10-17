@@ -54,7 +54,7 @@ async function resolveDue(now: Date, wait: boolean) {
   await transaction("missions", async (tx) => {
     if (wait) await tx.execute(sql`select pg_advisory_xact_lock(4242)`);
     else {
-      const [row] = await tx.execute<{ locked: boolean }>(sql`select pg_try_advisory_xact_lock(4242) as locked`);
+      const { rows: [row] } = await tx.execute<{ locked: boolean }>(sql`select pg_try_advisory_xact_lock(4242) as locked`);
       if (!row?.locked) return;
     }
     for (let i = 0; i < 500; i++) {
