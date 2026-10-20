@@ -3,6 +3,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import type { CSSProperties, ReactNode } from "react";
 import { BUILDINGS, CITY_SLOTS, type BuildingType, type SlotKind } from "@/game/data";
+import { buildingLevel } from "@/game/engine";
 import { buildingName } from "@/game/names";
 import { CITY_PLOTS, CITY_SPRITE_WIDTH, CONSTRUCTION_IMAGE, SHIP_IMAGE } from "@/game/layout";
 import { Countdown } from "@/components/ui/countdown";
@@ -13,6 +14,8 @@ import { fx as scene } from "@/components/fx/classes";
 import type { I18n } from "@/i18n/i18n";
 import { getI18n } from "@/i18n/server";
 import type { GameCity } from "@/server/game-context";
+import { CityWall } from "./city-wall";
+import { DockedWarships } from "./docked-warships";
 import { IconColumns, IconUp } from "./icons";
 import { NameCityPrompt } from "./name-city-prompt";
 import { emptySlotLabel, plotId, slotHref } from "./lib";
@@ -95,6 +98,9 @@ export async function CityScene({
             {/* Sea: light dancing in the shallows, slow swell further out, foam on the rocks */}
             <SeaShimmer a={`${WATER}/city-water-a.webp`} b={`${WATER}/city-water-b.webp`} opacity={0.85} dur={7.5} />
 
+            {/* The ring of walls around the city, growing with the Wall level */}
+            <CityWall cityId={city.id} level={buildingLevel(city, "wall")} />
+
             {MOORINGS.slice(0, docked).map((m, i) => (
               <span
                 key={i}
@@ -117,6 +123,8 @@ export async function CityScene({
                 />
               </span>
             ))}
+
+            <DockedWarships city={city} />
 
             <SceneEvents cityId={city.id} snapshot={snapshot}>
               {CITY_SLOTS.map(({ slot, kind }) => (

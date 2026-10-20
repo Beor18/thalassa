@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
-import type { ResourceBag, UnitType } from "@/game/data";
+import type { ResourceBag, UnitType, Yard } from "@/game/data";
+import { UnitArt } from "@/components/military/units";
 import { ActionButton } from "@/components/ui/action-button";
 import { CostList, ResIcon } from "@/components/ui/res";
 import { useI18n } from "@/i18n/client";
@@ -18,15 +18,14 @@ import { missingText, unitCount, unitPlural } from "./lib";
 export interface UnitOption {
   unit: UnitType;
   name: string;
-  image: string;
   attack: number;
   defense: number;
   /** gold per hour per unit, game speed included */
   upkeep: number;
   cost: Partial<ResourceBag>;
-  /** seconds per unit with techs, barracks and speed applied */
+  /** seconds per unit with techs, the yard's level and speed applied */
   secondsPerUnit: number;
-  /** soldiers of this kind in the city */
+  /** soldiers (or docked warships) of this kind in the city */
   home: number;
   /** why it can't be trained yet, or null */
   lock: string | null;
@@ -35,11 +34,12 @@ export interface UnitOption {
 }
 
 /**
- * Barracks: unit tiles (name, count at home, lock when not available) and one form for the
- * picked unit. One button, always saying what it trains.
+ * Barracks (troops) or the Port's war shipyard (warships): unit tiles (name, count at home, lock
+ * when not available) and one form for the picked unit. One button, always saying what it makes.
  */
 export function TrainingPicker({
   cityId,
+  yard = "barracks",
   units,
   freeCitizens,
   res,
@@ -47,6 +47,8 @@ export function TrainingPicker({
   taxPerCitizen,
 }: {
   cityId: string;
+  /** "port": the units are warships, built (not trained) and crewed by idle citizens */
+  yard?: Yard;
   units: UnitOption[];
   freeCitizens: number;
   res: ResourceBag;
@@ -61,7 +63,11 @@ export function TrainingPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label={t({ en: "Unit", es: "Tropa" })} className="grid grid-cols-3 gap-1.5">
+      <div
+        role="radiogroup"
+        aria-label={yard === "port" ? t({ en: "Warship", es: "Barco de guerra" }) : t({ en: "Unit", es: "Tropa" })}
+        className={clsx("grid gap-1.5", units.length <= 2 ? "grid-cols-2" : "grid-cols-3")}
+      >
         {units.map((o) => (
           <label key={o.unit} className="relative cursor-pointer">
             <input
@@ -79,14 +85,7 @@ export function TrainingPicker({
                 "hover:bg-parchment-2 peer-checked:bg-gold/25 peer-checked:ring-2 peer-checked:ring-bronze peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold",
               )}
             >
-              <Image
-                src={o.image}
-                alt=""
-                width={80}
-                height={80}
-                sizes="32px"
-                className={clsx("size-8 shrink-0 object-contain", o.lock ? "opacity-55 grayscale-[70%]" : "sprite")}
-              />
+              <UnitArt unit={o.unit} size={80} sizes="32px" className={clsx("size-8 shrink-0 object-contain", o.lock ? "opacity-55 grayscale-[70%]" : "sprite")} />
               <span className="flex min-w-0 flex-col">
                 <span className={clsx("truncate text-[11.5px] leading-tight font-bold", o.lock ? "text-ink-soft" : "text-ink")}>{o.name}</span>
                 <span className="inline-flex items-center gap-0.5 text-[11px] leading-tight font-bold text-ink-soft tabular">
@@ -97,7 +96,9 @@ export function TrainingPicker({
             <span className="sr-only">
               {o.name}
               {o.home > 0
-                ? t({ en: `, ${unitCount(o.unit, o.home, lang)} in the city`, es: `, ${unitCount(o.unit, o.home, lang)} en la ciudad` })
+                ? yard === "port"
+                  ? t({ en: `, ${unitCount(o.unit, o.home, lang)} in port`, es: `, ${unitCount(o.unit, o.home, lang)} en el puerto` })
+                  : t({ en: `, ${unitCount(o.unit, o.home, lang)} in the city`, es: `, ${unitCount(o.unit, o.home, lang)} en la ciudad` })
                 : ""}
               {o.lock ? t({ en: ", locked", es: ", bloqueado" }) : ""}
             </span>
@@ -105,13 +106,23 @@ export function TrainingPicker({
         ))}
       </div>
 
-      <UnitDetail key={u.unit} cityId={cityId} u={u} freeCitizens={freeCitizens} res={res} goldPerHour={goldPerHour} taxPerCitizen={taxPerCitizen} />
+      <UnitDetail
+        key={u.unit}
+        cityId={cityId}
+        naval={yard === "port"}
+        u={u}
+        freeCitizens={freeCitizens}
+        res={res}
+        goldPerHour={goldPerHour}
+        taxPerCitizen={taxPerCitizen}
+      />
     </div>
   );
 }
 
 function UnitDetail({
   cityId,
+  naval,
   u,
   freeCitizens,
   res,
@@ -119,6 +130,7 @@ function UnitDetail({
   taxPerCitizen,
 }: {
   cityId: string;
+  naval: boolean;
   u: UnitOption;
   freeCitizens: number;
   res: ResourceBag;
@@ -136,7 +148,11 @@ function UnitDetail({
   const total = Object.fromEntries(Object.entries(u.cost).map(([r, c]) => [r, (c ?? 0) * Math.max(1, n)])) as Partial<ResourceBag>;
   const seconds = Math.max(3, Math.round(u.secondsPerUnit * Math.max(1, n)));
   const reason =
-    freeCitizens === 0 ? t({ en: "No idle citizens to recruit.", es: "No hay ciudadanos libres para reclutar." }) : missingText(total, res, lang);
+    freeCitizens === 0
+      ? naval
+        ? t({ en: "No idle citizens to crew it.", es: "No hay ciudadanos libres para la tripulación." })
+        : t({ en: "No idle citizens to recruit.", es: "No hay ciudadanos libres para reclutar." })
+      : missingText(total, res, lang);
   const plural = unitPlural(u.unit, lang);
   const inputId = `train-${u.unit}`;
   const goldAfter = goldPerHour - Math.max(1, n) * (u.upkeep + taxPerCitizen);
@@ -144,8 +160,11 @@ function UnitDetail({
 
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border border-parchment-3 bg-parchment-2/60 p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h4 className="font-display text-base leading-tight font-bold">{u.name}</h4>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h4 className="flex items-center gap-2 font-display text-base leading-tight font-bold">
+          <UnitArt unit={u.unit} size={44} className={clsx("size-11 shrink-0 object-contain", u.lock ? "opacity-55 grayscale-[70%]" : "sprite")} />
+          {u.name}
+        </h4>
         <dl className="flex items-center gap-2.5 text-sm font-bold text-ink tabular">
           <div className="inline-flex items-center gap-0.5" title={t({ en: "Attack", es: "Ataque" })}>
             <dt>
@@ -197,7 +216,11 @@ function UnitDetail({
               onChange={setCount}
               describedBy={`${inputId}-hint`}
               className="w-40 shrink-0"
-              maxLabel={t({ en: `Train the most ${plural} you can`, es: `Entrenar el máximo de ${plural}` })}
+              maxLabel={
+                naval
+                  ? t({ en: `Build the most ${plural} you can`, es: `Construir el máximo de ${plural}` })
+                  : t({ en: `Train the most ${plural} you can`, es: `Entrenar el máximo de ${plural}` })
+              }
             />
             <span className="min-w-0 text-xs leading-tight text-ink-soft">
               <span className="font-bold text-ink tabular">{fmt(freeCitizens)}</span> {t({ en: "idle", es: "libres" })}
@@ -228,12 +251,16 @@ function UnitDetail({
           <ActionButton
             className="w-full"
             disabled={n < 1 || reason != null}
-            pendingLabel={t({ en: "Recruiting…", es: "Reclutando…" })}
+            pendingLabel={naval ? t({ en: "Building…", es: "Construyendo…" }) : t({ en: "Recruiting…", es: "Reclutando…" })}
             action={() => trainAction({ cityId, unit: u.unit, count: n })}
           >
-            {n >= 1
-              ? t({ en: `Train ${unitCount(u.unit, n, lang)}`, es: `Entrenar ${unitCount(u.unit, n, lang)}` })
-              : t({ en: `Train ${plural}`, es: `Entrenar ${plural}` })}
+            {naval
+              ? n >= 1
+                ? t({ en: `Build ${unitCount(u.unit, n, lang)}`, es: `Construir ${unitCount(u.unit, n, lang)}` })
+                : t({ en: `Build ${plural}`, es: `Construir ${plural}` })
+              : n >= 1
+                ? t({ en: `Train ${unitCount(u.unit, n, lang)}`, es: `Entrenar ${unitCount(u.unit, n, lang)}` })
+                : t({ en: `Train ${plural}`, es: `Entrenar ${plural}` })}
           </ActionButton>
           {reason && <p className="-mt-1 text-sm font-bold text-danger">{reason}</p>}
         </>

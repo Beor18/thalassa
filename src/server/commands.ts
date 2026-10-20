@@ -13,7 +13,9 @@ import {
   buyShip,
   cancelConstruction,
   capitalOf,
+  countLand,
   countUnits,
+  finishTargetEnd,
   finishWithAmbrosia,
   freeCitizens,
   getCity,
@@ -25,12 +27,13 @@ import {
   setWineLevel,
   setWorkers,
   shipsForCargo,
-  shipsForUnits,
   startConstruction,
   takeCargo,
   takeUnits,
   trainUnits,
+  transportShipsFor,
   travelSeconds,
+  type FinishTarget,
   type PlayerState,
 } from "@/game/engine";
 import { techName } from "@/game/names";
@@ -88,17 +91,18 @@ async function spentToday(tx: Tx, playerId: string, pattern: string, now: number
   return { spent: row?.spent ?? 0, times: row?.n ?? 0 };
 }
 
-export const finishNow = (playerId: string, cityId: string, what: "construction" | "training") =>
+export const finishNow = (playerId: string, cityId: string, what: FinishTarget) =>
   withPlayer(playerId, async (p, { tx, now }) => {
     const city = getCity(p, cityId);
-    if (what === "training") {
-      // Troops can't be rushed into a war: only short queues, and never with an own attack at sea.
-      const endsAt = city.training.reduce((m, b) => Math.max(m, b.endsAt), 0);
-      if (endsAt - now > BALANCE.trainingFinishMaxMinutes * 60_000) {
-        throw new GameError({
-          en: "You can only rush training with an hour or less to go.",
-          es: "Solo podés apurar entrenamientos a los que les falte una hora o menos.",
-        });
+    const endsAt = finishTargetEnd(city, what);
+    if (what !== "construction") {
+      // Troops and warships can't be rushed into a war: only short queues, and never with an own attack at sea.
+      if ((endsAt ?? 0) - now > BALANCE.trainingFinishMaxMinutes * 60_000) {
+        throw new GameError(
+          what === "shipyard"
+            ? { en: "You can only rush the shipyard with an hour or less to go.", es: "Solo podés apurar el astillero si le falta una hora o menos." }
+            : { en: "You can only rush training with an hour or less to go.", es: "Solo podés apurar entrenamientos a los que les falte una hora o menos." },
+        );
       }
       const [atSea] = await tx
         .select({ n: count() })
@@ -111,7 +115,6 @@ export const finishNow = (playerId: string, cityId: string, what: "construction"
         });
       }
     }
-    const endsAt = what === "construction" ? city.construction?.endsAt : city.training.reduce((m, b) => Math.max(m, b.endsAt), 0);
     const price = endsAt && endsAt > now ? ambrosiaToFinish(now, endsAt) : 0;
     const { spent } = await spentToday(tx, playerId, "finish:%", now);
     if (price > 0 && spent + price > BALANCE.finishDailyCap) {
@@ -247,9 +250,10 @@ export type AttackTarget = { cityId: string } | { barbariansOnIsland: number };
 export const sendAttack = (playerId: string, originCityId: string, target: AttackTarget, units: UnitBag) =>
   withPlayer(playerId, async (p, { tx, now }) => {
     const origin = getCity(p, originCityId);
-    const n = countUnits(units);
-    if (n <= 0) throw new GameError({ en: "Choose troops to send.", es: "Elegí tropas para mandar." });
-    const ships = shipsForUnits(n);
+    if (countUnits(units) <= 0) throw new GameError({ en: "Choose troops to send.", es: "Elegí tropas para mandar." });
+    // Land troops ride merchant ships; warships sail on their own and carry no one.
+    const n = countLand(units);
+    const ships = transportShipsFor(units);
     if (ships > origin.ships) {
       throw new GameError({
         en: `You need ${shipsInPort(ships)} in port to carry ${enNum(n)} ${n === 1 ? "soldier" : "soldiers"}.`,

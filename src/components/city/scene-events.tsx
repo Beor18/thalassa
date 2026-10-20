@@ -253,6 +253,8 @@ function Celebration({ event, onDone }: { event: SceneEvent; onDone: () => void 
   const pos = CITY_PLOTS[event.slot];
   // The top row would push a ribbon above the painting: show it under the building instead.
   const below = pos.y < 22;
+  // Plots at the edges (the wall gate, the docks): grow the ribbon inward so the painting doesn't clip it.
+  const edge: CSSProperties = pos.x > 78 ? { left: "auto", right: 0, translate: "0 0" } : pos.x < 22 ? { left: 0, translate: "0 0" } : {};
 
   const finish = useEffectEvent(onDone);
   useEffect(() => {
@@ -311,7 +313,7 @@ function Celebration({ event, onDone }: { event: SceneEvent; onDone: () => void 
       </div>
       <motion.div
         className={`${scene.ribbon} ${scene.ribbonGold} ${scene.ribbonLarge}`}
-        style={{ "--top": below ? "38%" : "-78%", zIndex: 3 } as CSSProperties}
+        style={{ "--top": below ? "38%" : "-78%", zIndex: 3, ...edge } as CSSProperties}
         initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.7 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={reduce ? { opacity: 0 } : { opacity: 0, y: -10, transition: { duration: 0.3, ease: [0.4, 0, 1, 1] } }}

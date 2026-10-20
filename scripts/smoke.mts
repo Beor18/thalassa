@@ -136,6 +136,64 @@ try {
   await processDueMissions({ wait: true });
   const colonies = await db.select().from(cities).where(eq(cities.playerId, a.id));
   check(colonies.length === 2, "colony founded");
+
+  // Warships: built at the Port, sail without merchant ships, fight at sea before anyone lands.
+  const settle = async () => {
+    const now = new Date(Date.now() - 1000);
+    const mine = inArray(missions.playerId, ids);
+    await db.update(missions).set({ arrivesAt: now }).where(and(mine, eq(missions.status, "outbound")));
+    await processDueMissions({ wait: true });
+    await db.update(missions).set({ returnsAt: now }).where(and(mine, eq(missions.status, "returning")));
+    await processDueMissions({ wait: true });
+  };
+  await db
+    .update(cities)
+    .set({
+      buildings: [
+        { slot: 0, type: "town_hall", level: 3 },
+        { slot: 1, type: "barracks", level: 4 },
+        { slot: 12, type: "port", level: 6 },
+      ],
+      population: 170,
+      wood: 2000,
+      sulfur: 2000,
+      ships: 2,
+      units: { swordsman: 60, fireship: 6 },
+      training: [],
+    })
+    .where(eq(cities.id, cityA.id));
+  await db.update(players).set({ techs: ["expansion", "wisdom", "shipbuilding"] }).where(eq(players.id, a.id));
+  const keel = await cmd.train(a.id, cityA.id, "trireme", 2);
+  check(keel.unit === "trireme" && keel.startedAt <= Date.now(), "triremes on the slipway at the Port");
+  await db.update(cities).set({ units: { trireme: 3, spearman: 10 } }).where(eq(cities.id, cityB.id));
+
+  await cmd.sendAttack(a.id, cityA.id, { cityId: cityB.id }, { swordsman: 50 });
+  await settle();
+  const [harborB] = await db.select({ units: cities.units }).from(cities).where(eq(cities.id, cityB.id));
+  const [homeA] = await db.select({ units: cities.units }).from(cities).where(eq(cities.id, cityA.id));
+  check(harborB.units.trireme === 3 && homeA.units.swordsman === 60, "no warships: turned back at sea, troops home intact");
+
+  await cmd.sendAttack(a.id, cityA.id, { cityId: cityB.id }, { swordsman: 50, fireship: 6 });
+  await settle();
+  const [sunkB] = await db.select({ units: cities.units }).from(cities).where(eq(cities.id, cityB.id));
+  check(!sunkB.units.trireme, "fire ships cleared the sea and the troops landed");
+
+  await db.update(cities).set({ ships: 0 }).where(eq(cities.id, cityA.id));
+  const fleet = await cmd.sendAttack(a.id, cityA.id, { cityId: cityB.id }, { fireship: 2 });
+  check(fleet.ships === 0, "warships sail without merchant ships");
+  await settle();
+
+  const naval = (await db.select().from(reports).where(and(eq(reports.kind, "battle"), inArray(reports.playerId, ids)))).filter(
+    (r) => (r.body.target as { kind?: string } | undefined)?.kind === "city" && r.body.sea,
+  );
+  const enOf = (r: (typeof naval)[number]) => (r.body.title as { en: string }).en;
+  console.log("     naval reports:", naval.map(enOf).join(" | "));
+  check(
+    naval.some((r) => r.playerId === a.id && r.body.turnedBack && enOf(r).startsWith("Turned back at sea")) &&
+      naval.some((r) => r.playerId === b.id && r.body.turnedBack && enOf(r).startsWith("Your fleet turned back")),
+    "both sides got a turned-back-at-sea report",
+  );
+  check(naval.some((r) => r.playerId === a.id && !r.body.turnedBack && r.body.attackerWins), "sea battle won, then the land battle");
 } catch (err) {
   console.error("FAIL unexpected error:", err);
   process.exitCode = 1;

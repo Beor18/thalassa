@@ -4,8 +4,8 @@ import { useId, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { BALANCE, RESOURCES, UNITS, type Resource, type UnitBag, type UnitType } from "@/game/data";
-import { resolveCombat, shipsForCargo, shipsForUnits } from "@/game/engine";
+import { BALANCE, RESOURCES, UNITS, isNaval, type Resource, type UnitBag, type UnitType } from "@/game/data";
+import { resolveCombat, shipsForCargo, transportShipsFor } from "@/game/engine";
 import { attackAction, colonizeAction, donateAction, setWorkersAction, transportAction } from "@/server/actions";
 import type { ActionResult } from "@/lib/action-result";
 import { Button, buttonClass } from "@/components/ui/button";
@@ -347,7 +347,8 @@ export function AttackForm({
       attack += n * UNITS[u.type].attack;
     }
   }
-  const ships = total > 0 ? shipsForUnits(total) : 0;
+  // Merchant ships carry the land troops only: warships sail on their own.
+  const ships = transportShipsFor(units);
   const lackShips = ships > shipsDocked;
   const preview = defender && total > 0 ? resolveCombat(units, defender.units, defender.wall) : null;
   const defense = defender ? (preview ?? resolveCombat({}, defender.units, defender.wall)).defensePower : null;
@@ -356,13 +357,13 @@ export function AttackForm({
   const losing = Boolean(preview && !preview.attackerWins);
 
   const fillAll = () => {
-    // Send everyone the docked ships can carry, strongest first.
+    // Every warship, plus the troops the docked ships can carry, strongest first.
     let room = shipsDocked * BALANCE.unitsPerShip;
     const next: Partial<Record<UnitType, string>> = {};
     for (const u of [...available].sort((a, b) => UNITS[b.type].attack - UNITS[a.type].attack)) {
-      const n = Math.min(u.have, room);
+      const n = isNaval(u.type) ? u.have : Math.min(u.have, room);
       if (n > 0) next[u.type] = String(n);
-      room -= n;
+      if (!isNaval(u.type)) room -= n;
     }
     setCounts(next);
   };
@@ -381,7 +382,11 @@ export function AttackForm({
           {t({ en: "Troops", es: "Tropas" })}{" "}
           <span className="font-normal text-ink-soft">{t({ en: `from ${originName}`, es: `de ${originName}` })}</span>
         </p>
-        <SmallButton onClick={fillAll} disabled={shipsDocked === 0} label={t({ en: "Pick all troops", es: "Elegir todas las tropas" })}>
+        <SmallButton
+          onClick={fillAll}
+          disabled={shipsDocked === 0 && !available.some((u) => isNaval(u.type))}
+          label={t({ en: "Pick all troops", es: "Elegir todas las tropas" })}
+        >
           {t({ en: "All", es: "Todas" })}
         </SmallButton>
       </div>

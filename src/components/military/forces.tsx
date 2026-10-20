@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
-import { CITY_SLOTS, RESOURCES, type Resource } from "@/game/data";
-import { buildingLevel, countUnits, militaryPower, unitUpkeep, type CityState } from "@/game/engine";
+import { CITY_SLOTS, RESOURCES, isNaval, type Resource } from "@/game/data";
+import { buildingLevel, countLand, countUnits, militaryPower, unitUpkeep, type CityState } from "@/game/engine";
 import { buildingName, unitName } from "@/game/names";
 import type { Locale, Text } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
@@ -54,8 +54,9 @@ export function nextForcesStep({
   /** When the barbarians of this island are back, if they were beaten recently. */
   campRearmsAt: number | null;
 }): ForcesStep {
-  const home = countUnits(city.units);
-  const training = city.training.reduce((s, b) => s + b.count, 0);
+  // Steps are about land troops: they are the ones that can loot (warships carry nothing).
+  const home = countLand(city.units);
+  const training = city.training.reduce((s, b) => s + (isNaval(b.unit) ? 0 : b.count), 0);
   const barracksSlot = slotOf(city, "barracks");
   const portSlot = slotOf(city, "port");
   const camp = `/isla/${city.islandId}?panel=camp`;
@@ -253,6 +254,11 @@ export async function CityForces({
   const portRaising = buildingFirst(city, "port");
   const barracksRaising = buildingFirst(city, "barracks");
   const hasPort = city.rates.maxShips > 0 || city.ships > 0;
+  // Barracks and shipyard keep separate queues.
+  const queues = [
+    { id: "training", title: t({ en: "Training", es: "Entrenando" }), batches: city.training.filter((b) => !isNaval(b.unit)) },
+    { id: "shipyard", title: t({ en: "In the shipyard", es: "En el astillero" }), batches: city.training.filter((b) => isNaval(b.unit)) },
+  ].filter((q) => q.batches.length > 0);
 
   return (
     <article aria-labelledby={`forces-${city.id}`} className="panel flex flex-col gap-3 p-3 sm:p-4">
@@ -372,13 +378,13 @@ export async function CityForces({
             </div>
           </div>
 
-          {city.training.length > 0 && (
-            <section aria-labelledby={`training-${city.id}`} className="flex flex-col gap-1.5">
-              <h4 id={`training-${city.id}`} className="text-[11px] font-extrabold tracking-wider text-bronze-dark uppercase">
-                {t({ en: "Training", es: "Entrenando" })}
+          {queues.map((q) => (
+            <section key={q.id} aria-labelledby={`${q.id}-${city.id}`} className="flex flex-col gap-1.5">
+              <h4 id={`${q.id}-${city.id}`} className="text-[11px] font-extrabold tracking-wider text-bronze-dark uppercase">
+                {q.title}
               </h4>
               <ul className="flex flex-col gap-1.5">
-                {city.training.map((b) => {
+                {q.batches.map((b) => {
                   const waiting = b.startedAt > now;
                   return (
                     <li key={b.id} className="flex items-center gap-2.5 rounded-xl bg-parchment-2/60 py-1.5 pr-3 pl-1.5 ring-1 ring-parchment-3">
@@ -400,7 +406,7 @@ export async function CityForces({
                 })}
               </ul>
             </section>
-          )}
+          ))}
         </div>
       </div>
     </article>
@@ -473,11 +479,14 @@ export async function MissionCard({ mission: m, now, index = 0 }: { mission: Mis
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <span className="inline-flex items-center gap-1" title={`${fmt(m.ships)} ${shipWord}`}>
-          <ShipPortrait size={26} />
-          <span className="tabular font-bold">{fmt(m.ships)}</span>
-          <span className="sr-only">{shipWord}</span>
-        </span>
+        {/* Merchant ships; a fleet of warships alone sails without them. */}
+        {m.ships > 0 && (
+          <span className="inline-flex items-center gap-1" title={`${fmt(m.ships)} ${shipWord}`}>
+            <ShipPortrait size={26} />
+            <span className="tabular font-bold">{fmt(m.ships)}</span>
+            <span className="sr-only">{shipWord}</span>
+          </span>
+        )}
         {hasUnits && <UnitStrip units={m.units} lang={lang} size={26} compact />}
         {hasCargo && <CostList cost={cargo} />}
         {!hasUnits && !hasCargo && m.kind === "colonize" && outbound && (

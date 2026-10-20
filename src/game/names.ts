@@ -51,6 +51,8 @@ const EN_UNITS: Record<UnitType, { name: string; plural: string; description: st
   hoplite: { name: "Hoplite", plural: "Hoplites", description: "Shield, spear and phalanx. The best defense in the Aegean." },
   archer: { name: "Archer", plural: "Archers", description: "A rain of arrows before the enemy reaches the wall." },
   catapult: { name: "Catapult", plural: "Catapults", description: "Breaks walls. Every two catapults cancel one wall level." },
+  trireme: { name: "Trireme", plural: "Triremes", description: "A steady line ship. Guards your harbor and escorts your attacks." },
+  fireship: { name: "Fire Ship", plural: "Fire Ships", description: "Hits hard and burns fast. Sets enemy fleets ablaze." },
 };
 
 const ES_UNIT_PLURALS: Record<UnitType, string> = {
@@ -60,6 +62,8 @@ const ES_UNIT_PLURALS: Record<UnitType, string> = {
   hoplite: "Hoplitas",
   archer: "Arqueros",
   catapult: "Catapultas",
+  trireme: "Trirremes",
+  fireship: "Brulotes",
 };
 
 const EN_TECHS: Record<TechId, { name: string; effect: string }> = {
@@ -77,7 +81,7 @@ const EN_TECHS: Record<TechId, { name: string; effect: string }> = {
   phalanx: { name: "Phalanx", effect: "Unlocks Hoplites." },
   archery: { name: "Archery", effect: "Unlocks Archers." },
   siege: { name: "Siege", effect: "Unlocks Catapults." },
-  shipbuilding: { name: "Shipbuilding", effect: "Ships cost 15% less gold." },
+  shipbuilding: { name: "Shipbuilding", effect: "Ships cost 15% less. Unlocks Fire Ships." },
   cartography: { name: "Cartography", effect: "Sea voyages are 25% faster." },
 };
 

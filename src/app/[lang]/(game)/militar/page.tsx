@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import clsx from "clsx";
-import { countUnits, militaryPower, unitUpkeep } from "@/game/engine";
+import { isNaval } from "@/game/data";
+import { countLand, countNaval, militaryPower, unitUpkeep } from "@/game/engine";
 import { getGame } from "@/server/game-context";
 import { getIsland } from "@/server/queries";
 import { getI18n } from "@/i18n/server";
@@ -31,15 +32,20 @@ async function MilitaryContent() {
   const [game, { t, lang, fmt }] = await Promise.all([getGame(), getI18n()]);
   const { snapshot, city } = game;
   const missions = [...snapshot.missions].sort((a, b) => missionEventAt(a) - missionEventAt(b));
-  const home = snapshot.cities.reduce((s, c) => s + countUnits(c.units), 0);
-  const away = missions.reduce((s, m) => s + countUnits(m.units), 0);
+  // Soldiers and warships are counted apart; `docked` and `atSea` are merchant ships.
+  const home = snapshot.cities.reduce((s, c) => s + countLand(c.units), 0);
+  const away = missions.reduce((s, m) => s + countLand(m.units), 0);
   const power = snapshot.cities.reduce((s, c) => s + militaryPower(c.units), 0);
   const docked = snapshot.cities.reduce((s, c) => s + c.ships, 0);
   const atSea = missions.reduce((s, m) => s + m.ships, 0);
-  const training = snapshot.cities.reduce((s, c) => s + c.training.reduce((t, b) => t + b.count, 0), 0);
+  const batches = snapshot.cities.flatMap((c) => c.training);
+  const training = batches.reduce((s, b) => s + (isNaval(b.unit) ? 0 : b.count), 0);
+  const warshipsHome = snapshot.cities.reduce((s, c) => s + countNaval(c.units), 0);
+  const warshipsAway = missions.reduce((s, m) => s + countNaval(m.units), 0);
+  const warshipsBuilding = batches.reduce((s, b) => s + (isNaval(b.unit) ? b.count : 0), 0);
   const upkeep = (snapshot.cities.reduce((s, c) => s + unitUpkeep(c.units), 0) + snapshot.player.awayUpkeep) * snapshot.speed;
   const shipsAtSeaFrom = (cityId: string) => missions.filter((m) => m.originCityId === cityId).reduce((s, m) => s + m.ships, 0);
-  const awayFrom = (cityId: string) => missions.filter((m) => m.originCityId === cityId).reduce((s, m) => s + countUnits(m.units), 0);
+  const awayFrom = (cityId: string) => missions.filter((m) => m.originCityId === cityId).reduce((s, m) => s + countLand(m.units), 0);
   // Read only for the camp's rearm timer, so the hero never sends troops to an empty camp.
   const island = await getIsland(city.islandId, snapshot.player.id);
   const step = nextForcesStep({
@@ -69,7 +75,7 @@ async function MilitaryContent() {
                 </h1>
                 <p
                   className="mt-1 font-display text-3xl font-black text-foam sm:text-4xl"
-                  title={t({ en: "Power of the troops at home", es: "Poder de las tropas que están en casa" })}
+                  title={t({ en: "Power of the troops and warships at home", es: "Poder de las tropas y barcos de guerra que están en casa" })}
                 >
                   {fmt(power)} <span className="text-sm font-bold text-foam/70">{t({ en: "power", es: "de poder" })}</span>
                 </p>
@@ -104,13 +110,27 @@ async function MilitaryContent() {
                 label={t({ en: "In port", es: "En puerto" })}
                 hint={
                   docked === 1
-                    ? t({ en: `1 ship in port${atSea > 0 ? ` and ${fmt(atSea)} at sea` : ""}`, es: `1 barco en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}` })
+                    ? t({
+                        en: `1 merchant ship in port${atSea > 0 ? ` and ${fmt(atSea)} at sea` : ""}`,
+                        es: `1 mercante en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`,
+                      })
                     : t({
-                        en: `${fmt(docked)} ships in port${atSea > 0 ? ` and ${fmt(atSea)} at sea` : ""}`,
-                        es: `${fmt(docked)} barcos en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`,
+                        en: `${fmt(docked)} merchant ships in port${atSea > 0 ? ` and ${fmt(atSea)} at sea` : ""}`,
+                        es: `${fmt(docked)} mercantes en el puerto${atSea > 0 ? ` y ${fmt(atSea)} en el mar` : ""}`,
                       })
                 }
               />
+              {warshipsHome + warshipsAway + warshipsBuilding > 0 && (
+                <HeroStat
+                  icon={<UnitPortrait unit="trireme" size={30} className="bg-transparent" />}
+                  value={fmt(warshipsHome)}
+                  label={t({ en: "Warships", es: "De guerra" })}
+                  hint={t({
+                    en: `${fmt(warshipsHome)} warships in port${warshipsAway > 0 ? `, ${fmt(warshipsAway)} at sea` : ""}${warshipsBuilding > 0 ? `, ${fmt(warshipsBuilding)} in the shipyard` : ""}`,
+                    es: `${fmt(warshipsHome)} barcos de guerra en el puerto${warshipsAway > 0 ? `, ${fmt(warshipsAway)} en el mar` : ""}${warshipsBuilding > 0 ? `, ${fmt(warshipsBuilding)} en el astillero` : ""}`,
+                  })}
+                />
+              )}
               {training > 0 && (
                 <HeroStat
                   icon={<IconSwords size={20} className="text-gold" />}
@@ -132,7 +152,7 @@ async function MilitaryContent() {
                   </>
                 }
                 label={t({ en: "Wages", es: "Sueldos" })}
-                hint={t({ en: "Gold your troops are paid per hour", es: "Oro por hora que cobran tus tropas" })}
+                hint={t({ en: "Gold your troops and crews are paid per hour", es: "Oro por hora que cobran tus tropas y tripulaciones" })}
                 tone={upkeep > 0 ? "bad" : "default"}
               />
             </div>

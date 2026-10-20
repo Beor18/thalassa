@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
-import { BUILDING_TYPES, RESOURCES, TECH_IDS, UNIT_TYPES } from "@/game/data";
+import { BUILDING_TYPES, RESOURCES, TECH_IDS, UNIT_TYPES, isNaval } from "@/game/data";
 import { GameError } from "@/game/engine";
 import type { Text } from "@/i18n/config";
 import { getFormat } from "@/i18n/format";
@@ -61,10 +61,10 @@ export async function cancelBuildAction(input: { cityId: string }) {
   }, { en: "Construction canceled. You got your materials back.", es: "Obra cancelada. Te devolvimos los materiales." });
 }
 
-export async function finishNowAction(input: { cityId: string; what: "construction" | "training" }) {
+export async function finishNowAction(input: { cityId: string; what: "construction" | "training" | "shipyard" }) {
   return run(
     async (pid) => {
-      const v = z.object({ cityId: id, what: z.enum(["construction", "training"]) }).parse(input);
+      const v = z.object({ cityId: id, what: z.enum(["construction", "training", "shipyard"]) }).parse(input);
       return cmd.finishNow(pid, v.cityId, v.what);
     },
     (price) => ({ en: `Done. You spent ${enNum(price)} Nectar.`, es: `Listo. Usaste ${esNum(price)} de néctar.` }),
@@ -88,10 +88,16 @@ export async function setWineAction(input: { cityId: string; level: number }) {
 }
 
 export async function trainAction(input: { cityId: string; unit: string; count: number }) {
-  return run(async (pid) => {
-    const v = z.object({ cityId: id, unit: z.enum(UNIT_TYPES), count: int(1, 1000) }).parse(input);
-    await cmd.train(pid, v.cityId, v.unit, v.count);
-  }, { en: "Training started.", es: "Entrenamiento en marcha." });
+  return run(
+    async (pid) => {
+      const v = z.object({ cityId: id, unit: z.enum(UNIT_TYPES), count: int(1, 1000) }).parse(input);
+      return cmd.train(pid, v.cityId, v.unit, v.count);
+    },
+    (batch) =>
+      isNaval(batch.unit)
+        ? { en: "The shipyard is at work.", es: "El astillero ya está trabajando." }
+        : { en: "Training started.", es: "Entrenamiento en marcha." },
+  );
 }
 
 export async function buyShipAction(input: { cityId: string }) {
@@ -166,7 +172,7 @@ export async function attackAction(input: {
     const sent = await cmd.sendAttack(pid, v.originCityId, v.target, v.units);
     await trackFirst("first_attack_sent", pid, { target: "cityId" in v.target ? "player" : "barbarians" }); // growth hook
     return sent;
-  }, { en: "Your troops set sail.", es: "Tus tropas zarparon." });
+  }, (m) => (m.ships === 0 ? { en: "Your fleet set sail.", es: "Tu flota zarpó." } : { en: "Your troops set sail.", es: "Tus tropas zarparon." }));
 }
 
 export async function colonizeAction(input: { originCityId: string; islandId: number; slot: number; name: string }) {

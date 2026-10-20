@@ -10,6 +10,7 @@ import {
   luxuryMultiplier,
   maxLuxWorkers,
   maxWoodWorkers,
+  countNaval,
   resolveCombat,
   type CityState,
   type PlayerState,
@@ -199,7 +200,8 @@ function attackNextStep(ctx: IslandCtx): ReactNode {
       </Callout>
     );
   }
-  if (city.ships === 0) {
+  // Warships sail on their own: a fleet at home can leave without merchant ships.
+  if (city.ships === 0 && countNaval(city.units) === 0) {
     const port = slotOf(city, "port");
     if (ctx.shipsBackAt && port !== undefined) {
       return (

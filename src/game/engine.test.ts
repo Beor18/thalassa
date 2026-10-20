@@ -9,11 +9,14 @@ import {
   finishWithAmbrosia,
   housing,
   research,
+  resolveAssault,
   resolveCombat,
   setWorkers,
   startConstruction,
   storageCap,
   trainUnits,
+  transportShipsFor,
+  unitCost,
   type CityState,
   type PlayerState,
 } from "./engine";
@@ -135,6 +138,31 @@ describe("commands", () => {
     expect(p.cities[0].units.spearman).toBe(10);
   });
 
+  it("builds warships at the Port, in their own queue, cheaper with Shipbuilding", () => {
+    const p = makePlayer({
+      buildings: [
+        { slot: 0, type: "town_hall", level: 2 },
+        { slot: 1, type: "barracks", level: 1 },
+        { slot: 12, type: "port", level: 1 },
+      ],
+    });
+    expect(() => trainUnits(p, "c1", "trireme", 1, T0, 1, "x")).toThrow(/Port level 2/);
+    p.cities[0].buildings[2].level = 6;
+    expect(() => trainUnits(p, "c1", "fireship", 1, T0, 1, "x")).toThrow(/Shipbuilding/);
+    const troops = trainUnits(p, "c1", "spearman", 5, T0, 1, "a");
+    const ships = trainUnits(p, "c1", "trireme", 2, T0, 1, "b");
+    // The shipyard doesn't wait for the Barracks.
+    expect(ships.startedAt).toBe(T0);
+    expect(troops.startedAt).toBe(T0);
+    expect(p.cities[0].population).toBe(33);
+    expect(p.cities[0].res.sulfur).toBe(150 - 2 * 40);
+    p.techs = ["shipbuilding"];
+    expect(unitCost(p, "trireme")).toEqual({ wood: 102, sulfur: 34 });
+    expect(unitCost(p, "spearman")).toEqual({ wood: 30 });
+    advance(p, ships.endsAt, 1);
+    expect(p.cities[0].units.trireme).toBe(2);
+  });
+
   it("requires prerequisites and points for research", () => {
     const p = makePlayer();
     p.research = 500;
@@ -166,5 +194,51 @@ describe("combat", () => {
     const loot = computeLoot({ wood: 1000, marble: 1000 }, 500);
     expect(loot.wood + loot.marble).toBeLessThanOrEqual(500);
     expect(loot.wood).toBe(loot.marble);
+  });
+});
+
+describe("naval combat", () => {
+  it("warships sail alone: only land troops need merchant ships", () => {
+    expect(transportShipsFor({ trireme: 30 })).toBe(0);
+    expect(transportShipsFor({ trireme: 30, spearman: 51 })).toBe(2);
+  });
+
+  it("with no fleet in port there is no sea battle and warships join the land assault", () => {
+    const r = resolveAssault({ spearman: 20, trireme: 10 }, { spearman: 10 }, 0);
+    expect(r.sea).toBeNull();
+    expect(r.turnedBack).toBe(false);
+    // 20 × 4 + 10 × 14 against 10 × 6
+    expect(r.land?.attackPower).toBe(220);
+    expect(r.attackerWins).toBe(true);
+  });
+
+  it("clearing the sea lets the troops land; the wall only counts on land", () => {
+    const r = resolveAssault({ spearman: 60, fireship: 10 }, { spearman: 20, trireme: 5 }, 5);
+    expect(r.sea?.attackerWins).toBe(true);
+    expect(r.sea?.effectiveWall).toBe(0);
+    expect(r.land).not.toBeNull();
+    expect(r.land?.effectiveWall).toBe(5);
+    expect(r.attackerWins).toBe(true);
+    // Losses add up both battles and every defending trireme is gone.
+    expect(r.defenderSurvivors.trireme ?? 0).toBe(0);
+    expect(r.defenderLosses.trireme).toBe(5);
+  });
+
+  it("a fleet that can't clear the sea is turned back: no landing, troops sail home intact", () => {
+    const r = resolveAssault({ swordsman: 200, trireme: 2 }, { spearman: 5, trireme: 6 }, 3);
+    expect(r.sea?.attackerWins).toBe(false);
+    expect(r.turnedBack).toBe(true);
+    expect(r.land).toBeNull();
+    expect(r.attackerWins).toBe(false);
+    expect(r.attackerSurvivors.swordsman).toBe(200);
+    expect(r.attackerLosses.trireme).toBeGreaterThan(0);
+    expect(r.defenderSurvivors.spearman).toBe(5);
+  });
+
+  it("troops with no warships can't land where a fleet is docked", () => {
+    const r = resolveAssault({ swordsman: 500 }, { trireme: 1 }, 0);
+    expect(r.turnedBack).toBe(true);
+    expect(r.attackerSurvivors.swordsman).toBe(500);
+    expect(r.defenderSurvivors.trireme).toBe(1);
   });
 });

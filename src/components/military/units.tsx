@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import { UNITS, UNIT_TYPES, type UnitBag, type UnitType } from "@/game/data";
@@ -7,16 +7,28 @@ import { unitName } from "@/game/names";
 import type { Locale } from "@/i18n/config";
 import { getFormat } from "@/i18n/format";
 
+/**
+ * A unit's sprite: the one place unit art is drawn (tiles, portraits, queues, the harbor), so
+ * troops and warships look the same everywhere. `size` is its width in px.
+ */
+export function UnitArt({
+  unit,
+  size,
+  sizes,
+  className,
+  style,
+}: {
+  unit: UnitType;
+  size: number;
+  sizes?: string;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return <Image src={UNITS[unit].image} alt="" width={size} height={size} sizes={sizes} draggable={false} className={className} style={style} />;
+}
+
 export function UnitPortrait({ unit, size = 40, className }: { unit: UnitType; size?: number; className?: string }) {
-  return (
-    <Image
-      src={UNITS[unit].image}
-      alt=""
-      width={size}
-      height={size}
-      className={clsx("sprite shrink-0 rounded-lg bg-parchment-2/60", className)}
-    />
-  );
+  return <UnitArt unit={unit} size={size} className={clsx("sprite shrink-0 rounded-lg bg-parchment-2/60", className)} />;
 }
 
 export function ShipPortrait({ size = 40, className }: { size?: number; className?: string }) {

@@ -215,9 +215,15 @@ export const ISLAND_PLOTS = 8;
 // Units
 // ---------------------------------------------------------------------------
 
-export const UNIT_TYPES = ["spearman", "slinger", "swordsman", "hoplite", "archer", "catapult"] as const;
+export const UNIT_TYPES = ["spearman", "slinger", "swordsman", "hoplite", "archer", "catapult", "trireme", "fireship"] as const;
 export type UnitType = (typeof UNIT_TYPES)[number];
 export type UnitBag = Partial<Record<UnitType, number>>;
+
+/** Where a unit is made: troops at the Barracks, warships at the Port. */
+export type Yard = "barracks" | "port";
+
+/** The yard and its level a unit needs (exactly one of them), plus an optional tech. */
+export type UnitRequirement = ({ barracks: number; port?: never } | { port: number; barracks?: never }) & { tech?: TechId };
 
 export interface UnitDef {
   type: UnitType;
@@ -229,7 +235,9 @@ export interface UnitDef {
   cost: Partial<ResourceBag>;
   upkeep: number; // gold per hour (speed 1)
   time: number; // seconds per unit at speed 1
-  requires: { barracks: number; tech?: TechId };
+  requires: UnitRequirement;
+  /** warships: built at the Port, sail on their own, fight at sea first (see resolveAssault) */
+  naval?: true;
 }
 
 export const UNITS: Record<UnitType, UnitDef> = {
@@ -305,7 +313,43 @@ export const UNITS: Record<UnitType, UnitDef> = {
     time: 600,
     requires: { barracks: 10, tech: "siege" },
   },
+  trireme: {
+    type: "trireme",
+    name: "Trirreme",
+    description: "Barco de línea parejo. Cuida tu puerto y escolta tus ataques.",
+    image: "/assets/u-trireme.webp",
+    attack: 14,
+    defense: 14,
+    cost: { wood: 120, sulfur: 40 },
+    upkeep: 4,
+    time: 300,
+    requires: { port: 2 },
+    naval: true,
+  },
+  fireship: {
+    type: "fireship",
+    name: "Brulote",
+    description: "Pega fuerte y se quema rápido. Incendia flotas enemigas.",
+    image: "/assets/u-fireship.webp",
+    attack: 40,
+    defense: 6,
+    cost: { wood: 160, sulfur: 200 },
+    upkeep: 8,
+    time: 600,
+    requires: { port: 6, tech: "shipbuilding" },
+    naval: true,
+  },
 };
+
+export const isNaval = (unit: UnitType) => UNITS[unit].naval === true;
+export const unitYard = (unit: UnitType): Yard => (isNaval(unit) ? "port" : "barracks");
+/** The yard level a unit needs: [yard, level]. */
+export const yardRequirement = (unit: UnitType): [Yard, number] => {
+  const req = UNITS[unit].requires;
+  return req.port != null ? ["port", req.port] : ["barracks", req.barracks];
+};
+export const LAND_UNITS: UnitType[] = UNIT_TYPES.filter((u) => !isNaval(u));
+export const NAVAL_UNITS: UnitType[] = UNIT_TYPES.filter(isNaval);
 
 // ---------------------------------------------------------------------------
 // Research
@@ -363,7 +407,7 @@ export const TECHS: Record<TechId, TechDef> = {
   phalanx: { id: "phalanx", name: "Falange", branch: "military", cost: 120, requires: "drill", effect: "Habilita Hoplitas." },
   archery: { id: "archery", name: "Arquería", branch: "military", cost: 220, requires: "phalanx", effect: "Habilita Arqueros." },
   siege: { id: "siege", name: "Asedio", branch: "military", cost: 480, requires: "archery", effect: "Habilita Catapultas." },
-  shipbuilding: { id: "shipbuilding", name: "Carpintería naval", branch: "seafaring", cost: 45, effect: "Los barcos cuestan 15% menos oro." },
+  shipbuilding: { id: "shipbuilding", name: "Carpintería naval", branch: "seafaring", cost: 45, effect: "Los barcos cuestan 15% menos. Habilita Brulotes." },
   cartography: { id: "cartography", name: "Cartografía", branch: "seafaring", cost: 160, requires: "shipbuilding", effect: "Los viajes por mar son 25% más rápidos." },
 };
 

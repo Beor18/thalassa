@@ -13,7 +13,8 @@ import {
   computeLoot,
   countUnits,
   lootableFrom,
-  resolveCombat,
+  resolveAssault,
+  type AssaultResult,
   type PlayerState,
 } from "@/game/engine";
 import type { Text } from "@/i18n/config";
@@ -140,6 +141,23 @@ async function arriveTransport(tx: Tx, m: MissionRow, t: number) {
   await startReturn(tx, m, t, { cargo: {} });
 }
 
+/**
+ * The numbers a battle report shows. Units and losses add up both phases; `attackPower` and
+ * `defensePower` are the land battle's, or the sea battle's when the landing was turned back.
+ */
+function battleNumbers(result: AssaultResult) {
+  const decisive = result.land ?? result.sea!;
+  return {
+    attackPower: decisive.attackPower,
+    defensePower: decisive.defensePower,
+    attackerWins: result.attackerWins,
+    ...(result.sea && {
+      sea: { attackPower: result.sea.attackPower, defensePower: result.sea.defensePower, attackerWins: result.sea.attackerWins },
+    }),
+    ...(result.turnedBack && { turnedBack: true }),
+  };
+}
+
 async function arriveAttackCity(tx: Tx, m: MissionRow, t: number) {
   const [target] = await tx.select({ playerId: cities.playerId }).from(cities).where(eq(cities.id, m.targetCityId!));
   if (!target) {
@@ -155,7 +173,8 @@ async function arriveAttackCity(tx: Tx, m: MissionRow, t: number) {
   }
   const defenderUnits: UnitBag = { ...city.units };
   const wall = buildingLevel(city, "wall");
-  const result = resolveCombat(m.units, defenderUnits, wall);
+  // Docked warships meet the fleet at sea first; only if the sea is clear do troops land.
+  const result = resolveAssault(m.units, defenderUnits, wall);
   city.units = result.defenderSurvivors;
 
   let loot = emptyBag();
@@ -168,22 +187,15 @@ async function arriveAttackCity(tx: Tx, m: MissionRow, t: number) {
   const body = {
     target: { kind: "city", name: city.name, islandName: city.island.name, playerName: defender.name },
     attacker: { name: attackerLabel.playerName, city: attackerLabel.name, units: m.units, losses: result.attackerLosses },
-    defender: { name: defender.name, units: defenderUnits, losses: result.defenderLosses, wall, effectiveWall: result.effectiveWall },
-    attackPower: result.attackPower,
-    defensePower: result.defensePower,
-    attackerWins: result.attackerWins,
+    defender: { name: defender.name, units: defenderUnits, losses: result.defenderLosses, wall, effectiveWall: result.land?.effectiveWall ?? wall },
+    ...battleNumbers(result),
     loot,
   };
   const attacker = attackerLabel.playerName;
-  await report(tx, m.playerId, "battle", result.attackerWins ? T.victory(city.name) : T.defeat(city.name), { ...body, role: "attacker" }, t);
-  await report(
-    tx,
-    defender.id,
-    "battle",
-    result.attackerWins ? T.raided(attacker, city.name) : T.droveOff(attacker),
-    { ...body, role: "defender" },
-    t,
-  );
+  const attackerTitle = result.turnedBack ? T.turnedBack(city.name) : result.attackerWins ? T.victory(city.name) : T.defeat(city.name);
+  const defenderTitle = result.turnedBack ? T.heldTheSea(attacker) : result.attackerWins ? T.raided(attacker, city.name) : T.droveOff(attacker);
+  await report(tx, m.playerId, "battle", attackerTitle, { ...body, role: "attacker" }, t);
+  await report(tx, defender.id, "battle", defenderTitle, { ...body, role: "defender" }, t);
   await startReturn(tx, m, t, { units: result.attackerSurvivors, cargo: loot });
 }
 
@@ -203,7 +215,8 @@ async function arriveAttackBarbarians(tx: Tx, m: MissionRow, t: number) {
     return;
   }
   const army = barbarianArmy(island.barbarianLevel);
-  const result = resolveCombat(m.units, army.units, army.wall);
+  // Barbarians have no fleet: no sea battle, warships join the assault on land.
+  const result = resolveAssault(m.units, army.units, army.wall);
   let loot = emptyBag();
   if (result.attackerWins && countUnits(result.attackerSurvivors) > 0) {
     loot = computeLoot(barbarianLoot(island.barbarianLevel), m.ships * BALANCE.shipCapacity);
@@ -221,10 +234,8 @@ async function arriveAttackBarbarians(tx: Tx, m: MissionRow, t: number) {
       role: "attacker",
       target: { kind: "barbarians", name: "Campamento bárbaro", islandName: island.name, level: island.barbarianLevel },
       attacker: { name: attackerLabel.playerName, city: attackerLabel.name, units: m.units, losses: result.attackerLosses },
-      defender: { name: "Bárbaros", units: army.units, losses: result.defenderLosses, wall: army.wall, effectiveWall: result.effectiveWall },
-      attackPower: result.attackPower,
-      defensePower: result.defensePower,
-      attackerWins: result.attackerWins,
+      defender: { name: "Bárbaros", units: army.units, losses: result.defenderLosses, wall: army.wall, effectiveWall: result.land?.effectiveWall ?? army.wall },
+      ...battleNumbers(result),
       loot,
     },
     t,

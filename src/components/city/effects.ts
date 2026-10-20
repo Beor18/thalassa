@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, RESOURCES, UNITS, UNIT_TYPES, emptyBag, type BuildingType, type ResourceBag } from "@/game/data";
+import { BALANCE, BUILDINGS, RESOURCES, UNIT_TYPES, emptyBag, yardRequirement, type BuildingType, type ResourceBag } from "@/game/data";
 import {
   buildingCost,
   buildingLevel,
@@ -34,6 +34,12 @@ export function withLevel(city: CityState, slot: number, type: BuildingType, lev
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const barracksCut = (level: number) => Math.min(0.4, level * 0.02);
+/** Units the Barracks or the Port starts training at exactly this level. */
+const unlockedAt = (yard: "barracks" | "port", level: number) =>
+  UNIT_TYPES.filter((u) => {
+    const [y, l] = yardRequirement(u);
+    return y === yard && l === level;
+  });
 const woodCut = (p: PlayerState, carpenter: number) => Math.min(0.5, carpenter * 0.02 + (hasTech(p, "pulley") ? 0.1 : 0));
 
 /** Short phrases for what `level` adds over the level before it ("+55 housing"). Empty when nothing measurable changes. */
@@ -68,13 +74,17 @@ export function levelGain(p: PlayerState, city: CityState, slot: number, type: B
     case "barracks": {
       const faster = barracksCut(buildingLevel(after, "barracks")) - barracksCut(buildingLevel(before, "barracks"));
       if (faster > 0) out.push(en ? `trains ${pct(faster)} faster` : `entrena ${pct(faster)} más rápido`);
-      const unlocked = UNIT_TYPES.filter((u) => UNITS[u].requires.barracks === level).map((u) => unitName(u, lang, en ? 2 : 1));
+      const unlocked = unlockedAt("barracks", level).map((u) => unitName(u, lang, en ? 2 : 1));
       if (unlocked.length) out.push(`${en ? "unlocks" : "habilita"} ${joinList(unlocked, lang)}`);
       break;
     }
     case "port": {
       const berths = maxShips(after) - maxShips(before);
       out.push(`+${fmt(berths)} ${en ? (berths === 1 ? "berth" : "berths") : "amarras"}`);
+      const faster = barracksCut(buildingLevel(after, "port")) - barracksCut(buildingLevel(before, "port"));
+      if (faster > 0 && buildingLevel(before, "port") >= 1) out.push(en ? `builds warships ${pct(faster)} faster` : `arma barcos de guerra ${pct(faster)} más rápido`);
+      const unlocked = unlockedAt("port", level).map((u) => unitName(u, lang, en ? 2 : 1));
+      if (unlocked.length) out.push(`${en ? "unlocks" : "habilita"} ${joinList(unlocked, lang)}`);
       break;
     }
     case "wall":

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BUILDINGS } from "@/game/data";
+import { BUILDINGS, unitYard } from "@/game/data";
 import { buildingName, resourceLabel } from "@/game/names";
 import { CONSTRUCTION_IMAGE } from "@/game/layout";
 import { Countdown, TimeProgress } from "@/components/ui/countdown";
@@ -22,8 +22,14 @@ export async function CityStatus({ game }: { game: Game }) {
   const { snapshot, city } = game;
   const r = city.rates;
   const work = city.construction;
-  const training = [...city.training].sort((a, b) => a.endsAt - b.endsAt);
-  const barracks = city.buildings.find((b) => b.type === "barracks");
+  // Each yard has its own queue: troops at the Barracks, warships at the Port.
+  const queues = (["barracks", "port"] as const)
+    .map((yard) => ({
+      yard,
+      building: city.buildings.find((b) => b.type === yard),
+      batches: city.training.filter((b) => unitYard(b.unit) === yard).sort((a, b) => a.endsAt - b.endsAt),
+    }))
+    .filter((q) => q.building && q.batches.length > 0);
   const ready = readyUpgrades(asPlayer(snapshot), city, snapshot.speed);
   const goldNet = r.goldIncome - r.goldUpkeep;
   const lux = r.luxuryResource;
@@ -108,26 +114,32 @@ export async function CityStatus({ game }: { game: Game }) {
             {t({ en: "Tap a building to upgrade it or a ＋ to build.", es: "Tocá un edificio para mejorarlo o un ＋ para construir." })}
           </p>
         )}
-        {training.length > 0 && barracks && (
+        {queues.map(({ yard, building, batches }) => (
           <Link
-            href={slotHref(city.id, barracks.slot)}
+            key={yard}
+            href={slotHref(city.id, building!.slot)}
             scroll={false}
             className="flex min-h-10 items-center justify-between gap-2 rounded-lg px-1 text-sm hover:bg-ink/5"
           >
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <IconSword size={15} className="shrink-0 text-terracotta" />
               <span className="truncate">
-                {t({
-                  en: `Training ${unitCount(training[0].unit, training[0].count, lang)}${training.length > 1 ? ` and ${fmt(training.length - 1)} more` : ""}`,
-                  es: `Entrenando ${unitCount(training[0].unit, training[0].count, lang)}${training.length > 1 ? ` y ${fmt(training.length - 1)} más` : ""}`,
-                })}
+                {yard === "port"
+                  ? t({
+                      en: `Building ${unitCount(batches[0].unit, batches[0].count, lang)}${batches.length > 1 ? ` and ${fmt(batches.length - 1)} more` : ""}`,
+                      es: `Armando ${unitCount(batches[0].unit, batches[0].count, lang)}${batches.length > 1 ? ` y ${fmt(batches.length - 1)} más` : ""}`,
+                    })
+                  : t({
+                      en: `Training ${unitCount(batches[0].unit, batches[0].count, lang)}${batches.length > 1 ? ` and ${fmt(batches.length - 1)} more` : ""}`,
+                      es: `Entrenando ${unitCount(batches[0].unit, batches[0].count, lang)}${batches.length > 1 ? ` y ${fmt(batches.length - 1)} más` : ""}`,
+                    })}
               </span>
             </span>
             <span className="shrink-0 font-bold text-ink-soft">
-              <Countdown endsAt={training[training.length - 1].endsAt} serverNow={snapshot.now} />
+              <Countdown endsAt={batches[batches.length - 1].endsAt} serverNow={snapshot.now} />
             </span>
           </Link>
-        )}
+        ))}
       </section>
 
       <section aria-labelledby="city-summary-title" className="flex flex-col gap-2 border-t border-parchment-3/70 pt-3">

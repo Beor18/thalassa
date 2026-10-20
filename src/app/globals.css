@@ -738,3 +738,70 @@ body::before {
     animation-delay: 0s !important;
   }
 }
+
+/* ------------------------------------------------------------------------- */
+/* City wall ring (src/components/city/city-wall*.tsx)                        */
+/* ------------------------------------------------------------------------- */
+
+/* After an upgrade the wall bands rise from the ground, then the towers spring up with dust. */
+@keyframes wall-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.2%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes wall-tower-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10%, 0) scaleY(0.35);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleY(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes wall-dust {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  25% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+/* Pennants: the cloth swings from its pole. */
+@keyframes wall-wave {
+  0%,
+  100% {
+    transform: skewY(-5deg) scaleX(1);
+  }
+  50% {
+    transform: skewY(6deg) scaleX(0.88);
+  }
+}
+
+/* A slow light crossing the marble, then a long rest. */
+@keyframes wall-sheen {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  45%,
+  100% {
+    transform: translate3d(420%, 0, 0);
+  }
+}

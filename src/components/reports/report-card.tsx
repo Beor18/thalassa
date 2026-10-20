@@ -44,9 +44,14 @@ interface BattleBody {
   empty?: boolean;
   attacker?: Side;
   defender?: Side;
+  /** Land battle; when the landing was turned back, the sea battle's numbers. */
   attackPower?: number;
   defensePower?: number;
   attackerWins?: boolean;
+  /** Fleets fought at sea first (the defender had warships docked). Units and losses above add up both phases. */
+  sea?: { attackPower: number; defensePower: number; attackerWins: boolean };
+  /** The defender's fleet held the sea: nobody landed. */
+  turnedBack?: boolean;
   loot?: Partial<Record<Resource, number>>;
 }
 interface Place {
@@ -289,13 +294,17 @@ function BattleReport({ i, report, now, index }: { i: I18n; report: ReportRow; n
             <>
               <strong className={won ? "text-bronze-dark" : "text-danger"}>
                 {t(
-                  won
+                  b.turnedBack
                     ? role === "attacker"
-                      ? { en: "Victory", es: "Victoria" }
-                      : { en: "You held", es: "Resististe" }
-                    : role === "attacker"
-                      ? { en: "Defeat", es: "Derrota" }
-                      : { en: "You were raided", es: "Te saquearon" },
+                      ? { en: "Turned back at sea", es: "Rechazados en el mar" }
+                      : { en: "Your fleet held", es: "Tu flota resistió" }
+                    : won
+                      ? role === "attacker"
+                        ? { en: "Victory", es: "Victoria" }
+                        : { en: "You held", es: "Resististe" }
+                      : role === "attacker"
+                        ? { en: "Defeat", es: "Derrota" }
+                        : { en: "You were raided", es: "Te saquearon" },
                 )}
               </strong>
               {where && <span className="truncate">{where}</span>}
@@ -360,36 +369,54 @@ function BattleReport({ i, report, now, index }: { i: I18n; report: ReportRow; n
               ))}
             </tbody>
             <tfoot>
-              <tr>
-                <th scope="row" className="border-b border-parchment-3/70 py-1.5 pr-2 text-left font-bold">
-                  {buildingName("wall", i.lang)}
-                </th>
-                <td className="border-b border-parchment-3/70 px-2 py-1.5 text-right text-ink-soft">
-                  <span aria-hidden>·</span>
-                  <span className="sr-only">{t({ en: "Not applicable", es: "No aplica" })}</span>
-                </td>
-                <td className="tabular border-b border-parchment-3/70 py-1.5 pl-2 text-right">
-                  {wall === 0
-                    ? t({ en: "No wall", es: "Sin muralla" })
-                    : effective < wall
-                      ? t({ en: `Level ${wall} → ${effective}`, es: `Nivel ${wall} → ${effective}` })
-                      : t({ en: `Level ${wall}`, es: `Nivel ${wall}` })}
-                </td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-1.5 pr-2 text-left font-bold">
-                  {t({ en: "Power", es: "Poder" })}
-                </th>
-                <td className={clsx("tabular px-2 py-1.5 text-right", b.attackerWins ? "font-extrabold" : "text-ink-soft")}>
-                  {fmt(b.attackPower ?? 0)}
-                </td>
-                <td className={clsx("tabular py-1.5 pl-2 text-right", !b.attackerWins ? "font-extrabold" : "text-ink-soft")}>
-                  {fmt(b.defensePower ?? 0)}
-                </td>
-              </tr>
+              {b.sea && (
+                <PowerRow
+                  i={i}
+                  label={t({ en: "Power at sea", es: "Poder en el mar" })}
+                  attack={b.sea.attackPower}
+                  defense={b.sea.defensePower}
+                  attackerWins={b.sea.attackerWins}
+                  last={Boolean(b.turnedBack)}
+                />
+              )}
+              {!b.turnedBack && (
+                <>
+                  <tr>
+                    <th scope="row" className="border-b border-parchment-3/70 py-1.5 pr-2 text-left font-bold">
+                      {buildingName("wall", i.lang)}
+                    </th>
+                    <td className="border-b border-parchment-3/70 px-2 py-1.5 text-right text-ink-soft">
+                      <span aria-hidden>·</span>
+                      <span className="sr-only">{t({ en: "Not applicable", es: "No aplica" })}</span>
+                    </td>
+                    <td className="tabular border-b border-parchment-3/70 py-1.5 pl-2 text-right">
+                      {wall === 0
+                        ? t({ en: "No wall", es: "Sin muralla" })
+                        : effective < wall
+                          ? t({ en: `Level ${wall} → ${effective}`, es: `Nivel ${wall} → ${effective}` })
+                          : t({ en: `Level ${wall}`, es: `Nivel ${wall}` })}
+                    </td>
+                  </tr>
+                  <PowerRow
+                    i={i}
+                    label={b.sea ? t({ en: "Power on land", es: "Poder en tierra" }) : t({ en: "Power", es: "Poder" })}
+                    attack={b.attackPower ?? 0}
+                    defense={b.defensePower ?? 0}
+                    attackerWins={Boolean(b.attackerWins)}
+                    last
+                  />
+                </>
+              )}
             </tfoot>
           </table>
         </div>
+        {b.turnedBack && (
+          <p className="text-sm font-bold text-ink">
+            {role === "attacker"
+              ? t({ en: "Their fleet held the sea, so nobody landed. Your troops sailed home.", es: "Su flota defendió el mar y nadie desembarcó. Tus tropas volvieron." })
+              : t({ en: "Your warships held the sea, so nobody landed.", es: "Tus barcos de guerra defendieron el mar y nadie desembarcó." })}
+          </p>
+        )}
         {!hasLoot && (
           <p className="text-sm text-ink-soft">
             {role === "attacker"
@@ -399,6 +426,33 @@ function BattleReport({ i, report, now, index }: { i: I18n; report: ReportRow; n
         )}
       </div>
     </details>
+  );
+}
+
+function PowerRow({
+  i,
+  label,
+  attack,
+  defense,
+  attackerWins,
+  last = false,
+}: {
+  i: I18n;
+  label: string;
+  attack: number;
+  defense: number;
+  attackerWins: boolean;
+  last?: boolean;
+}) {
+  const line = last ? "" : "border-b border-parchment-3/70";
+  return (
+    <tr>
+      <th scope="row" className={clsx("py-1.5 pr-2 text-left font-bold", line)}>
+        {label}
+      </th>
+      <td className={clsx("tabular px-2 py-1.5 text-right", line, attackerWins ? "font-extrabold" : "text-ink-soft")}>{i.fmt(attack)}</td>
+      <td className={clsx("tabular py-1.5 pl-2 text-right", line, !attackerWins ? "font-extrabold" : "text-ink-soft")}>{i.fmt(defense)}</td>
+    </tr>
   );
 }
 

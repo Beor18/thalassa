@@ -1,18 +1,24 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BALANCE, UNITS, UNIT_TYPES, type BuildingType } from "@/game/data";
+import { BALANCE, LAND_UNITS, NAVAL_UNITS, UNITS, unitYard, type BuildingType, type Yard } from "@/game/data";
 import {
   ambrosiaToFinish,
   buildingLevel,
   canTrain,
+  countLand,
+  countNaval,
   hasTech,
   luxuryMultiplier,
   researchMultiplier,
   shipPrice,
+  unitCost,
+  unitSeconds,
   wineUse,
+  yardQueueEnd,
+  yardSpeedCut,
   type BuildingState,
 } from "@/game/engine";
+import { UnitArt } from "@/components/military/units";
 import { ActionButton } from "@/components/ui/action-button";
 import { buttonClass } from "@/components/ui/button";
 import { Countdown, TimeProgress } from "@/components/ui/countdown";
@@ -123,9 +129,14 @@ export async function BuildingInfo({ game, type, level }: { game: Game; type: Bu
       const cargo = fmt(BALANCE.shipCapacity);
       rules.push(
         t({
-          en: `Each ship carries ${cargo} cargo or ${BALANCE.unitsPerShip} soldiers. Every new ship costs a bit more.`,
-          es: `Cada barco lleva ${cargo} de carga o ${BALANCE.unitsPerShip} soldados. Cada barco nuevo cuesta un poco más.`,
+          en: `Each merchant ship carries ${cargo} cargo or ${BALANCE.unitsPerShip} soldiers. Every new one costs a bit more.`,
+          es: `Cada mercante lleva ${cargo} de carga o ${BALANCE.unitsPerShip} soldados. Cada mercante nuevo cuesta un poco más.`,
         }),
+        t({
+          en: "Warships sail on their own and guard the harbor: an enemy has to beat them at sea before landing troops.",
+          es: "Los barcos de guerra navegan solos y cuidan el puerto: el enemigo tiene que vencerlos en el mar antes de desembarcar.",
+        }),
+        t({ en: "Each level builds warships 2% faster, up to 40%.", es: "Cada nivel construye barcos de guerra 2% más rápido, hasta 40%." }),
       );
       break;
     }
@@ -467,39 +478,83 @@ async function PalaceSection({ game, level }: { game: Game; level: number }) {
   );
 }
 
-async function BarracksSection({ game }: { game: Game }) {
-  const { t, lang, fmt } = await getI18n();
+/** The units a yard makes, as tiles for the training picker: Barracks troops or Port warships. */
+async function yardOptions(game: Game, yard: Yard): Promise<UnitOption[]> {
+  const { t, lang } = await getI18n();
   const { snapshot, city } = game;
   const p = asPlayer(snapshot);
-  const barracksCut = 1 - Math.min(0.4, buildingLevel(city, "barracks") * 0.02);
-  const drill = hasTech(p, "drill") ? 0.9 : 1;
-  const queue = [...city.training].sort((a, b) => a.endsAt - b.endsAt);
-  const lastEnd = queue.reduce((m, b) => Math.max(m, b.endsAt), 0);
-  const price = lastEnd > snapshot.now ? ambrosiaToFinish(snapshot.now, lastEnd) : 0;
-  const away = troopMissions(snapshot.missions, city.id);
-  const atHome = UNIT_TYPES.reduce((s, u) => s + (city.units[u] ?? 0), 0);
-  // Same net gold per hour the header shows: every city, minus the troops at sea.
-  const goldPerHour =
-    snapshot.cities.reduce((s, c) => s + c.rates.goldIncome - c.rates.goldUpkeep, 0) - snapshot.player.awayUpkeep * snapshot.speed;
-
-  const units: UnitOption[] = UNIT_TYPES.map((u) => {
+  return (yard === "port" ? NAVAL_UNITS : LAND_UNITS).map((u) => {
     const def = UNITS[u];
     const lock = canTrain(p, city, u, lang);
     const needsTech = def.requires.tech != null && !hasTech(p, def.requires.tech);
     return {
       unit: u,
       name: unitName(u, lang),
-      image: def.image,
       attack: def.attack,
       defense: def.defense,
       upkeep: def.upkeep * snapshot.speed,
-      cost: def.cost,
-      secondsPerUnit: ((def.time * drill) / snapshot.speed) * barracksCut,
+      cost: unitCost(p, u),
+      secondsPerUnit: unitSeconds(p, city, u, snapshot.speed),
       home: city.units[u] ?? 0,
       lock,
       unlock: lock && needsTech ? { href: "/investigacion", label: t({ en: "Research", es: "Investigar" }) } : null,
     };
   });
+}
+
+/** Same net gold per hour the header shows: every city, minus the troops at sea. */
+const netGoldPerHour = ({ snapshot }: Game) =>
+  snapshot.cities.reduce((s, c) => s + c.rates.goldIncome - c.rates.goldUpkeep, 0) - snapshot.player.awayUpkeep * snapshot.speed;
+
+/** One yard's queue (Barracks or shipyard) with its néctar finish. Nothing when it is empty. */
+async function YardQueue({ game, yard }: { game: Game; yard: Yard }) {
+  const { t, lang, fmt } = await getI18n();
+  const { snapshot, city } = game;
+  const queue = city.training.filter((b) => unitYard(b.unit) === yard).sort((a, b) => a.endsAt - b.endsAt);
+  if (!queue.length) return null;
+  const lastEnd = yardQueueEnd(city, yard);
+  const price = lastEnd > snapshot.now ? ambrosiaToFinish(snapshot.now, lastEnd) : 0;
+  return (
+    <Block title={yard === "port" ? t({ en: "In the shipyard", es: "En el astillero" }) : t({ en: "In training", es: "En entrenamiento" })} tone="inset">
+      <ul className="flex flex-col gap-2">
+        {queue.map((b) => (
+          <li key={b.id} className="flex items-center gap-2.5">
+            <UnitArt unit={b.unit} size={32} className="size-8 shrink-0 object-contain" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <p className="flex justify-between gap-2 text-sm">
+                <span className="truncate font-bold">{unitCount(b.unit, b.count, lang)}</span>
+                <span className="shrink-0 font-bold text-ink-soft">
+                  {b.startedAt > snapshot.now ? t({ en: "Queued · ", es: "En espera · " }) : ""}
+                  <Countdown endsAt={b.endsAt} serverNow={snapshot.now} />
+                </span>
+              </p>
+              <TimeProgress startedAt={b.startedAt} endsAt={b.endsAt} serverNow={snapshot.now} />
+            </div>
+          </li>
+        ))}
+      </ul>
+      {price > 0 &&
+        (snapshot.player.ambrosia >= price ? (
+          <ActionButton
+            variant="ambrosia"
+            className="w-full"
+            pendingLabel={t({ en: "Finishing…", es: "Terminando…" })}
+            action={finishNowAction.bind(null, { cityId: city.id, what: yard === "port" ? "shipyard" : "training" })}
+          >
+            {t({ en: `Finish now for ${fmt(price)} Nectar`, es: `Terminar ya por ${fmt(price)} de néctar` })}
+          </ActionButton>
+        ) : (
+          <NectarHint price={price} msLeft={lastEnd - snapshot.now} />
+        ))}
+    </Block>
+  );
+}
+
+async function BarracksSection({ game }: { game: Game }) {
+  const { t, fmt } = await getI18n();
+  const { snapshot, city } = game;
+  const away = troopMissions(snapshot.missions, city.id).filter((m) => countLand(m.units) > 0);
+  const atHome = countLand(city.units);
 
   return (
     <>
@@ -513,51 +568,61 @@ async function BarracksSection({ game }: { game: Game }) {
       >
         <TrainingPicker
           cityId={city.id}
-          units={units}
+          units={await yardOptions(game, "barracks")}
           freeCitizens={city.rates.freeCitizens}
           res={city.res}
-          goldPerHour={goldPerHour}
+          goldPerHour={netGoldPerHour(game)}
           taxPerCitizen={BALANCE.goldPerCitizen * snapshot.speed}
         />
       </Block>
 
-      {queue.length > 0 && (
-        <Block title={t({ en: "In training", es: "En entrenamiento" })} tone="inset">
-          <ul className="flex flex-col gap-2">
-            {queue.map((b) => (
-              <li key={b.id} className="flex items-center gap-2.5">
-                <Image src={UNITS[b.unit].image} alt="" width={64} height={64} sizes="32px" className="size-8 shrink-0 object-contain" />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="flex justify-between gap-2 text-sm">
-                    <span className="truncate font-bold">{unitCount(b.unit, b.count, lang)}</span>
-                    <span className="shrink-0 font-bold text-ink-soft">
-                      {b.startedAt > snapshot.now ? t({ en: "Queued · ", es: "En espera · " }) : ""}
-                      <Countdown endsAt={b.endsAt} serverNow={snapshot.now} />
-                    </span>
-                  </p>
-                  <TimeProgress startedAt={b.startedAt} endsAt={b.endsAt} serverNow={snapshot.now} />
-                </div>
-              </li>
-            ))}
-          </ul>
-          {price > 0 &&
-            (snapshot.player.ambrosia >= price ? (
-              <ActionButton
-                variant="ambrosia"
-                className="w-full"
-                pendingLabel={t({ en: "Finishing…", es: "Terminando…" })}
-                action={finishNowAction.bind(null, { cityId: city.id, what: "training" })}
-              >
-                {t({ en: `Finish now for ${fmt(price)} Nectar`, es: `Terminar ya por ${fmt(price)} de néctar` })}
-              </ActionButton>
-            ) : (
-              <NectarHint price={price} msLeft={lastEnd - snapshot.now} />
-            ))}
-        </Block>
-      )}
+      <YardQueue game={game} yard="barracks" />
 
       {away.length > 0 && (
         <Block title={t({ en: "Away from the city", es: "Fuera de la ciudad" })}>
+          <TroopsAway missions={away} now={snapshot.now} />
+        </Block>
+      )}
+    </>
+  );
+}
+
+/** The Port's war shipyard: warship tiles and one build form, the shipyard queue, the fleet away. */
+async function WarShipyard({ game }: { game: Game }) {
+  const { t, lang, fmt } = await getI18n();
+  const { snapshot, city } = game;
+  const docked = countNaval(city.units);
+  const away = troopMissions(snapshot.missions, city.id).filter((m) => countNaval(m.units) > 0);
+  const faster = yardSpeedCut(buildingLevel(city, "port"));
+  return (
+    <>
+      <Block
+        title={t({ en: "War shipyard", es: "Astillero de guerra" })}
+        aside={
+          docked > 0 ? t({ en: `${fmt(docked)} in port`, es: `${fmt(docked)} en el puerto` }) : t({ en: "none in port", es: "ninguno en el puerto" })
+        }
+      >
+        <TrainingPicker
+          cityId={city.id}
+          yard="port"
+          units={await yardOptions(game, "port")}
+          freeCitizens={city.rates.freeCitizens}
+          res={city.res}
+          goldPerHour={netGoldPerHour(game)}
+          taxPerCitizen={BALANCE.goldPerCitizen * snapshot.speed}
+        />
+        <p className="text-sm text-ink-soft">
+          {t({
+            en: `They sail on their own, guard this harbor and carry no loot.${faster > 0 ? ` Your ${buildingName("port", lang)} builds them ${Math.round(faster * 100)}% faster.` : ""}`,
+            es: `Navegan solos, cuidan este puerto y no cargan botín.${faster > 0 ? ` Tu ${buildingName("port", lang)} los construye ${Math.round(faster * 100)}% más rápido.` : ""}`,
+          })}
+        </p>
+      </Block>
+
+      <YardQueue game={game} yard="port" />
+
+      {away.length > 0 && (
+        <Block title={t({ en: "At sea", es: "En el mar" })}>
           <TroopsAway missions={away} now={snapshot.now} />
         </Block>
       )}
@@ -623,28 +688,36 @@ async function PortSection({ game }: { game: Game }) {
     </>
   );
 
-  if (destinations.length === 0) return <Block title={t({ en: "Ships", es: "Barcos" })}>{fleet}</Block>;
-
+  const send = destinations.length > 0 && {
+    id: "send",
+    label: t({ en: "Send", es: "Enviar" }),
+    content: (
+      <TransportForm
+        key={city.ships}
+        cityId={city.id}
+        ships={city.ships}
+        shipCapacity={BALANCE.shipCapacity}
+        stock={city.res}
+        destinations={destinations}
+      />
+    ),
+  };
+  const warships = countNaval(city.units);
+  // Opens on what the player is most likely here for: shipping goods when there are ships to load,
+  // buying a merchant ship otherwise. Warships are one tab away.
   return (
     <PanelTabs
       label={buildingName("port", lang)}
-      initial={city.ships > 0 ? "send" : "fleet"}
+      initial={send && city.ships > 0 ? "send" : "fleet"}
       tabs={[
+        ...(send ? [send] : []),
+        { id: "fleet", label: t({ en: "Merchants", es: "Mercantes" }), badge: fmt(city.ships), content: fleet },
         {
-          id: "send",
-          label: t({ en: "Send goods", es: "Enviar recursos" }),
-          content: (
-            <TransportForm
-              key={city.ships}
-              cityId={city.id}
-              ships={city.ships}
-              shipCapacity={BALANCE.shipCapacity}
-              stock={city.res}
-              destinations={destinations}
-            />
-          ),
+          id: "war",
+          label: t({ en: "Warships", es: "Guerra" }),
+          badge: warships > 0 ? fmt(warships) : undefined,
+          content: <WarShipyard game={game} />,
         },
-        { id: "fleet", label: t({ en: "Ships", es: "Barcos" }), badge: fmt(city.ships), content: fleet },
       ]}
     />
   );

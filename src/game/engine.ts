@@ -12,6 +12,9 @@ import {
   UNITS,
   UNIT_TYPES,
   emptyBag,
+  isNaval,
+  unitYard,
+  yardRequirement,
   type BuildingType,
   type LuxuryResource,
   type Resource,
@@ -19,6 +22,7 @@ import {
   type TechId,
   type UnitBag,
   type UnitType,
+  type Yard,
 } from "./data";
 import { buildingName, resourceLabel, techName } from "./names";
 
@@ -475,16 +479,32 @@ export function ambrosiaToFinish(now: number, endsAt: number): number {
   return Math.max(1, Math.ceil(minutes * BALANCE.ambrosiaPerMinute));
 }
 
-export function finishWithAmbrosia(p: PlayerState, cityId: string, what: "construction" | "training", now: number) {
+/** What néctar can finish: the building work, the Barracks queue or the Port's shipyard queue. */
+export type FinishTarget = "construction" | "training" | "shipyard";
+const yardOf = (what: Exclude<FinishTarget, "construction">): Yard => (what === "training" ? "barracks" : "port");
+
+/** When the last batch queued at `yard` is done (0 when its queue is empty). */
+export function yardQueueEnd(city: CityState, yard: Yard): number {
+  return city.training.reduce((m, b) => (unitYard(b.unit) === yard ? Math.max(m, b.endsAt) : m), 0);
+}
+
+/** When `what` is done, if anything is running. */
+export function finishTargetEnd(city: CityState, what: FinishTarget): number | undefined {
+  return (what === "construction" ? city.construction?.endsAt : yardQueueEnd(city, yardOf(what))) || undefined;
+}
+
+export function finishWithAmbrosia(p: PlayerState, cityId: string, what: FinishTarget, now: number) {
   const city = getCity(p, cityId);
-  const endsAt =
-    what === "construction" ? city.construction?.endsAt : city.training.reduce((m, b) => Math.max(m, b.endsAt), 0) || undefined;
+  const endsAt = finishTargetEnd(city, what);
   if (!endsAt || endsAt <= now) throw new GameError({ en: "There's nothing to finish.", es: "No hay nada para terminar." });
   const price = ambrosiaToFinish(now, endsAt);
   if (p.ambrosia < price) throw new GameError(needsNectar(price));
   p.ambrosia -= price;
   if (what === "construction" && city.construction) city.construction.endsAt = now;
-  if (what === "training") for (const b of city.training) b.endsAt = Math.min(b.endsAt, now);
+  else if (what !== "construction") {
+    const yard = yardOf(what);
+    for (const b of city.training) if (unitYard(b.unit) === yard) b.endsAt = Math.min(b.endsAt, now);
+  }
   completeEvents(p, now);
   return price;
 }
@@ -528,12 +548,32 @@ export function setWineLevel(p: PlayerState, cityId: string, level: number) {
   city.wineLevel = level;
 }
 
-/** Why `unit` can't be trained in this city yet, in every language; null when it can. */
+/** Why `unit` can't be trained (or, for warships, built) in this city yet, in every language; null when it can. */
 export function trainBlocker(p: PlayerState, city: CityState, unit: UnitType): Text | null {
   const def = UNITS[unit];
-  if (buildingLevel(city, "barracks") < def.requires.barracks) return needsBuilding("barracks", def.requires.barracks);
+  const [yard, level] = yardRequirement(unit);
+  if (buildingLevel(city, yard) < level) return needsBuilding(yard, level);
   if (def.requires.tech && !hasTech(p, def.requires.tech)) return needsTech(def.requires.tech);
   return null;
+}
+
+/** What one unit costs this player: Shipbuilding makes warships 15% cheaper, like merchant ships. */
+export function unitCost(p: PlayerState, unit: UnitType): Partial<ResourceBag> {
+  const def = UNITS[unit];
+  const cut = isNaval(unit) && hasTech(p, "shipbuilding") ? 0.85 : 1;
+  const cost: Partial<ResourceBag> = {};
+  for (const r of RESOURCES) if (def.cost[r]) cost[r] = Math.round(def.cost[r]! * cut);
+  return cost;
+}
+
+/** Each level of the yard (Barracks or Port) works 2% faster, up to 40%. */
+export const yardSpeedCut = (level: number) => Math.min(0.4, level * 0.02);
+
+/** Seconds one unit takes in this city: Drill speeds up troops, each yard level speeds up its own units. */
+export function unitSeconds(p: PlayerState, city: CityState, unit: UnitType, speed: number): number {
+  const yard = unitYard(unit);
+  const drill = yard === "barracks" && hasTech(p, "drill") ? 0.9 : 1;
+  return ((UNITS[unit].time * drill) / speed) * (1 - yardSpeedCut(buildingLevel(city, yard)));
 }
 
 /** trainBlocker in one language (Spanish unless told otherwise, as before). */
@@ -547,15 +587,14 @@ export function trainUnits(p: PlayerState, cityId: string, unit: UnitType, count
   const why = trainBlocker(p, city, unit);
   if (why) throw new GameError(why);
   if (freeCitizens(city) < count) throw new GameError({ en: "Not enough idle citizens.", es: "No hay suficientes ciudadanos libres." });
-  const def = UNITS[unit];
+  const each = unitCost(p, unit);
   const cost: Partial<ResourceBag> = {};
-  for (const r of RESOURCES) if (def.cost[r]) cost[r] = def.cost[r]! * count;
+  for (const r of RESOURCES) if (each[r]) cost[r] = each[r]! * count;
   pay(city, cost);
-  city.population -= count;
-  const per = (def.time * (hasTech(p, "drill") ? 0.9 : 1)) / speed;
-  const barracksCut = 1 - Math.min(0.4, buildingLevel(city, "barracks") * 0.02);
-  const seconds = Math.max(3, Math.round(per * count * barracksCut));
-  const start = Math.max(now, ...city.training.map((b) => b.endsAt));
+  city.population -= count; // troops and ship crews both come from idle citizens
+  const seconds = Math.max(3, Math.round(unitSeconds(p, city, unit, speed) * count));
+  // The Barracks and the Port's shipyard each keep their own queue.
+  const start = Math.max(now, yardQueueEnd(city, unitYard(unit)));
   const batch: TrainingBatch = { id, unit, count, startedAt: start, endsAt: start + seconds * 1000 };
   city.training.push(batch);
   return batch;
@@ -623,6 +662,29 @@ export function travelSeconds(p: PlayerState, from: { x: number; y: number }, to
 export const shipsForCargo = (total: number) => Math.ceil(total / BALANCE.shipCapacity);
 export const shipsForUnits = (units: number) => Math.max(1, Math.ceil(units / BALANCE.unitsPerShip));
 export const countUnits = (u: UnitBag) => UNIT_TYPES.reduce((s, t) => s + (u[t] ?? 0), 0);
+
+function pickUnits(units: UnitBag, naval: boolean): UnitBag {
+  const out: UnitBag = {};
+  for (const t of UNIT_TYPES) if (isNaval(t) === naval && (units[t] ?? 0) > 0) out[t] = units[t];
+  return out;
+}
+/** Soldiers and siege engines (they need merchant ships to cross the sea). */
+export const landUnits = (units: UnitBag) => pickUnits(units, false);
+/** Warships (they sail on their own). */
+export const navalUnits = (units: UnitBag) => pickUnits(units, true);
+export const countLand = (units: UnitBag) => countUnits(landUnits(units));
+export const countNaval = (units: UnitBag) => countUnits(navalUnits(units));
+/** Merchant ships an army needs: only land troops ride them, warships sail alone. */
+export function transportShipsFor(units: UnitBag): number {
+  const land = countLand(units);
+  return land > 0 ? shipsForUnits(land) : 0;
+}
+
+function mergeUnits(...bags: (UnitBag | undefined)[]): UnitBag {
+  const out: UnitBag = {};
+  for (const bag of bags) for (const t of UNIT_TYPES) if (bag?.[t]) out[t] = (out[t] ?? 0) + bag[t]!;
+  return out;
+}
 
 export function takeUnits(city: CityState, units: UnitBag) {
   for (const t of UNIT_TYPES) {
@@ -710,6 +772,61 @@ export function resolveCombat(attacker: UnitBag, defender: UnitBag, wallLevel: n
     attackerSurvivors: a.survivors,
     defenderSurvivors: d.survivors,
     effectiveWall,
+  };
+}
+
+export interface AssaultResult {
+  /** Warship against warship. Fought only when the defender has warships docked. */
+  sea: CombatResult | null;
+  /** The defender's fleet held: nobody landed and the attackers sail home. */
+  turnedBack: boolean;
+  /** The battle at the walls, or null when turned back at sea. */
+  land: CombatResult | null;
+  /** Landed and won on land. */
+  attackerWins: boolean;
+  attackerLosses: UnitBag;
+  defenderLosses: UnitBag;
+  attackerSurvivors: UnitBag;
+  defenderSurvivors: UnitBag;
+}
+
+/**
+ * A full attack on a coastal target. If the defender has warships docked, the fleets fight first
+ * (no wall at sea). Lose at sea and the landing is turned back: troops on the transports never
+ * fight. Win at sea, or meet no fleet, and the land battle runs as always, with the wall; the
+ * warships that are still afloat on either side join it.
+ */
+export function resolveAssault(attacker: UnitBag, defender: UnitBag, wallLevel: number): AssaultResult {
+  let attackerShips = navalUnits(attacker);
+  let defenderShips = navalUnits(defender);
+  let sea: CombatResult | null = null;
+  if (countUnits(defenderShips) > 0) {
+    sea = resolveCombat(attackerShips, defenderShips, 0);
+    attackerShips = sea.attackerSurvivors;
+    defenderShips = sea.defenderSurvivors;
+    if (!sea.attackerWins) {
+      return {
+        sea,
+        turnedBack: true,
+        land: null,
+        attackerWins: false,
+        attackerLosses: sea.attackerLosses,
+        defenderLosses: sea.defenderLosses,
+        attackerSurvivors: mergeUnits(landUnits(attacker), attackerShips),
+        defenderSurvivors: mergeUnits(landUnits(defender), defenderShips),
+      };
+    }
+  }
+  const land = resolveCombat(mergeUnits(landUnits(attacker), attackerShips), mergeUnits(landUnits(defender), defenderShips), wallLevel);
+  return {
+    sea,
+    turnedBack: false,
+    land,
+    attackerWins: land.attackerWins,
+    attackerLosses: mergeUnits(sea?.attackerLosses, land.attackerLosses),
+    defenderLosses: mergeUnits(sea?.defenderLosses, land.defenderLosses),
+    attackerSurvivors: land.attackerSurvivors,
+    defenderSurvivors: land.defenderSurvivors,
   };
 }
 
